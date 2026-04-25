@@ -28,9 +28,19 @@ const (
 )
 
 type GitHubUser struct {
-	Login     string `json:"login"`
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatarUrl"`
+	Login       string `json:"login"`
+	Name        string `json:"name"`
+	AvatarURL   string `json:"avatarUrl"`
+	Bio         string `json:"bio"`
+	Company     string `json:"company"`
+	Location    string `json:"location"`
+	Blog        string `json:"blog"`
+	Email       string `json:"email"`
+	HTMLURL     string `json:"htmlUrl"`
+	PublicRepos int    `json:"publicRepos"`
+	Followers   int    `json:"followers"`
+	Following   int    `json:"following"`
+	CreatedAt   string `json:"createdAt"`
 }
 
 type DeviceFlowStart struct {
@@ -310,14 +320,38 @@ func (g *GitHub) GetUser() (GitHubUser, error) {
 		return GitHubUser{}, fmt.Errorf("github /user: %s — %s", resp.Status, strings.TrimSpace(string(body)))
 	}
 	var raw struct {
-		Login     string `json:"login"`
-		Name      string `json:"name"`
-		AvatarURL string `json:"avatar_url"`
+		Login       string `json:"login"`
+		Name        string `json:"name"`
+		AvatarURL   string `json:"avatar_url"`
+		Bio         string `json:"bio"`
+		Company     string `json:"company"`
+		Location    string `json:"location"`
+		Blog        string `json:"blog"`
+		Email       string `json:"email"`
+		HTMLURL     string `json:"html_url"`
+		PublicRepos int    `json:"public_repos"`
+		Followers   int    `json:"followers"`
+		Following   int    `json:"following"`
+		CreatedAt   string `json:"created_at"`
 	}
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return GitHubUser{}, err
 	}
-	return GitHubUser{Login: raw.Login, Name: raw.Name, AvatarURL: raw.AvatarURL}, nil
+	return GitHubUser{
+		Login:       raw.Login,
+		Name:        raw.Name,
+		AvatarURL:   raw.AvatarURL,
+		Bio:         raw.Bio,
+		Company:     raw.Company,
+		Location:    raw.Location,
+		Blog:        raw.Blog,
+		Email:       raw.Email,
+		HTMLURL:     raw.HTMLURL,
+		PublicRepos: raw.PublicRepos,
+		Followers:   raw.Followers,
+		Following:   raw.Following,
+		CreatedAt:   raw.CreatedAt,
+	}, nil
 }
 
 // CreateAndPublish cria um repo no perfil do usuário, adiciona "origin" no

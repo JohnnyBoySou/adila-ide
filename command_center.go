@@ -152,6 +152,7 @@ var builtinCommands = []PaletteItem{
 	{ID: "toggleZen", Title: "Visualização: Alternar modo Zen", Icon: "screen-full", Hint: "Ctrl+K Z"},
 	{ID: "openWebview", Title: "Webview: Abrir URL como aba", Icon: "globe", Hint: "Ctrl+Shift+U"},
 	{ID: "openThemeEditor", Title: "Tema: Abrir editor de tema personalizado", Icon: "symbol-color"},
+	{ID: "openGitHubProfile", Title: "GitHub: Abrir perfil", Icon: "github"},
 	{ID: "git.stageAll", Title: "Git: Adicionar todos os arquivos", Icon: "diff-added"},
 	{ID: "git.push", Title: "Git: Enviar (push)", Icon: "cloud-upload"},
 	{ID: "reloadWindow", Title: "Recarregar janela", Icon: "refresh"},

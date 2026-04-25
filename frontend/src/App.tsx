@@ -1,3 +1,4 @@
+import { DevProfiler } from "@/components/DevProfiler";
 import { FpsMeter } from "@/components/FpsMeter";
 import { ShortcutHud, type ShortcutHint } from "@/components/ShortcutHud";
 import { Sidebar } from "@/components/Sidebar";
@@ -63,6 +64,9 @@ const OnboardingView = lazy(() =>
   import("@/features/onboarding/OnboardingView").then((m) => ({ default: m.OnboardingView })),
 );
 const GitView = lazy(() => import("@/features/git/GitView").then((m) => ({ default: m.GitView })));
+const GitHubProfileView = lazy(() =>
+  import("@/features/git/GitHubProfileView").then((m) => ({ default: m.GitHubProfileView })),
+);
 const KeybindingsView = lazy(() =>
   import("@/features/keybindings/KeybindingsView").then((m) => ({ default: m.KeybindingsView })),
 );
@@ -100,7 +104,8 @@ type View =
   | "keybindings"
   | "bench"
   | "themeEditor"
-  | "notifications";
+  | "notifications"
+  | "githubProfile";
 type BottomPanel = "terminal" | "problems" | "diff";
 
 function OverlayHeader({ title, onClose }: { title: string; onClose: () => void }) {
@@ -140,7 +145,9 @@ function SettingsOverlay({ onClose }: { onClose: () => void }) {
       <OverlayHeader title="Configurações" onClose={onClose} />
       <div className="flex-1 overflow-hidden">
         <Suspense fallback={<ViewFallback />}>
-          <SettingsView />
+          <DevProfiler id="SettingsView">
+            <SettingsView />
+          </DevProfiler>
         </Suspense>
       </div>
     </div>
@@ -155,7 +162,9 @@ function GitOverlay({ onClose, rootPath }: { onClose: () => void; rootPath: stri
       <OverlayHeader title="Controle de versão" onClose={onClose} />
       <div className="flex-1 overflow-hidden">
         <Suspense fallback={<ViewFallback />}>
-          <GitView rootPath={rootPath} />
+          <DevProfiler id="GitView">
+            <GitView rootPath={rootPath} />
+          </DevProfiler>
         </Suspense>
       </div>
     </div>
@@ -170,7 +179,9 @@ function NotificationsOverlay({ onClose }: { onClose: () => void }) {
       <OverlayHeader title="Notificações" onClose={onClose} />
       <div className="flex-1 overflow-hidden">
         <Suspense fallback={<ViewFallback />}>
-          <NotificationsView />
+          <DevProfiler id="NotificationsView">
+            <NotificationsView />
+          </DevProfiler>
         </Suspense>
       </div>
     </div>
@@ -562,6 +573,9 @@ function App() {
         case "openThemeEditor":
           setViewRef.current("themeEditor");
           break;
+        case "openGitHubProfile":
+          setViewRef.current("githubProfile");
+          break;
         case "openWebview":
           {
             const url = window.prompt(
@@ -946,6 +960,7 @@ function App() {
 
   // PaneTree controla todo o editor (split via drag-and-drop)
   const paneTreeEl = (
+    <DevProfiler id="PaneTree">
     <PaneTree
       root={rootPane}
       rootPath={rootPath}
@@ -963,6 +978,7 @@ function App() {
       onWebviewNavigate={onWebviewNavigate}
       emptyState={welcomeEl}
     />
+    </DevProfiler>
   );
 
   // Quando markdown preview está aberto, abre painel à direita com o preview do tab focado
@@ -1000,12 +1016,14 @@ function App() {
       <aside
         className={`h-full overflow-hidden ${sidebarLocation === "right" ? "border-l" : "border-r"}`}
       >
-        <Sidebar
-          rootPath={rootPath}
-          files={filesProps}
-          onOpenFile={stableOpenFile}
-          onGotoLine={onGotoLine}
-        />
+        <DevProfiler id="Sidebar">
+          <Sidebar
+            rootPath={rootPath}
+            files={filesProps}
+            onOpenFile={stableOpenFile}
+            onGotoLine={onGotoLine}
+          />
+        </DevProfiler>
       </aside>
     </ResizablePanel>
   );
@@ -1050,7 +1068,9 @@ function App() {
                       ? "Atalhos de teclado"
                       : view === "themeEditor"
                         ? "Editor de tema"
-                        : "Editor de texto"
+                        : view === "githubProfile"
+                          ? "Perfil do GitHub"
+                          : "Editor de texto"
               }
               onClose={() => setView("editor")}
             />
@@ -1062,6 +1082,7 @@ function App() {
               {view === "keybindings" && <KeybindingsView />}
               {view === "bench" && <BenchView />}
               {view === "themeEditor" && <ThemeEditor />}
+              {view === "githubProfile" && <GitHubProfileView />}
             </Suspense>
           </div>
         </div>
@@ -1111,16 +1132,18 @@ function App() {
       </div>
 
       {!zenMode && (
-        <StatusBar
-          activeTab={activeTab}
-          activeLang={activeTab ? (activeTab.path.split(".").pop()?.toLowerCase() ?? "") : ""}
-          rootPath={rootPath}
-          errorCount={errorCount}
-          warningCount={warningCount}
-          onOpenGit={() => setView("git")}
-          onOpenProblems={() => setBottomPanel((p) => (p === "problems" ? null : "problems"))}
-          onOpenNotifications={() => setView((v) => (v === "notifications" ? "editor" : "notifications"))}
-        />
+        <DevProfiler id="StatusBar">
+          <StatusBar
+            activeTab={activeTab}
+            activeLang={activeTab ? (activeTab.path.split(".").pop()?.toLowerCase() ?? "") : ""}
+            rootPath={rootPath}
+            errorCount={errorCount}
+            warningCount={warningCount}
+            onOpenGit={() => setView("git")}
+            onOpenProblems={() => setBottomPanel((p) => (p === "problems" ? null : "problems"))}
+            onOpenNotifications={() => setView((v) => (v === "notifications" ? "editor" : "notifications"))}
+          />
+        </DevProfiler>
       )}
 
       <Overlays

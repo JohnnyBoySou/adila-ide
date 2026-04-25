@@ -52,6 +52,16 @@ export interface GitHubUser {
   login: string;
   name: string;
   avatarUrl: string;
+  bio?: string;
+  company?: string;
+  location?: string;
+  blog?: string;
+  email?: string;
+  htmlUrl?: string;
+  publicRepos?: number;
+  followers?: number;
+  following?: number;
+  createdAt?: string;
 }
 
 export interface DeviceFlowStart {

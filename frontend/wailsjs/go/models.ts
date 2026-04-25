@@ -186,6 +186,16 @@ export namespace main {
 	    login: string;
 	    name: string;
 	    avatarUrl: string;
+	    bio: string;
+	    company: string;
+	    location: string;
+	    blog: string;
+	    email: string;
+	    htmlUrl: string;
+	    publicRepos: number;
+	    followers: number;
+	    following: number;
+	    createdAt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GitHubUser(source);
@@ -196,6 +206,16 @@ export namespace main {
 	        this.login = source["login"];
 	        this.name = source["name"];
 	        this.avatarUrl = source["avatarUrl"];
+	        this.bio = source["bio"];
+	        this.company = source["company"];
+	        this.location = source["location"];
+	        this.blog = source["blog"];
+	        this.email = source["email"];
+	        this.htmlUrl = source["htmlUrl"];
+	        this.publicRepos = source["publicRepos"];
+	        this.followers = source["followers"];
+	        this.following = source["following"];
+	        this.createdAt = source["createdAt"];
 	    }
 	}
 	export class GitRemote {

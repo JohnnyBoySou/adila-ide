@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 import { memo } from "react";
 import { EventsEmit } from "../../../../wailsjs/runtime/runtime";
+import { settingActions } from "../actions";
 import type { SettingDef } from "../settingsSchema";
 
 const FILE_TREE_KEYS = new Set(["explorer.excludeFolders"]);
@@ -43,7 +44,22 @@ interface SettingRowProps {
 export const SettingRow = memo(SettingRowImpl);
 
 function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
+  const isAction = def.type === "action";
   const { value, set, reset, loading } = useConfig<unknown>(def.key, def.defaultValue);
+
+  function runAction() {
+    if (!def.actionId) return;
+    const fn = settingActions[def.actionId];
+    if (!fn) {
+      toast.error(`Ação "${def.actionId}" não registrada`);
+      return;
+    }
+    try {
+      fn();
+    } catch (err) {
+      toast.error(`Falha ao executar "${def.title}"`, err);
+    }
+  }
 
   function update(next: unknown) {
     set(next)
@@ -69,7 +85,7 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
       });
   }
 
-  const isModified = !loading && !deepEqual(value, def.defaultValue);
+  const isModified = !isAction && !loading && !deepEqual(value, def.defaultValue);
 
   return (
     <div
@@ -148,6 +164,17 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
               placeholder="node_modules, dist, build"
               onChange={(e) => update(parseStringList(e.target.value))}
             />
+          )}
+          {def.type === "action" && (
+            <Button
+              id={def.key}
+              variant="outline"
+              size="sm"
+              onClick={runAction}
+              className="w-full"
+            >
+              {def.actionLabel ?? def.title}
+            </Button>
           )}
         </div>
         {isModified && (

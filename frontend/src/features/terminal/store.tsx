@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ClosePty, GetPty, StartPtyWith } from "../../../wailsjs/go/main/Terminal";
 
@@ -75,11 +75,12 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  return (
-    <Ctx.Provider value={{ sessions, activeId, create, close, focus, updateSession }}>
-      {children}
-    </Ctx.Provider>
+  const value = useMemo(
+    () => ({ sessions, activeId, create, close, focus, updateSession }),
+    [sessions, activeId, create, close, focus, updateSession],
   );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useTerminals(): TermStore {

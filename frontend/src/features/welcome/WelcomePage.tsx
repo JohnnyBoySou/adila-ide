@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ChevronRight, Clock, FolderOpen, Keyboard, Settings, X } from "lucide-react";
 import { motion } from "motion/react";
+import { GitHubProfileCard } from "@/features/git/GitHubProfileCard";
 
 type ActionRowProps = {
   icon: React.ReactNode;
@@ -100,6 +101,14 @@ export function WelcomePage({
 
         {/* Content */}
         <div className="max-w-3xl mx-auto px-10 py-10">
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.16 }}
+          >
+            <GitHubProfileCard />
+          </motion.div>
           <div className="grid grid-cols-2 gap-10">
             {/* Iniciar */}
             <motion.section

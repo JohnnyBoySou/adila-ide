@@ -130,7 +130,7 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
 
             <ol className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 size-5 shrink-0 rounded-full bg-muted text-center text-xs font-semibold leading-5 text-foreground">
+                <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
                   1
                 </span>
                 <span>
@@ -147,13 +147,13 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 size-5 shrink-0 rounded-full bg-muted text-center text-xs font-semibold leading-5 text-foreground">
+                <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
                   2
                 </span>
                 <span>Confirme o código e clique em "Authorize Adila IDE".</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 size-5 shrink-0 rounded-full bg-muted text-center text-xs font-semibold leading-5 text-foreground">
+                <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
                   3
                 </span>
                 <span className="flex items-center gap-2">

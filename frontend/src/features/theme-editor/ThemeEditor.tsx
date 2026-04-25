@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Code, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme, type CustomThemeConfig } from "@/hooks/useTheme";
 import { CUSTOM_THEME_ID, CUSTOM_THEME_VARS } from "@/lib/themes";
 
@@ -264,11 +265,11 @@ export function ThemeEditor() {
           </div>
         ) : (
           <div className="px-6 py-5 flex flex-col gap-3">
-            <textarea
+            <Textarea
               value={jsonDraft}
               onChange={(e) => setJsonDraft(e.target.value)}
               spellCheck={false}
-              className="font-mono text-xs min-h-[60vh] rounded-md border bg-input/30 p-3 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="font-mono text-xs min-h-[60vh] p-3"
             />
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={applyJson}>

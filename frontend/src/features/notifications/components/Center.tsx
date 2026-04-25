@@ -2,6 +2,7 @@ import { Bell, Search, Trash2, X } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { useNotificationsStore } from "@/stores/notificationsStore";
 import { rpc } from "../rpc";
 import { Toast } from "./Toast";
@@ -37,9 +38,9 @@ export const NotificationsView = memo(function NotificationsView() {
           <Bell className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold tracking-tight">Notificações</h2>
           {totalCount > 0 && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+            <Badge variant="secondary" className="tabular-nums">
               {totalCount}
-            </span>
+            </Badge>
           )}
           <div className="ml-auto flex items-center gap-2">
             <button

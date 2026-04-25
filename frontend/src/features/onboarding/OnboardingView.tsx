@@ -99,30 +99,27 @@ export function OnboardingView({ onComplete }: Props) {
               Pular
             </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={back}
               disabled={index === 0}
-              className="flex items-center justify-center size-11 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="size-11 rounded-full text-muted-foreground"
               aria-label="Voltar"
             >
               <ArrowLeft className="size-5" />
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant={isLast ? "default" : "ghost"}
+              size="icon"
               onClick={next}
               disabled={finishing}
-              className={cn(
-                "flex items-center justify-center size-11 rounded-full transition-colors",
-                isLast
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30",
-              )}
+              className={cn("size-11 rounded-full", !isLast && "text-muted-foreground")}
               aria-label={isLast ? "Concluir" : "Próximo"}
             >
               {isLast ? <Check className="size-5" /> : <ArrowRight className="size-5" />}
-            </button>
+            </Button>
           </div>
         </footer>
       </div>

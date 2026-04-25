@@ -1,4 +1,13 @@
-export type SettingType = "boolean" | "string" | "number" | "enum" | "color" | "string-list";
+import type { SettingActionId } from "./actions";
+
+export type SettingType =
+  | "boolean"
+  | "string"
+  | "number"
+  | "enum"
+  | "color"
+  | "string-list"
+  | "action";
 
 export interface SettingDef {
   key: string;
@@ -8,6 +17,8 @@ export interface SettingDef {
   defaultValue: unknown;
   options?: { value: string; label: string }[];
   keywords?: string[];
+  actionId?: SettingActionId;
+  actionLabel?: string;
 }
 
 export interface SettingsGroupDef {
@@ -714,6 +725,44 @@ export const settingsGroups: SettingsGroupDef[] = [
         type: "boolean",
         defaultValue: false,
         keywords: ["fps", "performance", "framerate", "diagnóstico", "developer"],
+      },
+      {
+        key: "developer.profiler",
+        title: "React Profiler",
+        description:
+          "Loga renders custosos (>5ms) no console com id, phase e duração. Use junto com React DevTools.",
+        type: "boolean",
+        defaultValue: false,
+        keywords: ["profiler", "react", "performance", "render", "diagnóstico", "developer"],
+      },
+      {
+        key: "developer.profilerThreshold",
+        title: "Limite do profiler (ms)",
+        description: "Renders mais rápidos que isso são ignorados pelo logger.",
+        type: "number",
+        defaultValue: 5,
+        keywords: ["profiler", "threshold", "limite", "ms", "developer"],
+      },
+      {
+        key: "developer.downloadProfile",
+        title: "Baixar profile JSON",
+        description:
+          "Exporta os renders agregados desde que o profiler foi habilitado, com sumário por id e log completo de eventos.",
+        type: "action",
+        defaultValue: null,
+        actionId: "downloadProfile",
+        actionLabel: "Baixar JSON",
+        keywords: ["download", "export", "profile", "json", "developer"],
+      },
+      {
+        key: "developer.clearProfile",
+        title: "Limpar sessão do profiler",
+        description: "Descarta todos os renders capturados na memória.",
+        type: "action",
+        defaultValue: null,
+        actionId: "clearProfile",
+        actionLabel: "Limpar",
+        keywords: ["clear", "limpar", "reset", "profile", "developer"],
       },
     ],
   },

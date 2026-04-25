@@ -24,13 +24,16 @@ import {
   RotateCcw,
   Undo2,
   Upload,
+  User as UserIcon,
   X,
 } from "lucide-react";
+import { EventsEmit } from "../../../wailsjs/runtime/runtime";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/useToast";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { SymbolIcon } from "@/components/SymbolIcon";
 import { rpc } from "./rpc";
 import { GitGraph } from "./GitGraph";
@@ -521,6 +524,17 @@ export const GitView = memo(function GitView({
       <button
         type="button"
         onClick={() => {
+          EventsEmit("commandCenter.exec", "openGitHubProfile");
+          setShowMenu(false);
+        }}
+        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+      >
+        <UserIcon className="size-3.5" />
+        Ver perfil do GitHub
+      </button>
+      <button
+        type="button"
+        onClick={() => {
           setShowPublish(true);
           setShowMenu(false);
         }}
@@ -705,7 +719,7 @@ export const GitView = memo(function GitView({
 
         {isRepo !== false && (
           <div className="border-b border-border/60 p-2 flex flex-col gap-2">
-            <textarea
+            <Textarea
               value={commitMsg}
               onChange={(e) => setCommitMsg(e.target.value)}
               onKeyDown={(e) => {
@@ -719,7 +733,7 @@ export const GitView = memo(function GitView({
               }
               disabled={staged.length === 0}
               rows={2}
-              className="w-full resize-none rounded-md border border-border/60 bg-input/30 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-40"
+              className="resize-none min-h-0 px-2 py-1.5 text-xs"
             />
             <Button
               size="sm"
@@ -1042,7 +1056,7 @@ export const GitView = memo(function GitView({
         {/* Commit area */}
         {isRepo !== false && (
           <div className="border-t border-border/60 p-2 flex flex-col gap-2">
-            <textarea
+            <Textarea
               value={commitMsg}
               onChange={(e) => setCommitMsg(e.target.value)}
               onKeyDown={(e) => {
@@ -1058,7 +1072,7 @@ export const GitView = memo(function GitView({
               }
               disabled={staged.length === 0}
               rows={3}
-              className="w-full resize-none rounded-md border border-border/60 bg-input/30 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-40"
+              className="resize-none min-h-0 px-2 py-1.5 text-xs"
             />
             <Button
               size="sm"

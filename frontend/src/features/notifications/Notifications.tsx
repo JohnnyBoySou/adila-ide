@@ -1,5 +1,8 @@
 import { Bell } from "lucide-react";
 import { memo, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { DevProfiler } from "@/components/DevProfiler";
 import { useNotificationsStore } from "@/stores/notificationsStore";
 import { rpc } from "./rpc";
 import type { LayoutMode, NotificationItem } from "./types";
@@ -63,23 +66,28 @@ export const Notifications = memo(function Notifications({
 
   return (
     <>
-      {toastItems.length > 0 && !centerOpen && <ToastList items={toastItems} />}
+      {toastItems.length > 0 && !centerOpen && (
+        <DevProfiler id="ToastList">
+          <ToastList items={toastItems} />
+        </DevProfiler>
+      )}
 
       {showBell && (
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => {
             onOpenCenter?.();
             void rpc.setCenterVisibility(true);
           }}
           aria-label="Abrir notificações"
-          className="pointer-events-auto fixed right-4 bottom-4 rounded-full border border-border bg-popover p-2 shadow-md hover:bg-muted"
+          className="pointer-events-auto fixed right-4 bottom-4 rounded-full bg-popover shadow-md"
         >
           <Bell className="size-4 text-muted-foreground" />
-          <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+          <Badge className="absolute -right-1 -top-1 size-4 min-w-0 rounded-full p-0 text-[10px]">
             {items.length}
-          </span>
-        </button>
+          </Badge>
+        </Button>
       )}
     </>
   );

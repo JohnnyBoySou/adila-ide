@@ -1,5 +1,6 @@
 import { lazy, memo, Suspense, useState } from "react";
 import { Bot, Files, GitBranch, Search } from "lucide-react";
+import { DevProfiler } from "@/components/DevProfiler";
 import {
   FileExplorer,
   type FileEntry,
@@ -56,7 +57,11 @@ export const Sidebar = memo(function Sidebar({ rootPath, files, onOpenFile, onGo
         })}
       </div>
       <div className="flex-1 overflow-hidden min-h-0">
-        {tab === "files" && <FileExplorer {...files} />}
+        {tab === "files" && (
+          <DevProfiler id="FileExplorer">
+            <FileExplorer {...files} />
+          </DevProfiler>
+        )}
         {tab === "search" && (
           <SearchView
             rootPath={rootPath}
