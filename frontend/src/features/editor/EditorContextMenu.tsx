@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { editor as MonacoEditor } from "monaco-editor";
 
 type Editor = MonacoEditor.IStandaloneCodeEditor;
@@ -18,8 +18,15 @@ export function EditorContextMenu({ getEditor, filePath, children }: Props) {
     <div
       className="h-full w-full"
       onContextMenu={(e) => {
-        if (!getEditor()) return;
+        const ed = getEditor();
+        if (!ed) return;
         e.preventDefault();
+        // Move o cursor pra posição do clique para que getAction().isSupported()
+        // reflita o contexto correto (símbolo embaixo do mouse, etc.).
+        const target = ed.getTargetAtClientPoint(e.clientX, e.clientY);
+        if (target?.position) {
+          ed.setPosition(target.position);
+        }
         setPos({ x: e.clientX, y: e.clientY });
       }}
     >
@@ -36,6 +43,147 @@ export function EditorContextMenu({ getEditor, filePath, children }: Props) {
   );
 }
 
+type Item =
+  | {
+      kind: "action";
+      label: string;
+      actionId: string;
+      requireSelection?: boolean;
+    }
+  | {
+      kind: "custom";
+      label: string;
+      onSelect: () => void;
+      shortcut?: string;
+    }
+  | { kind: "separator" };
+
+// Configuração canônica do menu (ordem fixa, presença dinâmica).
+const ITEMS: Item[] = [
+  { kind: "action", label: "Ir para definição", actionId: "editor.action.revealDefinition" },
+  { kind: "action", label: "Ir para implementação", actionId: "editor.action.goToImplementation" },
+  { kind: "action", label: "Ir para tipo", actionId: "editor.action.goToTypeDefinition" },
+  { kind: "action", label: "Localizar referências", actionId: "editor.action.goToReferences" },
+  { kind: "action", label: "Ir para símbolo no arquivo…", actionId: "editor.action.quickOutline" },
+  { kind: "separator" },
+  { kind: "action", label: "Renomear símbolo", actionId: "editor.action.rename" },
+  { kind: "action", label: "Refatorar…", actionId: "editor.action.refactor" },
+  { kind: "action", label: "Ações rápidas", actionId: "editor.action.quickFix" },
+  { kind: "action", label: "Mudar todas as ocorrências", actionId: "editor.action.changeAll" },
+  { kind: "separator" },
+  { kind: "action", label: "Recortar", actionId: "editor.action.clipboardCutAction", requireSelection: true },
+  { kind: "action", label: "Copiar", actionId: "editor.action.clipboardCopyAction", requireSelection: true },
+  { kind: "action", label: "Colar", actionId: "editor.action.clipboardPasteAction" },
+  { kind: "separator" },
+  { kind: "action", label: "Formatar documento", actionId: "editor.action.formatDocument" },
+  { kind: "action", label: "Formatar seleção", actionId: "editor.action.formatSelection", requireSelection: true },
+  { kind: "action", label: "Comentar linha", actionId: "editor.action.commentLine" },
+  { kind: "action", label: "Comentar bloco", actionId: "editor.action.blockComment" },
+  { kind: "separator" },
+  { kind: "custom", label: "Copiar caminho do arquivo", onSelect: () => {} },
+  { kind: "custom", label: "Copiar nome do arquivo", onSelect: () => {} },
+  { kind: "separator" },
+  { kind: "action", label: "Paleta de comandos", actionId: "editor.action.quickCommand" },
+];
+
+type ResolvedItem =
+  | {
+      kind: "item";
+      label: string;
+      shortcut?: string;
+      onSelect: () => void;
+    }
+  | { kind: "separator" };
+
+// Tenta extrair o keybinding registrado para uma action via API privada do Monaco.
+// Cai pra null se não conseguir — o item simplesmente fica sem shortcut.
+function lookupShortcut(editor: Editor, actionId: string): string | undefined {
+  try {
+    const svc = (editor as unknown as {
+      _standaloneKeybindingService?: {
+        lookupKeybinding: (id: string) => { getLabel: () => string | null } | null;
+      };
+    })._standaloneKeybindingService;
+    const kb = svc?.lookupKeybinding(actionId);
+    return kb?.getLabel() ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveItems(
+  editor: Editor,
+  filePath: string,
+  close: () => void,
+): ResolvedItem[] {
+  const hasSelection = !editor.getSelection()?.isEmpty();
+
+  const resolved: ResolvedItem[] = [];
+  for (const item of ITEMS) {
+    if (item.kind === "separator") {
+      resolved.push({ kind: "separator" });
+      continue;
+    }
+
+    if (item.kind === "custom") {
+      const onSelect =
+        item.label === "Copiar caminho do arquivo"
+          ? async () => {
+              try {
+                await navigator.clipboard.writeText(filePath);
+              } catch (e) {
+                console.error(e);
+              }
+              close();
+            }
+          : async () => {
+              try {
+                await navigator.clipboard.writeText(
+                  filePath.split("/").pop() ?? filePath,
+                );
+              } catch (e) {
+                console.error(e);
+              }
+              close();
+            };
+      resolved.push({ kind: "item", label: item.label, onSelect });
+      continue;
+    }
+
+    const action = editor.getAction(item.actionId);
+    if (!action) continue;
+    if (!action.isSupported()) continue;
+    if (item.requireSelection && !hasSelection) continue;
+
+    resolved.push({
+      kind: "item",
+      label: item.label,
+      shortcut: lookupShortcut(editor, item.actionId),
+      onSelect: () => {
+        editor.focus();
+        void action.run();
+        close();
+      },
+    });
+  }
+
+  // Colapsa separadores órfãos: nunca em primeiro/último, nunca consecutivos.
+  const cleaned: ResolvedItem[] = [];
+  for (const r of resolved) {
+    if (r.kind === "separator") {
+      if (cleaned.length === 0) continue;
+      const prev = cleaned[cleaned.length - 1];
+      if (prev?.kind === "separator") continue;
+    }
+    cleaned.push(r);
+  }
+  while (cleaned.length > 0 && cleaned[cleaned.length - 1]?.kind === "separator") {
+    cleaned.pop();
+  }
+
+  return cleaned;
+}
+
 type MenuProps = {
   pos: Position;
   editor: Editor | null;
@@ -43,15 +191,15 @@ type MenuProps = {
   onClose: () => void;
 };
 
-type Item =
-  | { kind: "item"; label: string; shortcut?: string; onSelect: () => void; disabled?: boolean; danger?: boolean }
-  | { kind: "separator" };
-
 function Menu({ pos, editor, filePath, onClose }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [adjusted, setAdjusted] = useState<Position>(pos);
 
-  // Reposiciona se sair da viewport
+  const items = useMemo(
+    () => (editor ? resolveItems(editor, filePath, onClose) : []),
+    [editor, filePath, onClose],
+  );
+
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -65,7 +213,6 @@ function Menu({ pos, editor, filePath, onClose }: MenuProps) {
     setAdjusted({ x, y });
   }, [pos]);
 
-  // Fecha em click fora / Escape / scroll
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
@@ -84,57 +231,7 @@ function Menu({ pos, editor, filePath, onClose }: MenuProps) {
     };
   }, [onClose]);
 
-  const trigger = (action: string) => () => {
-    if (!editor) return;
-    editor.focus();
-    editor.trigger("contextmenu", action, null);
-    onClose();
-  };
-
-  const copyPath = async () => {
-    try {
-      await navigator.clipboard.writeText(filePath);
-    } catch (e) {
-      console.error(e);
-    }
-    onClose();
-  };
-
-  const copyFileName = async () => {
-    try {
-      const name = filePath.split("/").pop() ?? filePath;
-      await navigator.clipboard.writeText(name);
-    } catch (e) {
-      console.error(e);
-    }
-    onClose();
-  };
-
-  const hasSelection = editor ? !editor.getSelection()?.isEmpty() : false;
-
-  const items: Item[] = [
-    { kind: "item", label: "Ir para definição", shortcut: "F12", onSelect: trigger("editor.action.revealDefinition") },
-    { kind: "item", label: "Ir para implementação", shortcut: "Ctrl+F12", onSelect: trigger("editor.action.goToImplementation") },
-    { kind: "item", label: "Localizar referências", shortcut: "Shift+F12", onSelect: trigger("editor.action.goToReferences") },
-    { kind: "item", label: "Ir para símbolo…", shortcut: "Ctrl+Shift+O", onSelect: trigger("editor.action.quickOutline") },
-    { kind: "separator" },
-    { kind: "item", label: "Renomear símbolo", shortcut: "F2", onSelect: trigger("editor.action.rename") },
-    { kind: "item", label: "Refatorar…", shortcut: "Ctrl+.", onSelect: trigger("editor.action.refactor") },
-    { kind: "item", label: "Ações rápidas", shortcut: "Ctrl+.", onSelect: trigger("editor.action.quickFix") },
-    { kind: "separator" },
-    { kind: "item", label: "Recortar", shortcut: "Ctrl+X", onSelect: trigger("editor.action.clipboardCutAction"), disabled: !hasSelection },
-    { kind: "item", label: "Copiar", shortcut: "Ctrl+C", onSelect: trigger("editor.action.clipboardCopyAction"), disabled: !hasSelection },
-    { kind: "item", label: "Colar", shortcut: "Ctrl+V", onSelect: trigger("editor.action.clipboardPasteAction") },
-    { kind: "separator" },
-    { kind: "item", label: "Formatar documento", shortcut: "Shift+Alt+F", onSelect: trigger("editor.action.formatDocument") },
-    { kind: "item", label: "Formatar seleção", shortcut: "Ctrl+K Ctrl+F", onSelect: trigger("editor.action.formatSelection"), disabled: !hasSelection },
-    { kind: "item", label: "Comentar linha", shortcut: "Ctrl+/", onSelect: trigger("editor.action.commentLine") },
-    { kind: "separator" },
-    { kind: "item", label: "Copiar caminho do arquivo", onSelect: copyPath },
-    { kind: "item", label: "Copiar nome do arquivo", onSelect: copyFileName },
-    { kind: "separator" },
-    { kind: "item", label: "Paleta de comandos", shortcut: "Ctrl+Shift+P", onSelect: trigger("editor.action.quickCommand") },
-  ];
+  if (items.length === 0) return null;
 
   return (
     <div
@@ -151,15 +248,8 @@ function Menu({ pos, editor, filePath, onClose }: MenuProps) {
             key={`item-${i}`}
             type="button"
             role="menuitem"
-            disabled={item.disabled}
             onClick={item.onSelect}
-            className={
-              "w-full flex items-center justify-between gap-6 px-3 py-1.5 text-sm text-left outline-none transition-colors " +
-              (item.disabled
-                ? "text-muted-foreground/50 cursor-not-allowed "
-                : "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer ") +
-              (item.danger ? "text-destructive " : "")
-            }
+            className="w-full flex items-center justify-between gap-6 px-3 py-1.5 text-sm text-left outline-none transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
           >
             <span className="truncate">{item.label}</span>
             {item.shortcut && (

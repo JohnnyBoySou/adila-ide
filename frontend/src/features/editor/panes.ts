@@ -268,6 +268,75 @@ export function reorderTabsInLeaf(
   });
 }
 
+// ── Serialização (sessão) ────────────────────────────────────────────────────
+
+export type SerializedTab = { path: string };
+export type SerializedLeaf = {
+  kind: "leaf";
+  id: PaneId;
+  tabs: SerializedTab[];
+  activePath: string;
+};
+export type SerializedSplit = {
+  kind: "split";
+  id: PaneId;
+  direction: "horizontal" | "vertical";
+  size: number;
+  a: SerializedNode;
+  b: SerializedNode;
+};
+export type SerializedNode = SerializedLeaf | SerializedSplit;
+
+export function serializePane(node: PaneNode): SerializedNode {
+  if (node.kind === "leaf") {
+    return {
+      kind: "leaf",
+      id: node.id,
+      tabs: node.tabs.map((t) => ({ path: t.path })),
+      activePath: node.activePath,
+    };
+  }
+  return {
+    kind: "split",
+    id: node.id,
+    direction: node.direction,
+    size: node.size,
+    a: serializePane(node.a),
+    b: serializePane(node.b),
+  };
+}
+
+/**
+ * Reconstrói árvore a partir do snapshot, lendo conteúdo via `readFile`.
+ * Tabs cujo readFile falha são silenciosamente descartados.
+ */
+export async function deserializePane(
+  s: SerializedNode,
+  readFile: (path: string) => Promise<string>,
+): Promise<PaneNode> {
+  if (s.kind === "leaf") {
+    const results = await Promise.all(
+      s.tabs.map(async (t) => {
+        try {
+          const content = await readFile(t.path);
+          return { path: t.path, content, dirty: false } as PaneTab;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const tabs = results.filter((t): t is PaneTab => t !== null);
+    const activePath =
+      tabs.some((t) => t.path === s.activePath) ? s.activePath : tabs[0]?.path ?? "";
+    return { kind: "leaf", id: s.id, tabs, activePath };
+  }
+  const [a, b] = await Promise.all([
+    deserializePane(s.a, readFile),
+    deserializePane(s.b, readFile),
+  ]);
+  return { kind: "split", id: s.id, direction: s.direction, size: s.size, a, b };
+}
+
 /** Atualiza `size` de um split node (0..100, refere-se ao filho `a`). */
 export function setSplitSize(
   root: PaneNode,

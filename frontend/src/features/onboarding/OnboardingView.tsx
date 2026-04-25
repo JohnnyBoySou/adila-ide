@@ -98,10 +98,10 @@ export function OnboardingView({ onComplete }: Props) {
               type="button"
               onClick={back}
               disabled={index === 0}
-              className="flex items-center justify-center size-9 rounded-md border text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center justify-center size-11 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Voltar"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-5" />
             </button>
 
             <button
@@ -109,14 +109,14 @@ export function OnboardingView({ onComplete }: Props) {
               onClick={next}
               disabled={finishing}
               className={cn(
-                "flex items-center justify-center size-9 rounded-md transition-colors",
+                "flex items-center justify-center size-11 rounded-full transition-colors",
                 isLast
                   ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                  : "border text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30",
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30",
               )}
               aria-label={isLast ? "Concluir" : "Próximo"}
             >
-              {isLast ? <Check className="size-4" /> : <ArrowRight className="size-4" />}
+              {isLast ? <Check className="size-5" /> : <ArrowRight className="size-5" />}
             </button>
           </div>
         </footer>

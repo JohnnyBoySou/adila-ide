@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/useToast";
 import { Button } from "@/components/ui/button";
+import { SymbolIcon } from "@/components/SymbolIcon";
 import { rpc } from "./rpc";
 import { GitGraph } from "./GitGraph";
 import type { GitChangedFile, GitCommit, GitFileStatus, GitStash } from "./types";
@@ -79,16 +80,8 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
         selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
       )}
     >
-      <span
-        className={cn(
-          "w-3.5 shrink-0 text-[10px] font-bold tabular-nums",
-          STATUS_COLOR[file.status],
-        )}
-        title={file.status}
-      >
-        {STATUS_LABEL[file.status]}
-      </span>
-      <span className="flex-1 truncate">
+      <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />
+      <span className="flex-1 truncate min-w-0">
         <span>{name}</span>
         {dir && (
           <span className="ml-1.5 text-xs text-muted-foreground">{dir}</span>
@@ -99,7 +92,16 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
           </span>
         )}
       </span>
-      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+        <span
+          className={cn(
+            "text-[10px] font-bold tabular-nums px-0.5",
+            STATUS_COLOR[file.status],
+          )}
+          title={file.status}
+        >
+          {STATUS_LABEL[file.status]}
+        </span>
         {onDiscard && !file.staged && (
           <button
             type="button"
@@ -108,7 +110,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
               e.stopPropagation();
               onDiscard();
             }}
-            className="rounded p-0.5 hover:text-destructive"
+            className="rounded p-0.5 text-muted-foreground/50 hover:text-destructive"
           >
             <Undo2 className="size-3" />
           </button>
@@ -120,7 +122,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
             e.stopPropagation();
             onStage();
           }}
-          className="rounded p-0.5 hover:text-primary"
+          className="rounded p-0.5 text-muted-foreground/50 hover:text-primary"
         >
           {file.staged ? (
             <Minus className="size-3" />

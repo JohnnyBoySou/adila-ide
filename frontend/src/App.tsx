@@ -8,13 +8,16 @@ import { QuickOpen } from "@/features/editor/QuickOpen";
 import { PaneTree, type DraggedFile } from "@/features/editor/PaneTree";
 import {
   closeTabInTree,
+  deserializePane,
   emptyLeaf,
   findLeafById,
   findLeafWithPath,
+  getAllLeaves,
   getAllOpenPaths,
   openOrMoveTab,
   openTabInLeaf,
   reorderTabsInLeaf,
+  serializePane,
   setSplitSize,
   setTabClean,
   updateLeaf,
