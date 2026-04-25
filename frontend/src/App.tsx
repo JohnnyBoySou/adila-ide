@@ -153,11 +153,27 @@ function App() {
       const session = await loadSession();
       if (!session?.rootPath) return;
       await openFolderRef.current(session.rootPath);
+
+      if (session.paneTree) {
+        // novo formato: reconstrói layout completo
+        const tree = await deserializePane(session.paneTree, ReadFile);
+        setRootPane(tree);
+        // foco: se o id salvo ainda existe, usa-o; senão, primeiro leaf com tabs
+        const leaves = getAllLeaves(tree);
+        const focusable =
+          (session.focusedPaneId &&
+            leaves.find((l) => l.id === session.focusedPaneId)) ||
+          leaves.find((l) => l.tabs.length > 0) ||
+          leaves[0];
+        if (focusable) setFocusedPaneId(focusable.id);
+        return;
+      }
+
+      // legado: lista plana de arquivos
       for (const filePath of session.openFiles) {
         await openFileRef.current({ name: filePath.split("/").pop() ?? filePath, path: filePath, isDir: false });
       }
       if (session.activePath) {
-        // ativa a tab correspondente no leaf que contém o path
         setRootPane((prev) => {
           const leaf = findLeafWithPath(prev, session.activePath);
           if (!leaf) return prev;
@@ -167,14 +183,20 @@ function App() {
     })();
   }, []);
 
-  // Persiste sessão com debounce ao mudar rootPath/rootPane
+  // Persiste sessão com debounce ao mudar rootPath/rootPane/foco
   useEffect(() => {
     if (!rootPath) return;
     if (sessionSaveTimerRef.current) clearTimeout(sessionSaveTimerRef.current);
     sessionSaveTimerRef.current = setTimeout(() => {
-      void saveSession({ rootPath, openFiles: openPaths, activePath });
+      void saveSession({
+        rootPath,
+        openFiles: openPaths,
+        activePath,
+        paneTree: serializePane(rootPane),
+        focusedPaneId,
+      });
     }, 500);
-  }, [rootPath, openPaths, activePath]);
+  }, [rootPath, rootPane, openPaths, activePath, focusedPaneId]);
 
   useEffect(() => {
     return gitRpc.on("git.branch", (b: unknown) => {

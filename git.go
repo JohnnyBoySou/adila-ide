@@ -286,11 +286,25 @@ func (g *Git) ListBranches() ([]GitBranch, error) {
 	return branches, nil
 }
 
-// Pull faz git pull na branch atual.
+// Pull faz git pull na branch atual, com fallback para origin/<branch> se não houver upstream.
 func (g *Git) Pull() error {
 	_, err := g.git("pull")
 	if err == nil {
 		g.emitChanged()
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "no tracking information") || strings.Contains(msg, "Please specify which branch") {
+		branch, berr := g.GetBranch()
+		if berr != nil || branch == "" {
+			return err
+		}
+		_, err2 := g.git("pull", "origin", branch)
+		if err2 == nil {
+			g.emitChanged()
+			return nil
+		}
+		return err2
 	}
 	return err
 }
