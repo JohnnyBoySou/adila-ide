@@ -1,0 +1,250 @@
+package main
+
+import (
+	"context"
+	"net"
+	"net/http"
+	"os/exec"
+	"runtime"
+	"strings"
+	"sync"
+	"sync/atomic"
+
+	"github.com/gorilla/websocket"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+// lspServers mapeia linguagem → candidatos de binário (em ordem de preferência).
+var lspServers = map[string][]string{
+	"go":         {"gopls"},
+	"typescript": {"typescript-language-server", "bunx typescript-language-server"},
+	"javascript": {"typescript-language-server", "bunx typescript-language-server"},
+	"rust":       {"rust-analyzer"},
+	"python":     {"pyright-langserver", "pylsp", "python-lsp-server"},
+	"css":        {"css-languageserver", "vscode-css-languageserver"},
+	"html":       {"html-languageserver", "vscode-html-languageserver"},
+	"json":       {"json-languageserver", "vscode-json-languageserver"},
+	"yaml":       {"yaml-language-server"},
+}
+
+// lspArgs são args adicionais além do binário (após o binário).
+var lspArgs = map[string][]string{
+	"typescript": {"--stdio"},
+	"javascript": {"--stdio"},
+	"python":     {"--tcp"},
+	"css":        {"--stdio"},
+	"html":       {"--stdio"},
+	"json":       {"--stdio"},
+	"yaml":       {"--stdio"},
+}
+
+type LSP struct {
+	ctx      context.Context
+	port     int
+	server   *http.Server
+	upgrader websocket.Upgrader
+	started  atomic.Bool
+	mu       sync.Mutex
+	// lang → lista de binários disponíveis (cache)
+	available map[string]string
+}
+
+func NewLSP() *LSP {
+	return &LSP{
+		available: make(map[string]string),
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool { return true },
+		},
+	}
+}
+
+func (l *LSP) startup(ctx context.Context) {
+	l.ctx = ctx
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		wruntime.LogErrorf(ctx, "LSP: não foi possível abrir porta: %v", err)
+		return
+	}
+	l.port = ln.Addr().(*net.TCPAddr).Port
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/lsp/", l.handleWS)
+
+	l.server = &http.Server{Handler: mux}
+	l.started.Store(true)
+
+	go func() {
+		if err := l.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			wruntime.LogErrorf(ctx, "LSP server: %v", err)
+		}
+	}()
+
+	wruntime.LogInfof(ctx, "LSP proxy rodando em 127.0.0.1:%d", l.port)
+}
+
+func (l *LSP) shutdown(_ context.Context) {
+	if l.server != nil {
+		_ = l.server.Close()
+	}
+}
+
+// GetLSPPort devolve a porta do proxy WebSocket LSP.
+func (l *LSP) GetLSPPort() int {
+	return l.port
+}
+
+// ListAvailableLSP devolve quais linguagens têm servidor instalado.
+func (l *LSP) ListAvailableLSP() map[string]string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	result := make(map[string]string)
+	for lang, candidates := range lspServers {
+		if bin := l.resolveBin(lang, candidates); bin != "" {
+			result[lang] = bin
+		}
+	}
+	return result
+}
+
+// resolveBin encontra o primeiro binário disponível na PATH para a linguagem.
+// não usa mutex — deve ser chamado com l.mu held.
+func (l *LSP) resolveBin(lang string, candidates []string) string {
+	if cached, ok := l.available[lang]; ok {
+		return cached
+	}
+	for _, candidate := range candidates {
+		parts := strings.Fields(candidate)
+		if len(parts) == 0 {
+			continue
+		}
+		if bin, err := exec.LookPath(parts[0]); err == nil {
+			full := bin
+			if len(parts) > 1 {
+				full = strings.Join(append([]string{bin}, parts[1:]...), " ")
+			}
+			l.available[lang] = full
+			return full
+		}
+	}
+	return ""
+}
+
+func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
+	// rota: /lsp/{lang}
+	lang := strings.TrimPrefix(r.URL.Path, "/lsp/")
+	lang = strings.ToLower(strings.TrimSpace(lang))
+	rootPath := r.URL.Query().Get("root")
+
+	candidates, ok := lspServers[lang]
+	if !ok {
+		http.Error(w, "linguagem não suportada: "+lang, http.StatusBadRequest)
+		return
+	}
+
+	l.mu.Lock()
+	bin := l.resolveBin(lang, candidates)
+	l.mu.Unlock()
+
+	if bin == "" {
+		http.Error(w, "servidor LSP não encontrado para: "+lang, http.StatusServiceUnavailable)
+		return
+	}
+
+	ws, err := l.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer ws.Close()
+
+	args := lspArgs[lang]
+	binParts := strings.Fields(bin)
+	cmdBin := binParts[0]
+	cmdArgs := append(binParts[1:], args...)
+
+	cmd := exec.CommandContext(r.Context(), cmdBin, cmdArgs...)
+	if rootPath != "" {
+		cmd.Dir = rootPath
+	}
+	if runtime.GOOS != "windows" {
+		// evita que o LSP receba sinais do terminal
+		setLSPSysProcAttr(cmd)
+	}
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		ws.WriteMessage(websocket.CloseMessage, []byte("falha ao criar stdin"))
+		return
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		ws.WriteMessage(websocket.CloseMessage, []byte("falha ao criar stdout"))
+		return
+	}
+	// stderr vai pra log mas não pro cliente
+	cmd.Stderr = &logWriter{ctx: l.ctx, prefix: lang + " lsp"}
+
+	if err := cmd.Start(); err != nil {
+		ws.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
+		return
+	}
+
+	done := make(chan struct{})
+
+	// LSP stdout → WebSocket
+	go func() {
+		defer close(done)
+		buf := make([]byte, 64*1024)
+		for {
+			n, err := stdout.Read(buf)
+			if n > 0 {
+				ws.WriteMessage(websocket.BinaryMessage, buf[:n])
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// WebSocket → LSP stdin
+	go func() {
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				return
+			}
+			if _, err := stdin.Write(msg); err != nil {
+				return
+			}
+		}
+	}()
+
+	<-done
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
+}
+
+type logWriter struct {
+	ctx    context.Context
+	prefix string
+	buf    []byte
+}
+
+func (lw *logWriter) Write(p []byte) (int, error) {
+	lw.buf = append(lw.buf, p...)
+	for {
+		idx := strings.IndexByte(string(lw.buf), '\n')
+		if idx < 0 {
+			break
+		}
+		line := string(lw.buf[:idx])
+		lw.buf = lw.buf[idx+1:]
+		if strings.TrimSpace(line) != "" {
+			wruntime.LogDebugf(lw.ctx, "[%s] %s", lw.prefix, line)
+		}
+	}
+	return len(p), nil
+}
+
