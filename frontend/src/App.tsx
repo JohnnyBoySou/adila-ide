@@ -69,6 +69,9 @@ const GitView = lazy(() => import("@/features/git/GitView").then((m) => ({ defau
 const KeybindingsView = lazy(() =>
   import("@/features/keybindings/KeybindingsView").then((m) => ({ default: m.KeybindingsView })),
 );
+const BenchView = lazy(() =>
+  import("@/features/bench/BenchView").then((m) => ({ default: m.BenchView })),
+);
 const MarkdownPreview = lazy(() =>
   import("@/features/editor/MarkdownPreview").then((m) => ({ default: m.MarkdownPreview })),
 );
@@ -83,7 +86,7 @@ function ViewFallback() {
 }
 
 type Entry = { name: string; path: string; isDir: boolean };
-type View = "editor" | "settings" | "about" | "onboarding" | "git" | "keybindings";
+type View = "editor" | "settings" | "about" | "onboarding" | "git" | "keybindings" | "bench";
 type BottomPanel = "terminal" | "problems" | "diff";
 
 function SettingsOverlay({ onClose }: { onClose: () => void }) {
@@ -141,6 +144,15 @@ function App() {
   const { value: zenMode, set: setZenMode } = useConfig<boolean>("workbench.zenMode", false);
   const { value: autoSave } = useConfig<string>("editor.autoSave", "off");
   const { value: autoSaveDelay } = useConfig<number>("editor.autoSaveDelay", 1000);
+  const { value: zoomLevel } = useConfig<number>("window.zoomLevel", 0);
+
+  useEffect(() => {
+    const z = typeof zoomLevel === "number" ? zoomLevel : 0;
+    document.documentElement.style.fontSize = `${100 + z * 10}%`;
+    return () => {
+      document.documentElement.style.fontSize = "";
+    };
+  }, [zoomLevel]);
   const {
     folders: recentFolders,
     push: pushRecentFolder,
@@ -387,6 +399,10 @@ function App() {
   useEffect(() => {
     zenModeRef.current = zenMode as boolean;
   }, [zenMode]);
+  const setZenModeRef = useRef(setZenMode);
+  useEffect(() => {
+    setZenModeRef.current = setZenMode;
+  });
   const chordRef = useRef<string | null>(null);
 
   const refreshRoot = useCallback(async () => {
@@ -436,11 +452,17 @@ function App() {
         case "openGitView":
           setViewRef.current("git");
           break;
+        case "openBenchView":
+          setViewRef.current("bench");
+          break;
         case "openOnboarding":
           setViewRef.current("onboarding");
           break;
         case "openAbout":
           setViewRef.current("about");
+          break;
+        case "toggleZen":
+          void setZenModeRef.current(!zenModeRef.current);
           break;
         case "openWebview":
           {
@@ -914,6 +936,7 @@ function App() {
             {view === "onboarding" && <OnboardingView onComplete={() => setView("editor")} />}
             {view === "git" && <GitView rootPath={rootPath} />}
             {view === "keybindings" && <KeybindingsView />}
+            {view === "bench" && <BenchView />}
           </Suspense>
         </div>
       )}

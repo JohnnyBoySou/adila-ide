@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
@@ -21,7 +22,7 @@ func main() {
 		app.SetInitialPath(initial)
 	}
 	term := NewTerminal()
-	git := NewGit()
+	git := NewGit(cfg)
 	about := NewAbout()
 	lsp := NewLSP()
 	cmd := NewCommandCenter(git, cfg)
@@ -50,6 +51,24 @@ func main() {
 			cfg.shutdown(ctx)
 			lsp.shutdown(ctx)
 		},
+		OnBeforeClose: func(ctx context.Context) bool {
+			confirm, _ := cfg.Get("window.confirmClose", false).(bool)
+			if !confirm {
+				return false
+			}
+			result, err := wruntime.MessageDialog(ctx, wruntime.MessageDialogOptions{
+				Type:          wruntime.QuestionDialog,
+				Title:         "Fechar Adila IDE",
+				Message:       "Deseja realmente sair?",
+				Buttons:       []string{"Sair", "Cancelar"},
+				DefaultButton: "Cancelar",
+				CancelButton:  "Cancelar",
+			})
+			if err != nil {
+				return false
+			}
+			return result != "Sair"
+		},
 		Bind: []interface{}{
 			app,
 			term,
@@ -59,6 +78,7 @@ func main() {
 			lsp,
 			cmd,
 			gh,
+			bench,
 		},
 	})
 

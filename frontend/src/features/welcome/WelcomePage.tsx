@@ -67,10 +67,11 @@ export function WelcomePage({
   onRemoveRecentFolder,
 }: Props) {
   return (
-    <div className="h-full overflow-y-auto scrollbar">
+    <div className="absolute inset-0 overflow-y-auto scrollbar">
+      <div className="flex min-h-full flex-col justify-center py-12">
       {/* Hero */}
       <motion.div
-        className="flex flex-col items-center gap-3 pt-12 pb-8"
+        className="flex flex-col items-center gap-3 pb-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
@@ -230,6 +231,7 @@ export function WelcomePage({
             <TipRow label="Mover linha" keys={["Alt", "↑ ↓"]} />
           </div>
         </motion.section>
+      </div>
       </div>
     </div>
   );

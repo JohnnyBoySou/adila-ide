@@ -13,6 +13,8 @@ interface UseGitDecorationsArgs {
   enabled: boolean;
 }
 
+const DEBOUNCE_MS = 150;
+
 export function useGitDecorations({
   editor,
   monaco,
@@ -21,6 +23,7 @@ export function useGitDecorations({
   enabled,
 }: UseGitDecorationsArgs) {
   const decorationsRef = useRef<string[]>([]);
+  const headRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!editor || !monaco || !enabled) {
@@ -28,38 +31,66 @@ export function useGitDecorations({
     }
 
     let cancelled = false;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const apply = async () => {
-      try {
-        const rel = toRelativePath(path, rootUri);
-        const diff = await rpc.git.diff(rel, false);
-        if (cancelled) return;
-        const changes = parseUnifiedDiff(diff);
-        const next: monacoTypes.editor.IModelDeltaDecoration[] = changes.map((c) => ({
-          range: new monaco.Range(c.line, 1, c.line, 1),
-          options: {
-            isWholeLine: false,
-            linesDecorationsClassName: `git-gutter git-gutter-${c.type}`,
-          },
-        }));
-        decorationsRef.current = editor.deltaDecorations(decorationsRef.current, next);
-      } catch {
-        if (cancelled) return;
+    const recompute = () => {
+      if (cancelled) return;
+      const model = editor.getModel();
+      if (!model) return;
+      const head = headRef.current;
+      if (head === null) {
         decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
+        return;
       }
+      const current = model.getValue();
+      const changes = diffLines(head, current);
+      const next: monacoTypes.editor.IModelDeltaDecoration[] = changes.map((c) => ({
+        range: new monaco.Range(c.line, 1, c.line, 1),
+        options: {
+          isWholeLine: false,
+          linesDecorationsClassName: `git-gutter git-gutter-${c.type}`,
+        },
+      }));
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, next);
     };
 
-    void apply();
+    const scheduleRecompute = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(recompute, DEBOUNCE_MS);
+    };
+
+    const loadHead = async () => {
+      try {
+        const rel = toRelativePath(path, rootUri);
+        const head = await rpc.git.showAtHead(rel);
+        if (cancelled) return;
+        headRef.current = head ?? "";
+      } catch {
+        if (cancelled) return;
+        headRef.current = "";
+      }
+      recompute();
+    };
+
+    void loadHead();
+
+    const contentSub = editor.onDidChangeModelContent(() => {
+      scheduleRecompute();
+    });
+
     const off = rpc.on("git.changed", () => {
-      void apply();
+      void loadHead();
     });
 
     return () => {
       cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      contentSub.dispose();
       off();
       if (editor) {
         decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
       }
+      headRef.current = null;
     };
   }, [editor, monaco, path, rootUri, enabled]);
 }
@@ -76,54 +107,97 @@ function toRelativePath(absolute: string, rootUri?: string): string {
   return absolute;
 }
 
-function parseUnifiedDiff(diff: string): Change[] {
-  const changes: Change[] = [];
-  if (!diff) return changes;
-  const lines = diff.split("\n");
+// Simple LCS-based line diff. Produces decoration markers in the "new" file
+// space: added, modified (replaced), deleted (gutter on the line after the gap).
+function diffLines(oldText: string, newText: string): Change[] {
+  const oldLines = oldText.split("\n");
+  const newLines = newText.split("\n");
+
+  // Trim trailing empty line that comes from a final newline in both, so we
+  // don't mark a phantom change.
+  if (oldLines.length > 0 && oldLines[oldLines.length - 1] === "") oldLines.pop();
+  if (newLines.length > 0 && newLines[newLines.length - 1] === "") newLines.pop();
+
+  const m = oldLines.length;
+  const n = newLines.length;
+
+  if (m === 0 && n === 0) return [];
+  if (m === 0) {
+    return newLines.map((_, i) => ({ type: "added" as const, line: i + 1 }));
+  }
+  if (n === 0) {
+    return [{ type: "deleted" as const, line: 1 }];
+  }
+
+  // Build LCS table. For very large files we cap to avoid quadratic blowups.
+  const MAX = 5000;
+  if (m > MAX || n > MAX) {
+    // Fallback: only mark whole file as modified to avoid huge allocations.
+    if (oldText === newText) return [];
+    return newLines.map((_, i) => ({ type: "modified" as const, line: i + 1 }));
+  }
+
+  const dp: Uint16Array[] = new Array(m + 1);
+  for (let i = 0; i <= m; i++) dp[i] = new Uint16Array(n + 1);
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      if (oldLines[i] === newLines[j]) {
+        dp[i][j] = dp[i + 1][j + 1] + 1;
+      } else {
+        dp[i][j] = dp[i + 1][j] >= dp[i][j + 1] ? dp[i + 1][j] : dp[i][j + 1];
+      }
+    }
+  }
+
+  // Walk to produce ops: equal/add/del.
+  type Op = { kind: "eq" | "add" | "del"; oldIdx: number; newIdx: number };
+  const ops: Op[] = [];
   let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (!line.startsWith("@@")) {
+  let j = 0;
+  while (i < m && j < n) {
+    if (oldLines[i] === newLines[j]) {
+      ops.push({ kind: "eq", oldIdx: i, newIdx: j });
       i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      ops.push({ kind: "del", oldIdx: i, newIdx: j });
+      i++;
+    } else {
+      ops.push({ kind: "add", oldIdx: i, newIdx: j });
+      j++;
+    }
+  }
+  while (i < m) ops.push({ kind: "del", oldIdx: i++, newIdx: j });
+  while (j < n) ops.push({ kind: "add", oldIdx: i, newIdx: j++ });
+
+  // Group consecutive non-eq ops into hunks; classify: adds + dels => modified,
+  // adds only => added, dels only => deleted.
+  const changes: Change[] = [];
+  let k = 0;
+  while (k < ops.length) {
+    if (ops[k].kind === "eq") {
+      k++;
       continue;
     }
-    const match = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-    if (!match) {
-      i++;
-      continue;
-    }
-    let newLine = parseInt(match[1], 10);
-    i++;
-
-    let runDeletes = 0;
-    let runAdds: number[] = [];
-    const flush = () => {
-      if (runAdds.length > 0) {
-        const type: ChangeType = runDeletes > 0 ? "modified" : "added";
-        for (const ln of runAdds) {
-          changes.push({ type, line: ln });
-        }
-      } else if (runDeletes > 0) {
-        changes.push({ type: "deleted", line: Math.max(1, newLine - 1) });
+    const startNewIdx = ops[k].newIdx;
+    const adds: number[] = [];
+    let dels = 0;
+    while (k < ops.length && ops[k].kind !== "eq") {
+      if (ops[k].kind === "add") {
+        adds.push(ops[k].newIdx + 1);
+      } else {
+        dels++;
       }
-      runDeletes = 0;
-      runAdds = [];
-    };
-
-    while (i < lines.length && !lines[i].startsWith("@@") && !lines[i].startsWith("diff ")) {
-      const c = lines[i][0];
-      if (c === "+") {
-        runAdds.push(newLine);
-        newLine++;
-      } else if (c === "-") {
-        runDeletes++;
-      } else if (c === " ") {
-        flush();
-        newLine++;
-      }
-      i++;
+      k++;
     }
-    flush();
+    if (adds.length > 0) {
+      const type: ChangeType = dels > 0 ? "modified" : "added";
+      for (const ln of adds) changes.push({ type, line: ln });
+    } else if (dels > 0) {
+      // Pure deletion — mark gutter on the line at startNewIdx (or last if EOF).
+      const ln = startNewIdx < n ? startNewIdx + 1 : Math.max(1, n);
+      changes.push({ type: "deleted", line: ln });
+    }
   }
   return changes;
 }

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
+	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -53,21 +55,102 @@ type GitGraphNode struct {
 }
 
 type Git struct {
-	ctx     context.Context
-	workdir string
+	ctx         context.Context
+	workdir     string
+	cfg         *Config
+	fetchMu     sync.Mutex
+	fetchCancel context.CancelFunc
 }
 
-func NewGit() *Git {
-	return &Git{}
+func NewGit(cfg *Config) *Git {
+	return &Git{cfg: cfg}
 }
 
 func (g *Git) startup(ctx context.Context) {
 	g.ctx = ctx
+	g.restartAutoFetch()
+	wruntime.EventsOn(ctx, "config.changed", func(args ...interface{}) {
+		if len(args) == 0 {
+			return
+		}
+		m, ok := args[0].(map[string]any)
+		if !ok {
+			return
+		}
+		key, _ := m["key"].(string)
+		if key == "git.autoFetch" || key == "git.autoFetchPeriod" {
+			g.restartAutoFetch()
+		}
+	})
 }
 
 func (g *Git) SetWorkdir(path string) {
 	g.workdir = path
 	g.emitChanged()
+	g.restartAutoFetch()
+}
+
+// restartAutoFetch cancela o loop atual (se houver) e, se estiver habilitado
+// no config, dispara um novo respeitando o intervalo configurado.
+func (g *Git) restartAutoFetch() {
+	g.fetchMu.Lock()
+	defer g.fetchMu.Unlock()
+
+	if g.fetchCancel != nil {
+		g.fetchCancel()
+		g.fetchCancel = nil
+	}
+
+	if g.cfg == nil || g.ctx == nil || g.workdir == "" {
+		return
+	}
+	enabled, _ := g.cfg.Get("git.autoFetch", false).(bool)
+	if !enabled {
+		return
+	}
+
+	period := autoFetchPeriod(g.cfg)
+	ctx, cancel := context.WithCancel(g.ctx)
+	g.fetchCancel = cancel
+	go g.autoFetchLoop(ctx, period)
+}
+
+// autoFetchPeriod resolve o intervalo de auto-fetch em segundos, com mínimo
+// de 30s pra evitar martelar o remote.
+func autoFetchPeriod(cfg *Config) time.Duration {
+	const minSec, defSec = 30, 300
+	raw := cfg.Get("git.autoFetchPeriod", defSec)
+	var sec int
+	switch v := raw.(type) {
+	case int:
+		sec = v
+	case float64:
+		sec = int(v)
+	default:
+		sec = defSec
+	}
+	if sec < minSec {
+		sec = minSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+func (g *Git) autoFetchLoop(ctx context.Context, period time.Duration) {
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if g.workdir == "" || !g.IsRepo() {
+				continue
+			}
+			if _, err := g.git("fetch", "--prune"); err == nil {
+				g.emitChanged()
+			}
+		}
+	}
 }
 
 func (g *Git) git(args ...string) (string, error) {
@@ -93,6 +176,7 @@ func (e *gitError) Error() string { return e.msg }
 
 // Status devolve a lista de arquivos modificados (staged + unstaged).
 func (g *Git) Status() ([]GitChangedFile, error) {
+	defer bench.Time("Git.Status")()
 	if g.workdir == "" {
 		return []GitChangedFile{}, nil
 	}
@@ -161,6 +245,7 @@ func xyToStatus(c rune) string {
 
 // Diff devolve o patch unificado de um arquivo.
 func (g *Git) Diff(path string, staged bool) (string, error) {
+	defer bench.Time("Git.Diff")()
 	var args []string
 	if staged {
 		args = []string{"diff", "--cached", "--", path}
@@ -178,6 +263,7 @@ func (g *Git) Diff(path string, staged bool) (string, error) {
 // frontend para computar diff em tempo real contra o buffer em edição.
 // Retorna string vazia se o arquivo não existir no HEAD (arquivo novo).
 func (g *Git) ShowAtHead(path string) (string, error) {
+	defer bench.Time("Git.ShowAtHead")()
 	out, err := g.git("show", "HEAD:"+path)
 	if err != nil {
 		// Arquivo novo (ainda não commitado) ou path não está no HEAD — não é erro.
@@ -345,6 +431,7 @@ func (g *Git) Fetch() error {
 
 // GetLog retorna os últimos n commits.
 func (g *Git) GetLog(limit int) ([]GitCommit, error) {
+	defer bench.Time("Git.GetLog")()
 	if g.workdir == "" {
 		return []GitCommit{}, nil
 	}
@@ -520,6 +607,7 @@ func (g *Git) ListRemotes() ([]GitRemote, error) {
 
 // GetGraph retorna os nós do grafo de commits para visualização.
 func (g *Git) GetGraph(limit int) ([]GitGraphNode, error) {
+	defer bench.Time("Git.GetGraph")()
 	if g.workdir == "" {
 		return []GitGraphNode{}, nil
 	}

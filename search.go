@@ -158,6 +158,7 @@ func decodeRune(b []byte) (rune, int) {
 // a runtime.NumCPU(), cancelamento via context quando atinge MaxResults,
 // skip de ignoreDirs e dotfiles, skip de binários e arquivos > 5MB.
 func (a *App) SearchInFiles(rootPath string, opts SearchOptions) ([]SearchMatch, error) {
+	defer bench.Time("App.SearchInFiles")()
 	if rootPath == "" || opts.Query == "" {
 		return nil, nil
 	}
@@ -276,6 +277,7 @@ func (a *App) SearchInFiles(rootPath string, opts SearchOptions) ([]SearchMatch,
 // (mesma SearchOptions usada no SearchInFiles) bate. Retorna a quantidade de
 // matches substituídos no total (não de arquivos).
 func (a *App) ReplaceInFiles(rootPath string, opts SearchOptions, replacement string) (int, error) {
+	defer bench.Time("App.ReplaceInFiles")()
 	if rootPath == "" || opts.Query == "" {
 		return 0, nil
 	}

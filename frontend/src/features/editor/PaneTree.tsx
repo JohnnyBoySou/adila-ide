@@ -201,7 +201,7 @@ function LeafView({
       {activeTab && !isWebviewPath(activeTab.path) && (
         <Breadcrumbs path={activeTab.path} rootPath={rootPath} onOpenFile={onOpenFileByPath} />
       )}
-      <div className="flex-1 overflow-hidden min-h-0">
+      <div className="relative flex-1 overflow-hidden min-h-0">
         {activeTab ? (
           isWebviewPath(activeTab.path) ? (
             <Suspense fallback={<ViewFallback />}>

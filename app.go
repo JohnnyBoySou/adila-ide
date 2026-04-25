@@ -136,6 +136,7 @@ func (a *App) OpenFolderDialog() (string, error) {
 // ListDir lista um diretório ocultando dotfiles e ordenando dirs primeiro.
 // Usa Schwartzian transform para computar lowercase uma só vez (O(n) em vez de O(n log n)).
 func (a *App) ListDir(path string) ([]FileEntry, error) {
+	defer bench.Time("App.ListDir")()
 	if path == "" {
 		return nil, errors.New("caminho vazio")
 	}
@@ -184,6 +185,7 @@ func (a *App) ListDir(path string) ([]FileEntry, error) {
 }
 
 func (a *App) ReadFile(path string) (string, error) {
+	defer bench.Time("App.ReadFile")()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -192,6 +194,7 @@ func (a *App) ReadFile(path string) (string, error) {
 }
 
 func (a *App) WriteFile(path string, content string) error {
+	defer bench.Time("App.WriteFile")()
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
@@ -284,6 +287,7 @@ func resolveExcludeFolders(cfg *Config) map[string]bool {
 // Essa abordagem é eficaz em SSDs e filesystems em rede; em HDDs o ganho é
 // menor (seek penalty), mas a lista de ignorados já economiza muito I/O.
 func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
+	defer bench.Time("App.SearchFiles")()
 	const maxResults = 200
 
 	if rootPath == "" || query == "" {

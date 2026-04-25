@@ -10,6 +10,7 @@ import {
   WholeWord,
 } from "lucide-react";
 import { searchRpc, type SearchMatch } from "./rpc";
+import { useConfig } from "@/hooks/useConfig";
 
 type Props = {
   rootPath: string;
@@ -42,6 +43,7 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
   const [replaceMsg, setReplaceMsg] = useState<string | null>(null);
 
   const debounceRef = useRef<number | null>(null);
+  const { value: maxResults } = useConfig<number>("search.maxResults", 1000);
 
   const opts = useMemo(
     () => ({
@@ -49,9 +51,9 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
       caseSensitive,
       wholeWord,
       regex,
-      maxResults: 1000,
+      maxResults: typeof maxResults === "number" && maxResults > 0 ? maxResults : 1000,
     }),
-    [query, caseSensitive, wholeWord, regex],
+    [query, caseSensitive, wholeWord, regex, maxResults],
   );
 
   useEffect(() => {

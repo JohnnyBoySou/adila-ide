@@ -1,5 +1,37 @@
 export namespace main {
 	
+	export class BenchOp {
+	    name: string;
+	    count: number;
+	    totalNs: number;
+	    meanNs: number;
+	    minNs: number;
+	    maxNs: number;
+	    p50Ns: number;
+	    p95Ns: number;
+	    p99Ns: number;
+	    lastNs: number;
+	    lastUnix: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BenchOp(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.count = source["count"];
+	        this.totalNs = source["totalNs"];
+	        this.meanNs = source["meanNs"];
+	        this.minNs = source["minNs"];
+	        this.maxNs = source["maxNs"];
+	        this.p50Ns = source["p50Ns"];
+	        this.p95Ns = source["p95Ns"];
+	        this.p99Ns = source["p99Ns"];
+	        this.lastNs = source["lastNs"];
+	        this.lastUnix = source["lastUnix"];
+	    }
+	}
 	export class CmdFileEntry {
 	    name: string;
 	    path: string;

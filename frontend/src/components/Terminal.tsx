@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Terminal as Xterm, type ITerminalOptions } from "@xterm/xterm";
+import { call } from "@/rpc/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -89,205 +90,223 @@ export function Terminal({
     const container = containerRef.current;
     if (!container || !sessionId) return;
 
-    const term = new Xterm({
-      fontFamily:
-        '"Google Sans Code", "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace',
-      fontSize: 13,
-      lineHeight: 1.3,
-      cursorBlink: true,
-      cursorStyle: "bar",
-      allowProposedApi: true,
-      scrollback: 20_000,
-      theme: buildTheme(),
-      macOptionIsMeta: true,
-    });
+    let cancelled = false;
+    let cleanup: (() => void) | null = null;
 
-    const fit = new FitAddon();
-    const search = new SearchAddon();
-    const serialize = new SerializeAddon();
-    const webFonts = new WebFontsAddon();
-    const unicode = new UnicodeGraphemesAddon();
+    const start = async () => {
+      const [fontFamily, fontSize, cursorStyle, cursorBlink, scrollback] = await Promise.all([
+        call<string>("config.get", {
+          key: "terminal.fontFamily",
+          defaultValue: "'Google Sans Code', monospace",
+        }),
+        call<number>("config.get", { key: "terminal.fontSize", defaultValue: 13 }),
+        call<"block" | "underline" | "bar">("config.get", {
+          key: "terminal.cursorStyle",
+          defaultValue: "bar",
+        }),
+        call<boolean>("config.get", { key: "terminal.cursorBlink", defaultValue: true }),
+        call<number>("config.get", { key: "terminal.scrollback", defaultValue: 20_000 }),
+      ]);
+      if (cancelled) return;
 
-    term.loadAddon(fit);
-    term.loadAddon(search);
-    term.loadAddon(serialize);
-    term.loadAddon(webFonts);
-    term.loadAddon(unicode);
-    term.loadAddon(new WebLinksAddon());
-    term.loadAddon(new ClipboardAddon());
-    term.unicode.activeVersion = "15";
-
-    term.open(container);
-
-    try {
-      const webgl = new WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose());
-      term.loadAddon(webgl);
-    } catch {
-      // fallback to DOM renderer
-    }
-
-    // --- OSC parsers ---
-
-    // OSC 7 — atualiza cwd
-    term.parser.registerOscHandler(7, (data) => {
-      try {
-        const url = new URL(data);
-        onCwd?.(decodeURIComponent(url.pathname));
-      } catch {}
-      return false;
-    });
-
-    // OSC 0 / 2 — título da janela
-    const titleHandler = (data: string) => {
-      onTitle?.(data);
-      return false;
-    };
-    term.parser.registerOscHandler(0, titleHandler);
-    term.parser.registerOscHandler(2, titleHandler);
-
-    // OSC 133 — shell integration markers (A=prompt start, D=cmd end)
-    term.parser.registerOscHandler(133, (data) => {
-      if (data.startsWith("D;")) {
-        const code = parseInt(data.slice(2), 10);
-        if (!isNaN(code) && code !== 0) {
-          // adiciona ruler pra marcar linha com erro
-          term.registerDecoration({
-            marker: term.registerMarker(0)!,
-          });
-        }
-      }
-      return false;
-    });
-
-    // --- Link provider: file.ts:12:5 ---
-    if (onFileLink) {
-      term.registerLinkProvider({
-        provideLinks(y, callback) {
-          const line = term.buffer.active.getLine(y)?.translateToString(true) ?? "";
-          const match = FILE_LINK_RE.exec(line);
-          if (!match) {
-            callback([]);
-            return;
-          }
-          const [full, filePath, lineStr, colStr] = match;
-          const lineNum = parseInt(lineStr ?? "1", 10);
-          const colNum = parseInt(colStr ?? "1", 10);
-          const startX =
-            match.index +
-            (full.length -
-              (filePath?.length ?? 0) -
-              (lineStr?.length ?? 0) -
-              (colStr?.length ?? 0));
-          callback([
-            {
-              range: {
-                start: { x: Math.max(1, startX), y },
-                end: { x: startX + (full.length - 1), y },
-              },
-              text: filePath ?? "",
-              decorations: { underline: true, pointerCursor: true },
-              activate() {
-                onFileLink(filePath ?? "", lineNum, colNum);
-              },
-            },
-          ]);
-        },
+      const term = new Xterm({
+        fontFamily:
+          fontFamily ||
+          '"Google Sans Code", "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontSize: typeof fontSize === "number" && fontSize > 0 ? fontSize : 13,
+        lineHeight: 1.3,
+        cursorBlink: Boolean(cursorBlink),
+        cursorStyle: cursorStyle ?? "bar",
+        allowProposedApi: true,
+        scrollback: typeof scrollback === "number" && scrollback >= 0 ? scrollback : 20_000,
+        theme: buildTheme(),
+        macOptionIsMeta: true,
       });
-    }
 
-    // --- Input: Ctrl+C copia se há seleção, senão envia SIGINT ---
-    term.attachCustomKeyEventHandler((e) => {
-      if (e.type !== "keydown") return true;
+      const fit = new FitAddon();
+      const search = new SearchAddon();
+      const serialize = new SerializeAddon();
+      const webFonts = new WebFontsAddon();
+      const unicode = new UnicodeGraphemesAddon();
 
-      // Ctrl+Shift+C → copiar
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
-        const sel = term.getSelection();
-        if (sel) navigator.clipboard.writeText(sel).catch(() => {});
-        return false;
+      term.loadAddon(fit);
+      term.loadAddon(search);
+      term.loadAddon(serialize);
+      term.loadAddon(webFonts);
+      term.loadAddon(unicode);
+      term.loadAddon(new WebLinksAddon());
+      term.loadAddon(new ClipboardAddon());
+      term.unicode.activeVersion = "15";
+
+      term.open(container);
+
+      try {
+        const webgl = new WebglAddon();
+        webgl.onContextLoss(() => webgl.dispose());
+        term.loadAddon(webgl);
+      } catch {
+        // fallback to DOM renderer
       }
 
-      // Ctrl+C com seleção → copia em vez de SIGINT
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "c") {
-        if (term.hasSelection()) {
-          navigator.clipboard.writeText(term.getSelection()).catch(() => {});
-          term.clearSelection();
+      // OSC 7 — atualiza cwd
+      term.parser.registerOscHandler(7, (data) => {
+        try {
+          const url = new URL(data);
+          onCwd?.(decodeURIComponent(url.pathname));
+        } catch {}
+        return false;
+      });
+
+      // OSC 0 / 2 — título da janela
+      const titleHandler = (data: string) => {
+        onTitle?.(data);
+        return false;
+      };
+      term.parser.registerOscHandler(0, titleHandler);
+      term.parser.registerOscHandler(2, titleHandler);
+
+      // OSC 133 — shell integration markers
+      term.parser.registerOscHandler(133, (data) => {
+        if (data.startsWith("D;")) {
+          const code = parseInt(data.slice(2), 10);
+          if (!isNaN(code) && code !== 0) {
+            term.registerDecoration({
+              marker: term.registerMarker(0)!,
+            });
+          }
+        }
+        return false;
+      });
+
+      if (onFileLink) {
+        term.registerLinkProvider({
+          provideLinks(y, callback) {
+            const line = term.buffer.active.getLine(y)?.translateToString(true) ?? "";
+            const match = FILE_LINK_RE.exec(line);
+            if (!match) {
+              callback([]);
+              return;
+            }
+            const [full, filePath, lineStr, colStr] = match;
+            const lineNum = parseInt(lineStr ?? "1", 10);
+            const colNum = parseInt(colStr ?? "1", 10);
+            const startX =
+              match.index +
+              (full.length -
+                (filePath?.length ?? 0) -
+                (lineStr?.length ?? 0) -
+                (colStr?.length ?? 0));
+            callback([
+              {
+                range: {
+                  start: { x: Math.max(1, startX), y },
+                  end: { x: startX + (full.length - 1), y },
+                },
+                text: filePath ?? "",
+                decorations: { underline: true, pointerCursor: true },
+                activate() {
+                  onFileLink(filePath ?? "", lineNum, colNum);
+                },
+              },
+            ]);
+          },
+        });
+      }
+
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== "keydown") return true;
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
+          const sel = term.getSelection();
+          if (sel) navigator.clipboard.writeText(sel).catch(() => {});
           return false;
         }
-      }
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "c") {
+          if (term.hasSelection()) {
+            navigator.clipboard.writeText(term.getSelection()).catch(() => {});
+            term.clearSelection();
+            return false;
+          }
+        }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "V") {
+          navigator.clipboard
+            .readText()
+            .then((t) => {
+              WritePty(sessionId, t).catch(() => {});
+            })
+            .catch(() => {});
+          return false;
+        }
+        return true;
+      });
 
-      // Ctrl+Shift+V → colar
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "V") {
-        navigator.clipboard
-          .readText()
-          .then((t) => {
-            WritePty(sessionId, t).catch(() => {});
-          })
-          .catch(() => {});
-        return false;
-      }
+      const unsubData = EventsOn(`pty:data:${sessionId}`, (b64: string) => {
+        try {
+          const raw = atob(b64);
+          const bytes = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+          term.write(bytes);
+        } catch {
+          term.write(b64);
+        }
+      });
 
-      return true;
-    });
+      const unsubExit = EventsOn(`pty:exit:${sessionId}`, (code: number) => {
+        term.writeln(`\r\n\x1b[90m[processo encerrado · exit ${code}]\x1b[0m`);
+        onExit?.(code);
+      });
 
-    // --- Saída do PTY → xterm (dados em base64) ---
-    const unsubData = EventsOn(`pty:data:${sessionId}`, (b64: string) => {
-      try {
-        const raw = atob(b64);
-        const bytes = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-        term.write(bytes);
-      } catch {
-        term.write(b64);
-      }
-    });
+      term.onData((data) => {
+        WritePty(sessionId, data).catch(() => {});
+      });
 
-    const unsubExit = EventsOn(`pty:exit:${sessionId}`, (code: number) => {
-      term.writeln(`\r\n\x1b[90m[processo encerrado · exit ${code}]\x1b[0m`);
-      onExit?.(code);
-    });
+      const resizeObs = new ResizeObserver(() => {
+        try {
+          fit.fit();
+          ResizePty(sessionId, term.cols, term.rows).catch(() => {});
+        } catch {}
+      });
+      resizeObs.observe(container);
 
-    // --- Input do xterm → PTY ---
-    term.onData((data) => {
-      WritePty(sessionId, data).catch(() => {});
-    });
+      handleRef?.({
+        search: (q, o) => search.findNext(q, o),
+        searchNext: (q, o) => search.findNext(q, o),
+        searchPrev: (q, o) => search.findPrevious(q, o),
+        clear: () => term.clear(),
+        focus: () => term.focus(),
+        serialize: () => serialize.serialize(),
+      });
 
-    // --- Resize ---
-    const resizeObs = new ResizeObserver(() => {
-      try {
-        fit.fit();
-        ResizePty(sessionId, term.cols, term.rows).catch(() => {});
-      } catch {}
-    });
-    resizeObs.observe(container);
-
-    // --- Handle exposto ao pai ---
-    handleRef?.({
-      search: (q, o) => search.findNext(q, o),
-      searchNext: (q, o) => search.findNext(q, o),
-      searchPrev: (q, o) => search.findPrevious(q, o),
-      clear: () => term.clear(),
-      focus: () => term.focus(),
-      serialize: () => serialize.serialize(),
-    });
-
-    const init = async () => {
       try {
         await webFonts.loadFonts();
       } catch {}
+      if (cancelled) {
+        resizeObs.disconnect();
+        unsubData?.();
+        unsubExit?.();
+        EventsOff(`pty:data:${sessionId}`, `pty:exit:${sessionId}`);
+        handleRef?.(null);
+        term.dispose();
+        return;
+      }
       fit.fit();
       ResizePty(sessionId, term.cols, term.rows).catch(() => {});
       if (active) term.focus();
+
+      cleanup = () => {
+        resizeObs.disconnect();
+        unsubData?.();
+        unsubExit?.();
+        EventsOff(`pty:data:${sessionId}`, `pty:exit:${sessionId}`);
+        handleRef?.(null);
+        term.dispose();
+      };
     };
-    void init();
+
+    void start();
 
     return () => {
-      resizeObs.disconnect();
-      unsubData?.();
-      unsubExit?.();
-      EventsOff(`pty:data:${sessionId}`, `pty:exit:${sessionId}`);
-      handleRef?.(null);
-      term.dispose();
+      cancelled = true;
+      cleanup?.();
     };
   }, [sessionId]);
 

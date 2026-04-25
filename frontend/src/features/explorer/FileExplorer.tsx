@@ -1,5 +1,6 @@
 import { SymbolIcon } from "@/components/SymbolIcon";
 import { cn } from "@/lib/utils";
+import { useConfig } from "@/hooks/useConfig";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDownAZ,
@@ -466,7 +467,8 @@ export function FileExplorer({
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [sort, setSort] = useState<SortMode>("name-asc");
+  const { value: sort, set: setSort } = useConfig<SortMode>("explorer.sortOrder", "name-asc");
+  const { value: confirmDelete } = useConfig<boolean>("explorer.confirmDelete", true);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() =>
     JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? "[]"),
   );
@@ -663,6 +665,10 @@ export function FileExplorer({
   const onDelete = useCallback(
     async (path: string) => {
       setContextMenu(null);
+      if (confirmDelete) {
+        const name = path.split("/").pop() || path;
+        if (!window.confirm(`Apagar "${name}"?`)) return;
+      }
       try {
         await DeleteEntry(path);
         onRefresh();
@@ -670,11 +676,14 @@ export function FileExplorer({
         console.error(e);
       }
     },
-    [onRefresh],
+    [onRefresh, confirmDelete],
   );
 
-  const cycleSortMode = () =>
-    setSort((s) => (s === "name-asc" ? "name-desc" : s === "name-desc" ? "recent" : "name-asc"));
+  const cycleSortMode = () => {
+    const next: SortMode =
+      sort === "name-asc" ? "name-desc" : sort === "name-desc" ? "recent" : "name-asc";
+    void setSort(next);
+  };
 
   const SortIcon = sort === "name-asc" ? ArrowUpAZ : sort === "name-desc" ? ArrowDownAZ : Clock;
   const sortLabel = sort === "name-asc" ? "A→Z" : sort === "name-desc" ? "Z→A" : "Recentes";
