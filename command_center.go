@@ -147,6 +147,7 @@ var builtinCommands = []PaletteItem{
 	{ID: "openOnboarding", Title: "Boas-vindas: Abrir onboarding", Icon: "rocket"},
 	{ID: "openAbout", Title: "Sobre Adila IDE", Icon: "info"},
 	{ID: "toggleTerminal", Title: "Alternar terminal", Icon: "terminal", Hint: "Ctrl+`"},
+	{ID: "openWebview", Title: "Webview: Abrir URL como aba", Icon: "globe", Hint: "Ctrl+Shift+U"},
 	{ID: "git.stageAll", Title: "Git: Adicionar todos os arquivos", Icon: "diff-added"},
 	{ID: "git.push", Title: "Git: Enviar (push)", Icon: "cloud-upload"},
 	{ID: "reloadWindow", Title: "Recarregar janela", Icon: "refresh"},

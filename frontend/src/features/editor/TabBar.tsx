@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Globe, X } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { SymbolIcon } from "@/components/SymbolIcon";
+import { isWebviewPath, webviewLabel } from "./WebView";
 
 type Tab = { path: string; content: string; dirty: boolean };
 
@@ -71,7 +72,8 @@ export function TabBar({ tabs, activePath, paneId, onActivate, onClose, onReorde
       onDragLeave={() => setDragOver(null)}
     >
       {tabs.map((t, i) => {
-        const name = t.path.split(/[\\/]/).pop() || t.path;
+        const isWeb = isWebviewPath(t.path);
+        const name = isWeb ? webviewLabel(t.path) : t.path.split(/[\\/]/).pop() || t.path;
         const active = t.path === activePath;
         const isDragging = dragIndexRef.current === i;
         const isDropTarget = dragOver === i && dragIndexRef.current !== i;
@@ -112,7 +114,11 @@ export function TabBar({ tabs, activePath, paneId, onActivate, onClose, onReorde
               <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-full z-10" />
             )}
 
-            <SymbolIcon name={name} isDir={false} className="size-4 shrink-0 relative z-10" />
+            {isWeb ? (
+              <Globe className="size-4 shrink-0 relative z-10 text-muted-foreground" />
+            ) : (
+              <SymbolIcon name={name} isDir={false} className="size-4 shrink-0 relative z-10" />
+            )}
             <span className="truncate max-w-[12rem] relative z-10">
               {name}
               {t.dirty && <span className="ml-1 text-primary">•</span>}

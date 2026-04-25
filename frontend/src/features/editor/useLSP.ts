@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
-import { MonacoLanguageClient } from "monaco-languageclient";
-import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
-import { CloseAction, ErrorAction } from "vscode-languageclient";
+import { useEffect } from "react";
+import type * as monaco from "monaco-editor";
 import { GetLSPPort } from "../../../wailsjs/go/main/LSP";
+import { toast } from "@/hooks/useToast";
+import { getOrCreateClient, isLSPRelevant } from "./lspBridge";
 
 let portCache: number | null = null;
 async function getLSPPort(): Promise<number> {
@@ -11,95 +11,63 @@ async function getLSPPort(): Promise<number> {
   return portCache;
 }
 
-// JSON, CSS, HTML têm worker embutido no Monaco — não precisam de LSP externo.
-const MONACO_BUILTIN = new Set(["json", "css", "html"]);
+// Toasts são deduplicados por mensagem — evita spam quando vários arquivos
+// disparam o mesmo erro (ex: LSP não instalado).
+const recentErrors = new Set<string>();
+function reportError(msg: string, err?: unknown) {
+  console.warn(`[LSP] ${msg}`, err);
+  if (recentErrors.has(msg)) return;
+  recentErrors.add(msg);
+  setTimeout(() => recentErrors.delete(msg), 30_000);
+  toast.error(msg, err instanceof Error ? err.message : undefined);
+}
 
-// Clientes vivos indexados por "lang::rootUri" — compartilhados entre abas.
-const activeClients = new Map<string, MonacoLanguageClient>();
+type Monaco = typeof import("monaco-editor");
 
 type UseLSPOptions = {
+  monaco: Monaco | null;
+  model: monaco.editor.ITextModel | null;
   lang: string;
   rootUri: string;
   enabled?: boolean;
 };
 
-export function useLSP({ lang, rootUri, enabled = true }: UseLSPOptions) {
-  const clientRef = useRef<MonacoLanguageClient | null>(null);
-
+/**
+ * Conecta um modelo Monaco ao servidor LSP correspondente. O cliente é
+ * compartilhado por (lang, rootUri) — todas as abas do mesmo projeto reusam
+ * a conexão. didOpen/didChange/didClose são gerenciados automaticamente.
+ */
+export function useLSP({ monaco, model, lang, rootUri, enabled = true }: UseLSPOptions) {
   useEffect(() => {
-    if (!enabled || !lang || !rootUri || MONACO_BUILTIN.has(lang)) return;
+    if (!enabled || !monaco || !model || !rootUri || !isLSPRelevant(lang)) return;
 
-    const key = `${lang}::${rootUri}`;
+    let cancelled = false;
+    let detach: (() => void) | undefined;
 
-    // reutiliza cliente existente se o root+lang já estiver ativo
-    if (activeClients.has(key)) {
-      clientRef.current = activeClients.get(key)!;
-      return;
-    }
-
-    let ws: WebSocket | null = null;
-    let disposed = false;
-
-    const connect = async () => {
+    void (async () => {
       let port: number;
       try {
         port = await getLSPPort();
-      } catch {
+      } catch (err) {
+        reportError("Não foi possível obter a porta do servidor LSP", err);
         return;
       }
-      if (disposed) return;
+      if (cancelled) return;
 
-      const rootParam = encodeURIComponent(rootUri);
-      ws = new WebSocket(`ws://127.0.0.1:${port}/lsp/${lang}?root=${rootParam}`);
-
-      ws.binaryType = "arraybuffer";
-
-      ws.onerror = () => {
-        // servidor LSP não instalado — falha silenciosa
-        activeClients.delete(key);
-      };
-
-      ws.onclose = () => {
-        if (!disposed) activeClients.delete(key);
-      };
-
-      ws.onopen = () => {
-        if (disposed || !ws) return;
-
-        const socket = toSocket(ws);
-        const reader = new WebSocketMessageReader(socket);
-        const writer = new WebSocketMessageWriter(socket);
-
-        const client = new MonacoLanguageClient({
-          name: `${lang} LSP`,
-          clientOptions: {
-            documentSelector: [
-              { language: lang },
-              // typescript-language-server também cobre javascript
-              ...(lang === "typescript" ? [{ language: "javascript" }] : []),
-            ],
-            errorHandler: {
-              error: () => ({ action: ErrorAction.Continue }),
-              closed: () => ({ action: CloseAction.DoNotRestart }),
-            },
-          },
-          messageTransports: { reader, writer },
-        });
-
-        clientRef.current = client;
-        activeClients.set(key, client);
-        client.start();
-      };
-    };
-
-    void connect();
+      const client = await getOrCreateClient({
+        monaco,
+        lang,
+        rootUri,
+        port,
+        onError: reportError,
+      });
+      if (cancelled || !client) return;
+      detach = client.attachModel(model);
+    })();
 
     return () => {
-      disposed = true;
-      // mantém o cliente vivo — ele é compartilhado por todas as abas do mesmo root.
-      // Wails limpa os processos LSP no shutdown via lsp.shutdown().
+      cancelled = true;
+      detach?.();
     };
-  }, [lang, rootUri, enabled]);
-
-  return clientRef;
+  }, [monaco, model, lang, rootUri, enabled]);
 }

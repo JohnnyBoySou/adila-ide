@@ -82,6 +82,10 @@ export function SetWorkdir(arg1) {
   return window['go']['main']['Git']['SetWorkdir'](arg1);
 }
 
+export function ShowAtHead(arg1) {
+  return window['go']['main']['Git']['ShowAtHead'](arg1);
+}
+
 export function Stage(arg1) {
   return window['go']['main']['Git']['Stage'](arg1);
 }

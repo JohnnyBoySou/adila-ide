@@ -38,6 +38,10 @@ export type EditorConfig = {
   inlayHints: InlayHints;
   codeLens: boolean;
   paddingTop: number;
+  gitGutter: boolean;
+  snippets: boolean;
+  pathCompletion: boolean;
+  userSnippets: string;
 };
 
 export function useEditorConfig(): EditorConfig {
@@ -87,6 +91,10 @@ export function useEditorConfig(): EditorConfig {
   const { value: inlayHints } = useConfig<InlayHints>("editor.inlayHints.enabled", "on");
   const { value: codeLens } = useConfig("editor.codeLens", true);
   const { value: paddingTop } = useConfig("editor.padding.top", 12);
+  const { value: gitGutter } = useConfig("editor.gitGutter", true);
+  const { value: snippets } = useConfig("editor.snippets.enabled", true);
+  const { value: pathCompletion } = useConfig("editor.pathCompletion.enabled", true);
+  const { value: userSnippets } = useConfig("editor.userSnippets", "[]");
 
   return {
     theme: theme as string,
@@ -117,5 +125,9 @@ export function useEditorConfig(): EditorConfig {
     inlayHints,
     codeLens: codeLens as boolean,
     paddingTop: paddingTop as number,
+    gitGutter: gitGutter as boolean,
+    snippets: snippets as boolean,
+    pathCompletion: pathCompletion as boolean,
+    userSnippets: userSnippets as string,
   };
 }

@@ -42,6 +42,8 @@ export function Push():Promise<void>;
 
 export function SetWorkdir(arg1:string):Promise<void>;
 
+export function ShowAtHead(arg1:string):Promise<string>;
+
 export function Stage(arg1:string):Promise<void>;
 
 export function StageAll():Promise<void>;

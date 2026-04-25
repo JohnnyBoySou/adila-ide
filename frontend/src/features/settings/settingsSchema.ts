@@ -409,6 +409,22 @@ export const settingsGroups: SettingsGroupDef[] = [
         defaultValue: 12,
         keywords: ["padding", "espaço", "top"],
       },
+      {
+        key: "editor.gitGutter",
+        title: "Git gutter",
+        description: "Marca linhas adicionadas, modificadas e removidas ao lado dos números de linha.",
+        type: "boolean",
+        defaultValue: true,
+        keywords: ["git", "gutter", "diff", "added", "modified", "deleted"],
+      },
+      {
+        key: "editor.snippets.enabled",
+        title: "Snippets embutidos",
+        description: "Atalhos como `clog`, `useState`, `iferr` no autocomplete (TypeScript, JavaScript, Go).",
+        type: "boolean",
+        defaultValue: true,
+        keywords: ["snippet", "atalho", "completion", "autocomplete"],
+      },
     ],
   },
   {

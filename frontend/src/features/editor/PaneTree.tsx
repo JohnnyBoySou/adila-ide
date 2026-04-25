@@ -11,9 +11,11 @@ import { Suspense, lazy, useRef, useState } from "react";
 import { Breadcrumbs } from "./Breadcrumbs";
 import type { EditorMarker } from "./ProblemsPanel";
 import { TabBar } from "./TabBar";
+import { isWebviewPath } from "./WebView";
 import type { DropSide, LeafPane, PaneId, PaneNode } from "./panes";
 
 const CodeEditor = lazy(() => import("./CodeEditor").then((m) => ({ default: m.CodeEditor })));
+const WebView = lazy(() => import("./WebView").then((m) => ({ default: m.WebView })));
 
 export const FILE_DRAG_MIME = "application/x-adila-file";
 
@@ -41,6 +43,7 @@ type PaneTreeProps = {
   onDropFile: (paneId: PaneId, side: DropSide, file: DraggedFile) => void;
   onSplitSizeChange?: (splitId: PaneId, size: number) => void;
   onOpenFileByPath: (path: string) => void;
+  onWebviewNavigate?: (paneId: PaneId, oldPath: string, newPath: string) => void;
   emptyState: React.ReactNode;
 };
 
@@ -100,6 +103,7 @@ function LeafView({
   onMarkersChange,
   onDropFile,
   onOpenFileByPath,
+  onWebviewNavigate,
   emptyState,
 }: { leaf: LeafPane } & PaneTreeProps) {
   const [dropSide, setDropSide] = useState<DropSide | null>(null);
@@ -194,21 +198,30 @@ function LeafView({
       </div>
 
       {/* Breadcrumbs + editor */}
-      {activeTab && (
+      {activeTab && !isWebviewPath(activeTab.path) && (
         <Breadcrumbs path={activeTab.path} rootPath={rootPath} onOpenFile={onOpenFileByPath} />
       )}
       <div className="flex-1 overflow-hidden min-h-0">
         {activeTab ? (
-          <Suspense fallback={<ViewFallback />}>
-            <CodeEditor
-              path={activeTab.path}
-              content={activeTab.content}
-              rootUri={rootPath ? `file://${rootPath}` : undefined}
-              onChange={(v) => onChange(activeTab.path, v)}
-              onCursorChange={isFocused ? onCursorChange : undefined}
-              onMarkersChange={onMarkersChange}
-            />
-          </Suspense>
+          isWebviewPath(activeTab.path) ? (
+            <Suspense fallback={<ViewFallback />}>
+              <WebView
+                path={activeTab.path}
+                onNavigate={(oldPath, newPath) => onWebviewNavigate?.(leaf.id, oldPath, newPath)}
+              />
+            </Suspense>
+          ) : (
+            <Suspense fallback={<ViewFallback />}>
+              <CodeEditor
+                path={activeTab.path}
+                content={activeTab.content}
+                rootUri={rootPath ? `file://${rootPath}` : undefined}
+                onChange={(v) => onChange(activeTab.path, v)}
+                onCursorChange={isFocused ? onCursorChange : undefined}
+                onMarkersChange={onMarkersChange}
+              />
+            </Suspense>
+          )
         ) : (
           emptyState
         )}

@@ -304,6 +304,10 @@ export async function deserializePane(
   if (s.kind === "leaf") {
     const results = await Promise.all(
       s.tabs.map(async (t) => {
+        // tabs especiais (ex: webview://...) não têm conteúdo de arquivo
+        if (t.path.includes("://")) {
+          return { path: t.path, content: "", dirty: false } as PaneTab;
+        }
         try {
           const content = await readFile(t.path);
           return { path: t.path, content, dirty: false } as PaneTab;

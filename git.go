@@ -174,6 +174,18 @@ func (g *Git) Diff(path string, staged bool) (string, error) {
 	return out, nil
 }
 
+// ShowAtHead retorna o conteúdo do arquivo no HEAD (último commit). Usado pelo
+// frontend para computar diff em tempo real contra o buffer em edição.
+// Retorna string vazia se o arquivo não existir no HEAD (arquivo novo).
+func (g *Git) ShowAtHead(path string) (string, error) {
+	out, err := g.git("show", "HEAD:"+path)
+	if err != nil {
+		// Arquivo novo (ainda não commitado) ou path não está no HEAD — não é erro.
+		return "", nil
+	}
+	return out, nil
+}
+
 // Stage adiciona um arquivo ao index.
 func (g *Git) Stage(path string) error {
 	_, err := g.git("add", "--", path)

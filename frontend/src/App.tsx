@@ -6,6 +6,7 @@ import { type EditorMarker, ProblemsPanel } from "@/features/editor/ProblemsPane
 import { ThemePicker } from "@/features/editor/ThemePicker";
 import { QuickOpen } from "@/features/editor/QuickOpen";
 import { PaneTree, type DraggedFile } from "@/features/editor/PaneTree";
+import { webviewPathFromUrl, isWebviewPath } from "@/features/editor/WebView";
 import {
   closeTabInTree,
   deserializePane,
@@ -266,6 +267,56 @@ function App() {
   const trackRecent = (path: string) =>
     setRecentPaths((prev) => [path, ...prev.filter((p) => p !== path)].slice(0, 30));
 
+  const openUrl = (rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url) return;
+    const path = webviewPathFromUrl(
+      /^https?:\/\//i.test(url)
+        ? url
+        : /^localhost(:\d+)?(\/|$)/i.test(url) || url.startsWith("127.0.0.1")
+          ? `http://${url}`
+          : `https://${url}`,
+    );
+    const existingLeaf = findLeafWithPath(rootPaneRef.current, path);
+    if (existingLeaf) {
+      setRootPane((prev) => updateLeaf(prev, existingLeaf.id, (l) => ({ ...l, activePath: path })));
+      setFocusedPaneId(existingLeaf.id);
+      return;
+    }
+    const tab = { path, content: "", dirty: false };
+    setRootPane((prev) => {
+      const targetId = findLeafById(prev, focusedPaneId)
+        ? focusedPaneId
+        : (prev as { id: PaneId }).id;
+      return updateLeaf(prev, targetId, (l) => openTabInLeaf(l, tab));
+    });
+  };
+
+  const onWebviewNavigate = (paneId: PaneId, oldPath: string, newPath: string) => {
+    if (oldPath === newPath) return;
+    setRootPane((prev) =>
+      updateLeaf(prev, paneId, (l) => {
+        const idx = l.tabs.findIndex((t) => t.path === oldPath);
+        if (idx === -1) return l;
+        // se já há outra tab com o newPath neste leaf, apenas foca e remove a antiga
+        if (l.tabs.some((t) => t.path === newPath)) {
+          return {
+            ...l,
+            tabs: l.tabs.filter((t) => t.path !== oldPath),
+            activePath: newPath,
+          };
+        }
+        const tabs = [...l.tabs];
+        tabs[idx] = { ...tabs[idx], path: newPath };
+        return {
+          ...l,
+          tabs,
+          activePath: l.activePath === oldPath ? newPath : l.activePath,
+        };
+      }),
+    );
+  };
+
   const openFile = async (entry: Entry) => {
     // se já existe num leaf, apenas foca
     const existingLeaf = findLeafWithPath(rootPaneRef.current, entry.path);
@@ -315,6 +366,11 @@ function App() {
   const openFileRef = useRef(openFile);
   useEffect(() => {
     openFileRef.current = openFile;
+  });
+
+  const openUrlRef = useRef(openUrl);
+  useEffect(() => {
+    openUrlRef.current = openUrl;
   });
 
   const setViewRef = useRef(setView);
@@ -386,6 +442,15 @@ function App() {
         case "openAbout":
           setViewRef.current("about");
           break;
+        case "openWebview":
+          {
+            const url = window.prompt(
+              "URL para abrir como aba (ex: http://localhost:5173)",
+              "http://localhost:5173",
+            );
+            if (url) openUrlRef.current(url);
+          }
+          break;
       }
     });
   }, []);
@@ -403,7 +468,7 @@ function App() {
   const onActivateTab = (paneId: PaneId, path: string) => {
     setRootPane((prev) => updateLeaf(prev, paneId, (l) => ({ ...l, activePath: path })));
     setFocusedPaneId(paneId);
-    trackRecent(path);
+    if (!isWebviewPath(path)) trackRecent(path);
   };
 
   const onReorderTabs = (paneId: PaneId, fromIndex: number, toIndex: number) => {
@@ -470,7 +535,7 @@ function App() {
 
   const saveActive = useCallback(async () => {
     const path = activePath;
-    if (!path) return;
+    if (!path || isWebviewPath(path)) return;
     const leaf = findLeafWithPath(rootPaneRef.current, path);
     const tab = leaf?.tabs.find((t) => t.path === path);
     if (!tab) return;
@@ -556,6 +621,16 @@ function App() {
         e.preventDefault();
         showHint("Ctrl + Shift + M");
         setBottomPanel((p) => (p === "problems" ? null : "problems"));
+        return;
+      }
+      if (meta && e.shiftKey && e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        showHint("Ctrl + Shift + U");
+        const url = window.prompt(
+          "URL para abrir como aba (ex: http://localhost:5173)",
+          "http://localhost:5173",
+        );
+        if (url) openUrlRef.current(url);
         return;
       }
       if (meta && e.key.toLowerCase() === "s") {
@@ -751,6 +826,7 @@ function App() {
         setRootPane((prev) => setSplitSize(prev, splitId, size))
       }
       onOpenFileByPath={openFileByPath}
+      onWebviewNavigate={onWebviewNavigate}
       emptyState={welcomeEl}
     />
   );
@@ -919,9 +995,7 @@ function App() {
       />
       <ShortcutHud hint={shortcutHint} />
       <Notifications centerOpen={notificationsOpen} onCenterOpenChange={setNotificationsOpen} />
-      {view === "settings" && (
-        <SettingsOverlay onClose={() => setView("editor")} />
-      )}
+      {view === "settings" && <SettingsOverlay onClose={() => setView("editor")} />}
       <Toaster />
     </div>
   );

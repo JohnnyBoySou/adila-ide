@@ -1,11 +1,14 @@
 import Editor, { type OnMount, useMonaco } from "@monaco-editor/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import { useEditorConfig } from "./useEditorConfig";
+import { useGitDecorations } from "./useGitDecorations";
 import { useLSP } from "./useLSP";
 import type { EditorMarker } from "./ProblemsPanel";
 import { TAILWIND_MONACO_THEME, installMonacoTailwindTheme } from "@/lib/monacoTailwindTheme";
 import { EditorContextMenu } from "./EditorContextMenu";
+import { registerSnippets, unregisterSnippets } from "./snippets";
+import { registerPathCompletion, unregisterPathCompletion } from "./pathCompletion";
 
 const LANG_MAP: Record<string, string> = {
   ts: "typescript",
@@ -57,12 +60,37 @@ export function CodeEditor({
   const cfg = useEditorConfig();
   const lang = detectLanguage(path);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const [editorInstance, setEditorInstance] = useState<Parameters<OnMount>[0] | null>(null);
+  const [activeModel, setActiveModel] = useState<import("monaco-editor").editor.ITextModel | null>(
+    null,
+  );
   const monacoInstance = useMonaco();
 
+  // Atualiza o modelo ativo quando o editor monta ou troca de arquivo
+  // (Monaco swap interno ao mudar `path`).
+  useEffect(() => {
+    if (!editorInstance) return;
+    setActiveModel(editorInstance.getModel());
+    const sub = editorInstance.onDidChangeModel(() => {
+      setActiveModel(editorInstance.getModel());
+    });
+    return () => sub.dispose();
+  }, [editorInstance]);
+
   useLSP({
+    monaco: monacoInstance,
+    model: activeModel,
     lang,
     rootUri: rootUri ?? "",
     enabled: !!rootUri && lang !== "plaintext" && lang !== "markdown",
+  });
+
+  useGitDecorations({
+    editor: editorInstance,
+    monaco: monacoInstance,
+    path,
+    rootUri,
+    enabled: cfg.gitGutter,
   });
 
   useEffect(() => {
@@ -94,6 +122,30 @@ export function CodeEditor({
     installMonacoTailwindTheme(monacoInstance);
   }, [monacoInstance, cfg.theme]);
 
+  // Registra/desregistra snippets globais conforme o toggle do settings.
+  useEffect(() => {
+    if (!monacoInstance) return;
+    if (cfg.snippets) {
+      registerSnippets(monacoInstance, cfg.userSnippets);
+      return () => unregisterSnippets();
+    }
+    unregisterSnippets();
+  }, [monacoInstance, cfg.snippets, cfg.userSnippets]);
+
+  // Path completion para imports/requires/urls relativos.
+  const pathRef = useRef(path);
+  useEffect(() => {
+    pathRef.current = path;
+  }, [path]);
+  useEffect(() => {
+    if (!monacoInstance) return;
+    if (cfg.pathCompletion) {
+      registerPathCompletion(monacoInstance, () => pathRef.current);
+      return () => unregisterPathCompletion();
+    }
+    unregisterPathCompletion();
+  }, [monacoInstance, cfg.pathCompletion]);
+
   // Subscreve mudanças de markers (diagnósticos LSP/TypeScript) para este arquivo.
   useEffect(() => {
     if (!monacoInstance || !onMarkersChange) return;
@@ -118,6 +170,7 @@ export function CodeEditor({
         path={path}
         onMount={(ed) => {
           editorRef.current = ed;
+          setEditorInstance(ed);
           ed.onDidChangeCursorPosition((e) => {
             onCursorChange?.(e.position.lineNumber, e.position.column);
           });
