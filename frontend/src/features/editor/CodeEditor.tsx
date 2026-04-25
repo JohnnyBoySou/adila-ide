@@ -127,6 +127,7 @@ export function CodeEditor({
           contextmenu: false,
           fontSize: cfg.fontSize,
           fontFamily: cfg.fontFamily,
+          fontLigatures: cfg.fontLigatures,
           minimap: { enabled: cfg.minimap },
           scrollBeyondLastLine: cfg.scrollBeyondLastLine,
           wordWrap: cfg.wordWrap,
@@ -134,8 +135,27 @@ export function CodeEditor({
           renderWhitespace: cfg.renderWhitespace,
           smoothScrolling: cfg.smoothScrolling,
           cursorBlinking: cfg.cursorBlinking,
+          cursorSmoothCaretAnimation: cfg.cursorSmoothCaret,
           renderLineHighlight: cfg.renderLineHighlight,
           lineNumbers: cfg.lineNumbers,
+          bracketPairColorization: { enabled: cfg.bracketPairColorization },
+          guides: {
+            bracketPairs:
+              cfg.bracketPairGuides === "off"
+                ? false
+                : cfg.bracketPairGuides === "always"
+                  ? true
+                  : "active",
+            indentation: cfg.indentGuides,
+          },
+          stickyScroll: { enabled: cfg.stickyScroll },
+          mouseWheelZoom: cfg.mouseWheelZoom,
+          linkedEditing: cfg.linkedEditing,
+          formatOnPaste: cfg.formatOnPaste,
+          formatOnType: cfg.formatOnType,
+          inlayHints: { enabled: cfg.inlayHints },
+          codeLens: cfg.codeLens,
+          padding: { top: cfg.paddingTop },
         }}
       />
     </EditorContextMenu>

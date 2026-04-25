@@ -2,9 +2,12 @@ import { useConfig } from "@/hooks/useConfig";
 
 type WordWrap = "off" | "on" | "wordWrapColumn" | "bounded";
 type CursorBlinking = "blink" | "smooth" | "phase" | "expand" | "solid";
+type CursorSmoothCaret = "off" | "explicit" | "on";
 type RenderWhitespace = "none" | "boundary" | "selection" | "trailing" | "all";
 type RenderLineHighlight = "none" | "gutter" | "line" | "all";
 type LineNumbers = "on" | "off" | "relative";
+type BracketPairGuides = "off" | "active" | "always";
+type InlayHints = "on" | "off" | "onUnlessPressed" | "offUnlessPressed";
 
 export type EditorConfig = {
   theme: string;
@@ -14,14 +17,27 @@ export type EditorConfig = {
   wordWrap: WordWrap;
   minimap: boolean;
   cursorBlinking: CursorBlinking;
+  cursorSmoothCaret: CursorSmoothCaret;
   lineNumbers: LineNumbers;
   renderWhitespace: RenderWhitespace;
   scrollBeyondLastLine: boolean;
   smoothScrolling: boolean;
   renderLineHighlight: RenderLineHighlight;
   formatOnSave: boolean;
+  formatOnPaste: boolean;
+  formatOnType: boolean;
   autoSave: string;
   autoSaveDelay: number;
+  bracketPairColorization: boolean;
+  bracketPairGuides: BracketPairGuides;
+  indentGuides: boolean;
+  stickyScroll: boolean;
+  fontLigatures: boolean;
+  mouseWheelZoom: boolean;
+  linkedEditing: boolean;
+  inlayHints: InlayHints;
+  codeLens: boolean;
+  paddingTop: number;
 };
 
 export function useEditorConfig(): EditorConfig {
@@ -35,6 +51,10 @@ export function useEditorConfig(): EditorConfig {
   const { value: wordWrap } = useConfig<WordWrap>("editor.wordWrap", "off");
   const { value: minimap } = useConfig("editor.minimap.enabled", false);
   const { value: cursorBlinking } = useConfig<CursorBlinking>("editor.cursorBlinking", "smooth");
+  const { value: cursorSmoothCaret } = useConfig<CursorSmoothCaret>(
+    "editor.cursorSmoothCaretAnimation",
+    "on",
+  );
   const { value: lineNumbers } = useConfig<LineNumbers>("editor.lineNumbers", "on");
   const { value: renderWhitespace } = useConfig<RenderWhitespace>(
     "editor.renderWhitespace",
@@ -47,8 +67,26 @@ export function useEditorConfig(): EditorConfig {
     "all",
   );
   const { value: formatOnSave } = useConfig("editor.formatOnSave", false);
+  const { value: formatOnPaste } = useConfig("editor.formatOnPaste", false);
+  const { value: formatOnType } = useConfig("editor.formatOnType", false);
   const { value: autoSave } = useConfig("files.autoSave", "off");
   const { value: autoSaveDelay } = useConfig("files.autoSaveDelay", 1000);
+  const { value: bracketPairColorization } = useConfig(
+    "editor.bracketPairColorization.enabled",
+    true,
+  );
+  const { value: bracketPairGuides } = useConfig<BracketPairGuides>(
+    "editor.guides.bracketPairs",
+    "active",
+  );
+  const { value: indentGuides } = useConfig("editor.guides.indentation", true);
+  const { value: stickyScroll } = useConfig("editor.stickyScroll.enabled", true);
+  const { value: fontLigatures } = useConfig("editor.fontLigatures", true);
+  const { value: mouseWheelZoom } = useConfig("editor.mouseWheelZoom", false);
+  const { value: linkedEditing } = useConfig("editor.linkedEditing", true);
+  const { value: inlayHints } = useConfig<InlayHints>("editor.inlayHints.enabled", "on");
+  const { value: codeLens } = useConfig("editor.codeLens", true);
+  const { value: paddingTop } = useConfig("editor.padding.top", 12);
 
   return {
     theme: theme as string,
@@ -58,13 +96,26 @@ export function useEditorConfig(): EditorConfig {
     wordWrap,
     minimap: minimap as boolean,
     cursorBlinking,
+    cursorSmoothCaret,
     lineNumbers,
     renderWhitespace,
     scrollBeyondLastLine: scrollBeyondLastLine as boolean,
     smoothScrolling: smoothScrolling as boolean,
     renderLineHighlight,
     formatOnSave: formatOnSave as boolean,
+    formatOnPaste: formatOnPaste as boolean,
+    formatOnType: formatOnType as boolean,
     autoSave: autoSave as string,
     autoSaveDelay: autoSaveDelay as number,
+    bracketPairColorization: bracketPairColorization as boolean,
+    bracketPairGuides,
+    indentGuides: indentGuides as boolean,
+    stickyScroll: stickyScroll as boolean,
+    fontLigatures: fontLigatures as boolean,
+    mouseWheelZoom: mouseWheelZoom as boolean,
+    linkedEditing: linkedEditing as boolean,
+    inlayHints,
+    codeLens: codeLens as boolean,
+    paddingTop: paddingTop as number,
   };
 }

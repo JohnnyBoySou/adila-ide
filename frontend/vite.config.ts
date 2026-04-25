@@ -11,6 +11,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    fs: {
+      // Permite importar arquivos do repo root (RELEASES.md) via ?raw.
+      allow: [path.resolve(__dirname, ".."), __dirname],
+    },
+  },
   build: {
     chunkSizeWarningLimit: 1500,
     rolldownOptions: {
