@@ -123,9 +123,7 @@ export function SettingsView() {
         </div>
         <nav className="flex-1 overflow-y-auto scrollbar p-2">
           {groups.length === 0 && (
-            <p className="text-xs text-muted-foreground px-3 py-4">
-              Nada encontrado.
-            </p>
+            <p className="text-xs text-muted-foreground px-3 py-4">Nada encontrado.</p>
           )}
           {groups.map((g) => (
             <button
@@ -155,12 +153,7 @@ export function SettingsView() {
           ))}
         </nav>
         <div className="p-3 border-t border-border/60">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openJson}
-            className="w-full justify-start"
-          >
+          <Button variant="outline" size="sm" onClick={openJson} className="w-full justify-start">
             <FileJson className="size-4" />
             Editar settings.json
           </Button>
@@ -178,17 +171,11 @@ export function SettingsView() {
             />
           )}
           {groups.map((g) => (
-            <section
-              key={g.id}
-              id={`group-${g.id}`}
-              className="mb-10 scroll-mt-8"
-            >
+            <section key={g.id} id={`group-${g.id}`} className="mb-10 scroll-mt-8">
               <header className="mb-4">
                 <h2 className="text-lg font-semibold">{g.title}</h2>
                 {g.description && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {g.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{g.description}</p>
                 )}
               </header>
               <div className="rounded-lg border border-border/60 bg-card/40 px-5">
@@ -238,11 +225,7 @@ export function SettingsView() {
         </AnimatePresence>
       </main>
 
-      <Dialog
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        ariaLabel="Paleta de configurações"
-      >
+      <Dialog open={paletteOpen} onOpenChange={setPaletteOpen} ariaLabel="Paleta de configurações">
         <Command<SettingCommandItem>
           items={paletteItems}
           placeholder="Buscar configuração..."

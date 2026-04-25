@@ -153,9 +153,7 @@ export const THEMES: Theme[] = [
   },
 ];
 
-export const THEMES_BY_ID: Record<string, Theme> = Object.fromEntries(
-  THEMES.map((t) => [t.id, t]),
-);
+export const THEMES_BY_ID: Record<string, Theme> = Object.fromEntries(THEMES.map((t) => [t.id, t]));
 
 export const DEFAULT_THEME_ID = "Default Dark Modern";
 
@@ -163,8 +161,6 @@ export function resolveTheme(id: string | undefined | null): Theme {
   if (!id) return THEMES_BY_ID[DEFAULT_THEME_ID];
   const t = THEMES_BY_ID[id];
   if (t) return t;
-  const fallback = id.toLowerCase().includes("light")
-    ? "Default Light Modern"
-    : DEFAULT_THEME_ID;
+  const fallback = id.toLowerCase().includes("light") ? "Default Light Modern" : DEFAULT_THEME_ID;
   return THEMES_BY_ID[fallback];
 }

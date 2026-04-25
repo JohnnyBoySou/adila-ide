@@ -32,12 +32,7 @@ export function EditorContextMenu({ getEditor, filePath, children }: Props) {
     >
       {children}
       {pos && (
-        <Menu
-          pos={pos}
-          editor={getEditor()}
-          filePath={filePath}
-          onClose={() => setPos(null)}
-        />
+        <Menu pos={pos} editor={getEditor()} filePath={filePath} onClose={() => setPos(null)} />
       )}
     </div>
   );
@@ -71,12 +66,27 @@ const ITEMS: Item[] = [
   { kind: "action", label: "Ações rápidas", actionId: "editor.action.quickFix" },
   { kind: "action", label: "Mudar todas as ocorrências", actionId: "editor.action.changeAll" },
   { kind: "separator" },
-  { kind: "action", label: "Recortar", actionId: "editor.action.clipboardCutAction", requireSelection: true },
-  { kind: "action", label: "Copiar", actionId: "editor.action.clipboardCopyAction", requireSelection: true },
+  {
+    kind: "action",
+    label: "Recortar",
+    actionId: "editor.action.clipboardCutAction",
+    requireSelection: true,
+  },
+  {
+    kind: "action",
+    label: "Copiar",
+    actionId: "editor.action.clipboardCopyAction",
+    requireSelection: true,
+  },
   { kind: "action", label: "Colar", actionId: "editor.action.clipboardPasteAction" },
   { kind: "separator" },
   { kind: "action", label: "Formatar documento", actionId: "editor.action.formatDocument" },
-  { kind: "action", label: "Formatar seleção", actionId: "editor.action.formatSelection", requireSelection: true },
+  {
+    kind: "action",
+    label: "Formatar seleção",
+    actionId: "editor.action.formatSelection",
+    requireSelection: true,
+  },
   { kind: "action", label: "Comentar linha", actionId: "editor.action.commentLine" },
   { kind: "action", label: "Comentar bloco", actionId: "editor.action.blockComment" },
   { kind: "separator" },
@@ -99,11 +109,13 @@ type ResolvedItem =
 // Cai pra null se não conseguir — o item simplesmente fica sem shortcut.
 function lookupShortcut(editor: Editor, actionId: string): string | undefined {
   try {
-    const svc = (editor as unknown as {
-      _standaloneKeybindingService?: {
-        lookupKeybinding: (id: string) => { getLabel: () => string | null } | null;
-      };
-    })._standaloneKeybindingService;
+    const svc = (
+      editor as unknown as {
+        _standaloneKeybindingService?: {
+          lookupKeybinding: (id: string) => { getLabel: () => string | null } | null;
+        };
+      }
+    )._standaloneKeybindingService;
     const kb = svc?.lookupKeybinding(actionId);
     return kb?.getLabel() ?? undefined;
   } catch {
@@ -111,11 +123,7 @@ function lookupShortcut(editor: Editor, actionId: string): string | undefined {
   }
 }
 
-function resolveItems(
-  editor: Editor,
-  filePath: string,
-  close: () => void,
-): ResolvedItem[] {
+function resolveItems(editor: Editor, filePath: string, close: () => void): ResolvedItem[] {
   const hasSelection = !editor.getSelection()?.isEmpty();
 
   const resolved: ResolvedItem[] = [];
@@ -138,9 +146,7 @@ function resolveItems(
             }
           : async () => {
               try {
-                await navigator.clipboard.writeText(
-                  filePath.split("/").pop() ?? filePath,
-                );
+                await navigator.clipboard.writeText(filePath.split("/").pop() ?? filePath);
               } catch (e) {
                 console.error(e);
               }

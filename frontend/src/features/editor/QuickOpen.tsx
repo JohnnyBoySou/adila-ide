@@ -30,10 +30,16 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
 
   useEffect(() => {
     if (!open || !rootPath) return;
-    if (!query.trim()) { setResults([]); return; }
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
     const timer = setTimeout(() => {
       SearchFiles(rootPath, query)
-        .then((r) => { setResults(r ?? []); setActiveIndex(0); })
+        .then((r) => {
+          setResults(r ?? []);
+          setActiveIndex(0);
+        })
         .catch(() => setResults([]));
     }, 80);
     return () => clearTimeout(timer);
@@ -42,7 +48,10 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setActiveIndex((i) => Math.min(i + 1, results.length - 1));
@@ -86,7 +95,9 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
             placeholder="Abrir arquivo…"
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
-          <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Esc</kbd>
+          <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            Esc
+          </kbd>
         </div>
 
         <div ref={listRef} className="max-h-80 overflow-y-auto py-1">
@@ -106,7 +117,10 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
             return (
               <button
                 key={r.path}
-                onClick={() => { onOpenFile(r.path); onClose(); }}
+                onClick={() => {
+                  onOpenFile(r.path);
+                  onClose();
+                }}
                 className={
                   "w-full text-left px-3 py-1.5 flex items-center gap-2.5 transition-colors " +
                   (i === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50")

@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +23,11 @@ function filterItems<T extends CommandItem>(items: T[], query: string): T[] {
     return items;
   }
   return items.filter((item) =>
-    [item.title, typeof item.description === "string" ? item.description : "", ...(item.keywords ?? [])]
+    [
+      item.title,
+      typeof item.description === "string" ? item.description : "",
+      ...(item.keywords ?? []),
+    ]
       .join(" ")
       .toLowerCase()
       .includes(q),
@@ -59,9 +56,7 @@ export function Command<T extends CommandItem>({
   }, [query]);
 
   useEffect(() => {
-    const active = listRef.current?.querySelector<HTMLElement>(
-      `[data-command-index="${index}"]`,
-    );
+    const active = listRef.current?.querySelector<HTMLElement>(`[data-command-index="${index}"]`);
     active?.scrollIntoView({ block: "nearest" });
   }, [index]);
 
@@ -94,10 +89,7 @@ export function Command<T extends CommandItem>({
           className="h-11 w-full bg-transparent pl-3 text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
-      <div
-        ref={listRef}
-        className="max-h-80 overflow-y-auto scrollbar p-1"
-      >
+      <div ref={listRef} className="max-h-80 overflow-y-auto scrollbar p-1">
         {filtered.length === 0 ? (
           <div className="py-6 text-center text-sm text-muted-foreground">
             {emptyMessage ?? "Nada encontrado."}
@@ -112,9 +104,7 @@ export function Command<T extends CommandItem>({
               onClick={() => onSelect(item)}
               className={cn(
                 "flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-sm px-3 py-2 text-left text-sm transition-colors",
-                i === index
-                  ? "bg-accent text-accent-foreground"
-                  : "text-foreground",
+                i === index ? "bg-accent text-accent-foreground" : "text-foreground",
               )}
             >
               <span className="font-medium">{item.title}</span>

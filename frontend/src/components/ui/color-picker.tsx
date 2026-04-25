@@ -38,7 +38,8 @@ export function ColorPicker({ id, value, onChange, presets = [] }: ColorPickerPr
               }}
               className={cn(
                 "size-6 rounded-full border border-border/60 transition-transform",
-                selected && "scale-110 ring-2 ring-offset-2 ring-offset-background ring-foreground/40",
+                selected &&
+                  "scale-110 ring-2 ring-offset-2 ring-offset-background ring-foreground/40",
                 "hover:scale-110",
               )}
               style={{ backgroundColor: p.value }}

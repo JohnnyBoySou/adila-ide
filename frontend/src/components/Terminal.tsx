@@ -34,9 +34,7 @@ type Props = {
 };
 
 function getCssVar(name: string): string {
-  return getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 function buildTheme(): ITerminalOptions["theme"] {
@@ -74,8 +72,7 @@ function buildTheme(): ITerminalOptions["theme"] {
 }
 
 // FILE_LINK_RE detecta padrões como /path/file.ts:12:5 ou ./src/foo.tsx:3
-const FILE_LINK_RE =
-  /(?:^|[\s(["'])((\.{0,2}\/[^\s"':,)]+(?:\.[a-zA-Z]{1,6})?):(\d+)(?::(\d+))?)/;
+const FILE_LINK_RE = /(?:^|[\s(["'])((\.{0,2}\/[^\s"':,)]+(?:\.[a-zA-Z]{1,6})?):(\d+)(?::(\d+))?)/;
 
 export function Terminal({
   sessionId,
@@ -176,7 +173,12 @@ export function Terminal({
           const [full, filePath, lineStr, colStr] = match;
           const lineNum = parseInt(lineStr ?? "1", 10);
           const colNum = parseInt(colStr ?? "1", 10);
-          const startX = match.index + (full.length - (filePath?.length ?? 0) - (lineStr?.length ?? 0) - (colStr?.length ?? 0));
+          const startX =
+            match.index +
+            (full.length -
+              (filePath?.length ?? 0) -
+              (lineStr?.length ?? 0) -
+              (colStr?.length ?? 0));
           callback([
             {
               range: {
@@ -216,9 +218,12 @@ export function Terminal({
 
       // Ctrl+Shift+V → colar
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "V") {
-        navigator.clipboard.readText().then((t) => {
-          WritePty(sessionId, t).catch(() => {});
-        }).catch(() => {});
+        navigator.clipboard
+          .readText()
+          .then((t) => {
+            WritePty(sessionId, t).catch(() => {});
+          })
+          .catch(() => {});
         return false;
       }
 
@@ -267,7 +272,9 @@ export function Terminal({
     });
 
     const init = async () => {
-      try { await webFonts.loadFonts(); } catch {}
+      try {
+        await webFonts.loadFonts();
+      } catch {}
       fit.fit();
       ResizePty(sessionId, term.cols, term.rows).catch(() => {});
       if (active) term.focus();

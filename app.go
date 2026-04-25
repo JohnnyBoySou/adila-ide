@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -15,16 +16,103 @@ import (
 )
 
 type App struct {
-	ctx     context.Context
-	watcher fileWatcher
+	ctx         context.Context
+	watcher     fileWatcher
+	initialPath string
+	cfg         *Config
 }
 
-func NewApp() *App {
-	return &App{}
+func NewApp(cfg *Config) *App {
+	return &App{cfg: cfg}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+// SetInitialPath define a pasta a ser aberta no startup (vinda da CLI).
+func (a *App) SetInitialPath(path string) {
+	a.initialPath = path
+}
+
+// GetInitialPath retorna a pasta passada via CLI, ou string vazia.
+// O frontend prioriza este valor sobre a sessão salva.
+func (a *App) GetInitialPath() string {
+	return a.initialPath
+}
+
+// cliInstallPath retorna o destino padrão da CLI: ~/.local/bin/adila.
+func (a *App) cliInstallPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".local", "bin", "adila"), nil
+}
+
+// IsCLIInstalled retorna true se ~/.local/bin/adila existe.
+func (a *App) IsCLIInstalled() bool {
+	p, err := a.cliInstallPath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(p)
+	return err == nil
+}
+
+// InstallCLI escreve um launcher bash em ~/.local/bin/adila que execa o
+// binário atual em background. O caminho do binário é resolvido no momento da
+// instalação via os.Executable() — assim funciona tanto em dev quanto após
+// um wails build.
+func (a *App) InstallCLI() error {
+	target, err := a.cliInstallPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	binary, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	binary, err = filepath.EvalSymlinks(binary)
+	if err != nil {
+		return err
+	}
+
+	script := fmt.Sprintf(`#!/usr/bin/env bash
+# Gerado pelo Adila IDE — abre o app numa pasta (default: cwd).
+set -euo pipefail
+target="${1:-.}"
+if [ ! -d "$target" ]; then
+  echo "adila: '$target' não é um diretório" >&2
+  exit 1
+fi
+abs="$(cd "$target" && pwd)"
+bin=%q
+if command -v setsid >/dev/null 2>&1; then
+  setsid -f "$bin" "$abs" </dev/null >/dev/null 2>&1 || \
+    setsid "$bin" "$abs" </dev/null >/dev/null 2>&1 &
+else
+  nohup "$bin" "$abs" </dev/null >/dev/null 2>&1 &
+fi
+disown 2>/dev/null || true
+`, binary)
+
+	return os.WriteFile(target, []byte(script), 0o755)
+}
+
+// UninstallCLI remove ~/.local/bin/adila se existir. No-op se já não existe.
+func (a *App) UninstallCLI() error {
+	target, err := a.cliInstallPath()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(target); os.IsNotExist(err) {
+		return nil
+	}
+	return os.Remove(target)
 }
 
 // WatchRoot começa a observar path por mudanças no sistema de arquivos.
@@ -61,10 +149,15 @@ func (a *App) ListDir(path string) ([]FileEntry, error) {
 		lower string
 	}
 
+	exc := resolveExcludeFolders(a.cfg)
+
 	named := make([]sortable, 0, len(entries))
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		if e.IsDir() && exc[name] {
 			continue
 		}
 		named = append(named, sortable{
@@ -131,15 +224,52 @@ func (a *App) DeleteEntry(path string) error {
 	return os.RemoveAll(path)
 }
 
-// ignoreDirs são diretórios sempre ignorados na busca — normalmente grandes e sem código-fonte.
-var ignoreDirs = map[string]bool{
-	".git": true, ".svn": true, ".hg": true,
-	"node_modules": true, "vendor": true,
-	"dist": true, "build": true, "out": true,
-	"target": true, ".next": true, ".nuxt": true,
-	"coverage": true, "__pycache__": true,
-	".cache": true, ".gradle": true,
-	".turbo": true, ".parcel-cache": true,
+// defaultExcludeFolders é a lista padrão de diretórios ocultos do file
+// explorer e da indexação. Pode ser sobrescrita pelo usuário via config
+// "explorer.excludeFolders".
+var defaultExcludeFolders = []string{
+	".git", ".svn", ".hg",
+	"node_modules", "vendor",
+	"dist", "build", "out",
+	"target", ".next", ".nuxt",
+	"coverage", "__pycache__",
+	".cache", ".gradle",
+	".turbo", ".parcel-cache",
+}
+
+// resolveExcludeFolders lê a lista efetiva de diretórios ignorados a
+// partir do Config; se a chave não existir ou estiver vazia, retorna o
+// default. Aceita tanto []any (vindo do JSON) quanto []string.
+func resolveExcludeFolders(cfg *Config) map[string]bool {
+	build := func(items []string) map[string]bool {
+		m := make(map[string]bool, len(items))
+		for _, s := range items {
+			if s = strings.TrimSpace(s); s != "" {
+				m[s] = true
+			}
+		}
+		return m
+	}
+	if cfg != nil {
+		raw := cfg.Get("explorer.excludeFolders", nil)
+		switch v := raw.(type) {
+		case []any:
+			items := make([]string, 0, len(v))
+			for _, x := range v {
+				if s, ok := x.(string); ok {
+					items = append(items, s)
+				}
+			}
+			if len(items) > 0 {
+				return build(items)
+			}
+		case []string:
+			if len(v) > 0 {
+				return build(v)
+			}
+		}
+	}
+	return build(defaultExcludeFolders)
 }
 
 // SearchFiles busca arquivos cujo nome contenha query sob rootPath.
@@ -160,6 +290,7 @@ func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 		return nil, nil
 	}
 	q := strings.ToLower(query)
+	exc := resolveExcludeFolders(a.cfg)
 
 	ctx, cancel := context.WithCancel(a.ctx)
 	defer cancel()
@@ -199,7 +330,7 @@ func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 				return nil
 			}
 			name := d.Name()
-			if strings.HasPrefix(name, ".") || (d.IsDir() && ignoreDirs[name]) {
+			if strings.HasPrefix(name, ".") || (d.IsDir() && exc[name]) {
 				if d.IsDir() {
 					return filepath.SkipDir
 				}
@@ -230,7 +361,7 @@ func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 
 	for _, e := range topEntries {
 		name := e.Name()
-		if strings.HasPrefix(name, ".") || ignoreDirs[name] {
+		if strings.HasPrefix(name, ".") || exc[name] {
 			continue
 		}
 		// Arquivo/dir no nível raiz que já casa com a query.

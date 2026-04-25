@@ -1,8 +1,6 @@
 import type { ReleaseNotesPayload, VersionMeta } from "./types";
 
-export const VERSIONS: VersionMeta[] = [
-  { version: "0.1.0", date: "2026-04-25", isCurrent: true },
-];
+export const VERSIONS: VersionMeta[] = [{ version: "0.1.0", date: "2026-04-25", isCurrent: true }];
 
 const NOTES_0_1_0: ReleaseNotesPayload = {
   version: "0.1.0",

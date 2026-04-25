@@ -8,11 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  FileTree as FileTreeView,
-  useFileTree,
-  useFileTreeSearch,
-} from "@pierre/trees/react";
+import { FileTree as FileTreeView, useFileTree, useFileTreeSearch } from "@pierre/trees/react";
 import type { ContextMenuAnchorRect } from "@pierre/trees";
 import {
   ArrowDownAZ,
@@ -107,9 +103,7 @@ function remapMap(
       }
       map.delete(key);
       const newKey = `${to}${key.slice(from.length)}`;
-      const newValue = value.startsWith(fromAbs)
-        ? `${toAbs}${value.slice(fromAbs.length)}`
-        : value;
+      const newValue = value.startsWith(fromAbs) ? `${toAbs}${value.slice(fromAbs.length)}` : value;
       map.set(newKey, newValue);
     }
   }
@@ -142,9 +136,7 @@ export function FileTree() {
   const [rootsCount, setRootsCount] = useState(0);
   const [error, setError] = useState<string | undefined>(undefined);
   const [renderKey, setRenderKey] = useState(0);
-  const [selectedTreePath, setSelectedTreePath] = useState<string | undefined>(
-    undefined,
-  );
+  const [selectedTreePath, setSelectedTreePath] = useState<string | undefined>(undefined);
   const [creating, setCreating] = useState<CreateMode>(null);
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     const persisted = rpc.state.get<PersistedState>();
@@ -191,10 +183,7 @@ export function FileTree() {
     [persistBookmarks],
   );
 
-  const bookmarkedAbsSet = useMemo(
-    () => new Set(bookmarks.map((b) => b.abs)),
-    [bookmarks],
-  );
+  const bookmarkedAbsSet = useMemo(() => new Set(bookmarks.map((b) => b.abs)), [bookmarks]);
 
   const { model } = useFileTree({
     paths: [],
@@ -216,13 +205,7 @@ export function FileTree() {
         }
         const newBasename = basename(event.destinationPath);
         const toAbs = replaceLastSegment(fromAbs, newBasename);
-        remapMap(
-          absByTree.current,
-          event.sourcePath,
-          event.destinationPath,
-          fromAbs,
-          toAbs,
-        );
+        remapMap(absByTree.current, event.sourcePath, event.destinationPath, fromAbs, toAbs);
         remapSet(knownDirs.current, event.sourcePath, event.destinationPath);
         remapSet(loadedDirs.current, event.sourcePath, event.destinationPath);
         remapSet(loadingDirs.current, event.sourcePath, event.destinationPath);
@@ -252,19 +235,11 @@ export function FileTree() {
           const isDir = draggedPath.endsWith("/");
           const name = basename(draggedPath);
           const toAbs = joinUri(targetAbs, name);
-          const newTreePath = isDir
-            ? `${targetDir}${name}/`
-            : `${targetDir}${name}`;
+          const newTreePath = isDir ? `${targetDir}${name}/` : `${targetDir}${name}`;
           if (newTreePath === draggedPath) {
             continue;
           }
-          remapMap(
-            absByTree.current,
-            draggedPath,
-            newTreePath,
-            fromAbs,
-            toAbs,
-          );
+          remapMap(absByTree.current, draggedPath, newTreePath, fromAbs, toAbs);
           remapSet(knownDirs.current, draggedPath, newTreePath);
           remapSet(loadedDirs.current, draggedPath, newTreePath);
           remapSet(loadingDirs.current, draggedPath, newTreePath);
@@ -614,13 +589,7 @@ export function FileTree() {
         </LeftAnchoredMenu>
       );
     },
-    [
-      addBookmark,
-      removeBookmark,
-      bookmarkedAbsSet,
-      deleteItem,
-      model,
-    ],
+    [addBookmark, removeBookmark, bookmarkedAbsSet, deleteItem, model],
   );
 
   if (error) {
@@ -687,11 +656,7 @@ export function FileTree() {
         onCreateCancel={() => setCreating(null)}
       />
       {bookmarks.length > 0 ? (
-        <BookmarksBar
-          bookmarks={bookmarks}
-          onOpen={openBookmark}
-          onRemove={removeBookmark}
-        />
+        <BookmarksBar bookmarks={bookmarks} onOpen={openBookmark} onRemove={removeBookmark} />
       ) : null}
       <div className="relative flex min-h-0 flex-1">
         <FileTreeView
@@ -799,9 +764,7 @@ function NavigateToolbar({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
             onBlur={() => onCreateCancel()}
-            placeholder={
-              creating.kind === "folder" ? "nome da pasta" : "nome do arquivo"
-            }
+            placeholder={creating.kind === "folder" ? "nome da pasta" : "nome do arquivo"}
             className="flex-1 rounded-sm border border-border bg-background px-1.5 py-0.5 text-xs outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -841,13 +804,7 @@ type MenuItemProps = {
   variant?: "default" | "destructive";
 };
 
-function MenuItem({
-  icon: Icon,
-  label,
-  onClick,
-  disabled,
-  variant = "default",
-}: MenuItemProps) {
+function MenuItem({ icon: Icon, label, onClick, disabled, variant = "default" }: MenuItemProps) {
   return (
     <button
       type="button"
@@ -925,11 +882,7 @@ function BookmarksBar({ bookmarks, onOpen, onRemove }: BookmarksBarProps) {
             className="flex items-center gap-1 text-left"
             title={b.abs}
           >
-            {b.isDirectory ? (
-              <Folder className="size-3" />
-            ) : (
-              <FileIcon className="size-3" />
-            )}
+            {b.isDirectory ? <Folder className="size-3" /> : <FileIcon className="size-3" />}
             <span className="max-w-[120px] truncate">{b.label}</span>
           </button>
           <button

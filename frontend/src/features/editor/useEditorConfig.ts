@@ -34,22 +34,13 @@ export function useEditorConfig(): EditorConfig {
   const { value: tabSize } = useConfig("editor.tabSize", 2);
   const { value: wordWrap } = useConfig<WordWrap>("editor.wordWrap", "off");
   const { value: minimap } = useConfig("editor.minimap.enabled", false);
-  const { value: cursorBlinking } = useConfig<CursorBlinking>(
-    "editor.cursorBlinking",
-    "smooth",
-  );
-  const { value: lineNumbers } = useConfig<LineNumbers>(
-    "editor.lineNumbers",
-    "on",
-  );
+  const { value: cursorBlinking } = useConfig<CursorBlinking>("editor.cursorBlinking", "smooth");
+  const { value: lineNumbers } = useConfig<LineNumbers>("editor.lineNumbers", "on");
   const { value: renderWhitespace } = useConfig<RenderWhitespace>(
     "editor.renderWhitespace",
     "selection",
   );
-  const { value: scrollBeyondLastLine } = useConfig(
-    "editor.scrollBeyondLastLine",
-    false,
-  );
+  const { value: scrollBeyondLastLine } = useConfig("editor.scrollBeyondLastLine", false);
   const { value: smoothScrolling } = useConfig("editor.smoothScrolling", true);
   const { value: renderLineHighlight } = useConfig<RenderLineHighlight>(
     "editor.renderLineHighlight",

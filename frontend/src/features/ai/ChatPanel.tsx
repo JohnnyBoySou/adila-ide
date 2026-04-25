@@ -17,7 +17,11 @@ let msgId = 0;
 
 export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([
-    { id: ++msgId, role: "assistant", text: "Olá! Sou a Adila, sua assistente de código. Como posso ajudar?" },
+    {
+      id: ++msgId,
+      role: "assistant",
+      text: "Olá! Sou a Adila, sua assistente de código. Como posso ajudar?",
+    },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,16 +50,12 @@ export function ChatPanel() {
     const interval = setInterval(() => {
       i++;
       setMessages((m) =>
-        m.map((msg) =>
-          msg.id === asstId ? { ...msg, text: response.slice(0, i) } : msg,
-        ),
+        m.map((msg) => (msg.id === asstId ? { ...msg, text: response.slice(0, i) } : msg)),
       );
       if (i >= response.length) {
         clearInterval(interval);
         setMessages((m) =>
-          m.map((msg) =>
-            msg.id === asstId ? { ...msg, streaming: false } : msg,
-          ),
+          m.map((msg) => (msg.id === asstId ? { ...msg, streaming: false } : msg)),
         );
         setBusy(false);
       }
@@ -75,30 +75,35 @@ export function ChatPanel() {
       <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0 bg-muted/20">
         <Bot className="size-4 text-primary" />
         <span className="font-medium text-xs">Adila AI</span>
-        <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">mock</span>
+        <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+          mock
+        </span>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
         {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn("flex gap-2", msg.role === "user" && "flex-row-reverse")}
-          >
-            <div className={cn(
-              "size-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-              msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
-            )}>
-              {msg.role === "user"
-                ? <User className="size-3.5" />
-                : <Bot className="size-3.5 text-primary" />}
+          <div key={msg.id} className={cn("flex gap-2", msg.role === "user" && "flex-row-reverse")}>
+            <div
+              className={cn(
+                "size-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
+              )}
+            >
+              {msg.role === "user" ? (
+                <User className="size-3.5" />
+              ) : (
+                <Bot className="size-3.5 text-primary" />
+              )}
             </div>
-            <div className={cn(
-              "max-w-[80%] rounded-lg px-3 py-2 text-sm leading-relaxed",
-              msg.role === "user"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-foreground",
-            )}>
+            <div
+              className={cn(
+                "max-w-[80%] rounded-lg px-3 py-2 text-sm leading-relaxed",
+                msg.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground",
+              )}
+            >
               {msg.text}
               {msg.streaming && (
                 <span className="inline-block w-1.5 h-4 ml-0.5 bg-current opacity-70 animate-pulse align-middle" />

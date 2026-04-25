@@ -1,0 +1,19 @@
+{
+  "name": "adila-ide",
+  "private": true,
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "build": "bash scripts/build.sh",
+    "build:all": "bash scripts/build-all.sh",
+    "build:linux": "bash scripts/build-linux.sh",
+    "generate": "wails generate module",
+    "lint": "bun run lint:go && bun run lint:frontend",
+    "lint:go": "go vet ./...",
+    "lint:frontend": "cd frontend && bun run lint",
+    "fmt": "bun run fmt:go && bun run fmt:frontend",
+    "fmt:go": "gofmt -w .",
+    "fmt:frontend": "cd frontend && bun run fmt",
+    "fmt:check": "gofmt -l . && cd frontend && bun run fmt:check",
+    "install:cli": "mkdir -p \"$HOME/.local/bin\" && ln -sf \"$PWD/scripts/adila\" \"$HOME/.local/bin/adila\" && echo 'adila instalado em ~/.local/bin/adila'"
+  }
+}

@@ -29,10 +29,10 @@ export function useNotificationCount() {
   const maxSeverity: Severity | null = items.some((i) => i.severity === "error")
     ? "error"
     : items.some((i) => i.severity === "warning")
-    ? "warning"
-    : items.length > 0
-    ? "info"
-    : null;
+      ? "warning"
+      : items.length > 0
+        ? "info"
+        : null;
 
   return { count, maxSeverity };
 }

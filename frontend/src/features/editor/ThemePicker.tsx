@@ -99,10 +99,7 @@ function Section({
                 borderColor: theme.preview.border,
               }}
             >
-              <div
-                className="size-3 rounded-full"
-                style={{ background: theme.preview.accent }}
-              />
+              <div className="size-3 rounded-full" style={{ background: theme.preview.accent }} />
             </div>
 
             <span className="flex-1 text-sm" style={{ color: undefined }}>

@@ -8,6 +8,12 @@ export function CreateFile(arg1:string):Promise<void>;
 
 export function DeleteEntry(arg1:string):Promise<void>;
 
+export function GetInitialPath():Promise<string>;
+
+export function InstallCLI():Promise<void>;
+
+export function IsCLIInstalled():Promise<boolean>;
+
 export function ListDir(arg1:string):Promise<Array<main.FileEntry>>;
 
 export function OpenFolderDialog():Promise<string>;
@@ -21,6 +27,10 @@ export function ReplaceInFiles(arg1:string,arg2:main.SearchOptions,arg3:string):
 export function SearchFiles(arg1:string,arg2:string):Promise<Array<main.FileEntry>>;
 
 export function SearchInFiles(arg1:string,arg2:main.SearchOptions):Promise<Array<main.SearchMatch>>;
+
+export function SetInitialPath(arg1:string):Promise<void>;
+
+export function UninstallCLI():Promise<void>;
 
 export function WatchRoot(arg1:string):Promise<void>;
 

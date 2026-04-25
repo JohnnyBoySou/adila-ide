@@ -104,9 +104,7 @@ export function TopBar({
       </Menubar>
 
       {rootPath && (
-        <span className="text-muted-foreground text-xs truncate flex-1 ml-2">
-          {rootPath}
-        </span>
+        <span className="text-muted-foreground text-xs truncate flex-1 ml-2">{rootPath}</span>
       )}
     </header>
   );

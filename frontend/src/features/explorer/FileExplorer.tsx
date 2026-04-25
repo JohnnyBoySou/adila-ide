@@ -1,18 +1,9 @@
-import {
-  createContext,
-  forwardRef,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { SymbolIcon } from "@/components/SymbolIcon";
+import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
-  ChevronDown,
   ChevronRight,
   Clock,
   FilePlus2,
@@ -25,8 +16,16 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { SymbolIcon } from "@/components/SymbolIcon";
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CreateDir,
   CreateFile,
@@ -123,10 +122,7 @@ function CreateInput({ depth }: { depth: number }) {
   }, []);
 
   return (
-    <div
-      className="flex items-center gap-2 py-1.5"
-      style={{ paddingLeft: `${depth * 14 + 4}px` }}
-    >
+    <div className="flex items-center gap-2 py-1.5" style={{ paddingLeft: `${depth * 14 + 4}px` }}>
       <span className="size-4 shrink-0" />
       <SymbolIcon
         name={ctx.createName || (ctx.createMode === "dir" ? "folder" : "file")}
@@ -210,19 +206,12 @@ function FileRow({ entry, depth }: FileRowProps) {
       <span className="size-4 shrink-0 flex items-center justify-center">
         {entry.isDir && (
           <ChevronRight
-            className={cn(
-              "size-3.5 transition-transform duration-150",
-              expanded && "rotate-90",
-            )}
+            className={cn("size-3.5 transition-transform duration-150", expanded && "rotate-90")}
           />
         )}
       </span>
 
-      <SymbolIcon
-        name={entry.name}
-        isDir={entry.isDir}
-        className="size-4 shrink-0"
-      />
+      <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-4 shrink-0" />
 
       {isRenaming ? (
         <input
@@ -325,11 +314,7 @@ function SearchResultRow({ entry, rootPath }: { entry: FileEntry; rootPath: stri
       }}
       className="flex w-full items-center gap-1.5 px-2 py-1 text-xs hover:bg-accent/60 text-left cursor-pointer select-none"
     >
-      <SymbolIcon
-        name={entry.name}
-        isDir={entry.isDir}
-        className="size-3.5 shrink-0"
-      />
+      <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-3.5 shrink-0" />
       <span className="flex-1 truncate">{rel}</span>
     </div>
   );
@@ -350,7 +335,9 @@ function BookmarksSection() {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground uppercase tracking-wide"
       >
-        <ChevronRight className={cn("size-3 shrink-0 transition-transform duration-150", open && "rotate-90")} />
+        <ChevronRight
+          className={cn("size-3 shrink-0 transition-transform duration-150", open && "rotate-90")}
+        />
         <Star className="size-3 text-amber-400/70" />
         <span className="flex-1 text-left">Favoritos</span>
         <span className="tabular-nums">{ctx.bookmarks.length}</span>
@@ -450,11 +437,7 @@ const ContextMenuPopup = forwardRef<HTMLDivElement, ContextMenuPopupProps>(
           )}
         </button>
         <div className="my-1 border-t border-border/40" />
-        <button
-          type="button"
-          className={cn(item, "text-destructive")}
-          onClick={onDelete}
-        >
+        <button type="button" className={cn(item, "text-destructive")} onClick={onDelete}>
           <Trash2 className="size-3.5 shrink-0" />
           Excluir
         </button>
@@ -494,9 +477,7 @@ export function FileExplorer({
   const [createParentPath, setCreateParentPath] = useState<string | null>(null);
   const [createName, setCreateName] = useState("");
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
-  const [childrenByPath, setChildrenByPath] = useState<Map<string, FileEntry[]>>(
-    () => new Map(),
-  );
+  const [childrenByPath, setChildrenByPath] = useState<Map<string, FileEntry[]>>(() => new Map());
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(() => new Set());
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ctxMenuRef = useRef<HTMLDivElement>(null);
@@ -560,10 +541,7 @@ export function FileExplorer({
       next.add(createParentPath);
       return next;
     });
-    if (
-      !childrenByPath.has(createParentPath) &&
-      !loadingPaths.has(createParentPath)
-    ) {
+    if (!childrenByPath.has(createParentPath) && !loadingPaths.has(createParentPath)) {
       void loadChildrenFor(createParentPath);
     }
   }, [createParentPath, createMode, rootPath, childrenByPath, loadingPaths, loadChildrenFor]);
@@ -609,19 +587,16 @@ export function FileExplorer({
     localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next));
   }, []);
 
-  const onToggleBookmark = useCallback(
-    (entry: FileEntry) => {
-      setBookmarks((prev) => {
-        const exists = prev.some((b) => b.path === entry.path);
-        const next = exists
-          ? prev.filter((b) => b.path !== entry.path)
-          : [...prev, { path: entry.path, name: entry.name, isDir: entry.isDir }];
-        localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next));
-        return next;
-      });
-    },
-    [],
-  );
+  const onToggleBookmark = useCallback((entry: FileEntry) => {
+    setBookmarks((prev) => {
+      const exists = prev.some((b) => b.path === entry.path);
+      const next = exists
+        ? prev.filter((b) => b.path !== entry.path)
+        : [...prev, { path: entry.path, name: entry.name, isDir: entry.isDir }];
+      localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const onRenameStart = useCallback((path: string, name: string) => {
     setRenamingPath(path);
@@ -701,10 +676,8 @@ export function FileExplorer({
   const cycleSortMode = () =>
     setSort((s) => (s === "name-asc" ? "name-desc" : s === "name-desc" ? "recent" : "name-asc"));
 
-  const SortIcon =
-    sort === "name-asc" ? ArrowUpAZ : sort === "name-desc" ? ArrowDownAZ : Clock;
-  const sortLabel =
-    sort === "name-asc" ? "A→Z" : sort === "name-desc" ? "Z→A" : "Recentes";
+  const SortIcon = sort === "name-asc" ? ArrowUpAZ : sort === "name-desc" ? ArrowDownAZ : Clock;
+  const sortLabel = sort === "name-asc" ? "A→Z" : sort === "name-desc" ? "Z→A" : "Recentes";
 
   const flatRows = useMemo(
     () =>
@@ -882,11 +855,7 @@ export function FileExplorer({
                 const row = flatRows[vRow.index];
                 return (
                   <div
-                    key={
-                      row.kind === "entry"
-                        ? row.entry.path
-                        : `create-${row.depth}`
-                    }
+                    key={row.kind === "entry" ? row.entry.path : `create-${row.depth}`}
                     data-index={vRow.index}
                     ref={rowVirtualizer.measureElement}
                     style={{
@@ -921,14 +890,10 @@ export function FileExplorer({
           onBookmark={() => onToggleBookmark(contextMenu.entry)}
           isBookmarked={bookmarks.some((b) => b.path === contextMenu.entry.path)}
           onNewFile={
-            contextMenu.entry.isDir
-              ? () => startCreate("file", contextMenu.entry.path)
-              : undefined
+            contextMenu.entry.isDir ? () => startCreate("file", contextMenu.entry.path) : undefined
           }
           onNewFolder={
-            contextMenu.entry.isDir
-              ? () => startCreate("dir", contextMenu.entry.path)
-              : undefined
+            contextMenu.entry.isDir ? () => startCreate("dir", contextMenu.entry.path) : undefined
           }
         />
       )}

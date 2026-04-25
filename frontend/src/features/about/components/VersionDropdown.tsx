@@ -1,4 +1,10 @@
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { VersionMeta } from "../types";
 
 type VersionDropdownProps = {
@@ -7,22 +13,19 @@ type VersionDropdownProps = {
   onChange: (version: string) => void;
 };
 
-export function VersionDropdown({
-  versions,
-  selected,
-  onChange,
-}: VersionDropdownProps) {
-  const options = versions.map((v) => ({
-    value: v.version,
-    label: v.isCurrent ? `${v.version} · current` : v.version,
-  }));
-
+export function VersionDropdown({ versions, selected, onChange }: VersionDropdownProps) {
   return (
-    <Select
-      className="w-40"
-      value={selected ?? ""}
-      onValueChange={onChange}
-      options={options}
-    />
+    <Select value={selected ?? ""} onValueChange={onChange}>
+      <SelectTrigger className="w-40">
+        <SelectValue placeholder="Selecionar versão" />
+      </SelectTrigger>
+      <SelectContent>
+        {versions.map((v) => (
+          <SelectItem key={v.version} value={v.version}>
+            {v.isCurrent ? `${v.version} · current` : v.version}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

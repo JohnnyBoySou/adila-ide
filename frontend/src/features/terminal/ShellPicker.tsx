@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Star } from "lucide-react";
-import {
-  GetDefaultShell,
-  ListShells,
-  SetDefaultShell,
-} from "../../../wailsjs/go/main/Terminal";
+import { GetDefaultShell, ListShells, SetDefaultShell } from "../../../wailsjs/go/main/Terminal";
 
 type ShellInfo = {
   path: string;
@@ -85,7 +81,10 @@ export function ShellPicker({ onPick, onClose, anchorRef }: ShellPickerProps) {
           return (
             <button
               key={s.path}
-              onClick={() => { onPick(s.path); onClose(); }}
+              onClick={() => {
+                onPick(s.path);
+                onClose();
+              }}
               className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent hover:text-accent-foreground text-left group"
             >
               {/* indicador de default */}
@@ -115,7 +114,10 @@ export function ShellPicker({ onPick, onClose, anchorRef }: ShellPickerProps) {
 
       <div className="border-t mt-1 pt-1">
         <button
-          onClick={() => { onPick(""); onClose(); }}
+          onClick={() => {
+            onPick("");
+            onClose();
+          }}
           className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent hover:text-accent-foreground text-left"
         >
           <span className="w-3 shrink-0" />

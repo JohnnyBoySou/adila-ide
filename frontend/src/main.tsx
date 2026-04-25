@@ -15,5 +15,5 @@ root.render(
     <TerminalProvider>
       <App />
     </TerminalProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

@@ -228,9 +228,25 @@ func (g *Git) Commit(message string) error {
 	return err
 }
 
-// Push faz push para o remote.
+// Push faz push para o remote, com fallback --set-upstream origin/<branch> se não houver upstream.
 func (g *Git) Push() error {
 	_, err := g.git("push")
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "no upstream branch") || strings.Contains(msg, "set-upstream") || strings.Contains(msg, "has no upstream") {
+		branch, berr := g.GetBranch()
+		if berr != nil || branch == "" {
+			return err
+		}
+		_, err2 := g.git("push", "--set-upstream", "origin", branch)
+		if err2 == nil {
+			g.emitChanged()
+			return nil
+		}
+		return err2
+	}
 	return err
 }
 
@@ -544,6 +560,45 @@ func (g *Git) GetGraph(limit int) ([]GitGraphNode, error) {
 		})
 	}
 	return nodes, nil
+}
+
+// AddRemote adiciona um remote; se já existir, faz set-url com o novo valor.
+func (g *Git) AddRemote(name, url string) error {
+	if g.workdir == "" {
+		return &gitError{"workdir não definido"}
+	}
+	if _, err := g.git("remote", "add", name, url); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			_, err2 := g.git("remote", "set-url", name, url)
+			return err2
+		}
+		return err
+	}
+	return nil
+}
+
+// HasCommits retorna true se o repositório já tem ao menos um commit (HEAD válido).
+func (g *Git) HasCommits() (bool, error) {
+	if g.workdir == "" {
+		return false, nil
+	}
+	if _, err := g.git("rev-parse", "--verify", "HEAD"); err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+// firstCommitIfEmpty cria um commit inicial vazio para que push possa enviar
+// uma branch para o remote (necessário antes de publicar um repo recém-criado).
+func (g *Git) firstCommitIfEmpty() error {
+	if g.workdir == "" {
+		return &gitError{"workdir não definido"}
+	}
+	if _, err := g.git("commit", "--allow-empty", "-m", "Initial commit"); err != nil {
+		return err
+	}
+	g.emitChanged()
+	return nil
 }
 
 func (g *Git) emitChanged() {

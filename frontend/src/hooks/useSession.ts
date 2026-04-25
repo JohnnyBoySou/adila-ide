@@ -15,7 +15,7 @@ const KEY = "workbench.session";
 
 export async function loadSession(): Promise<Session | null> {
   try {
-    const data = await configGet(KEY, null) as Session | null;
+    const data = (await configGet(KEY, null)) as Session | null;
     if (!data || typeof data !== "object" || !data.rootPath) return null;
     return data;
   } catch {

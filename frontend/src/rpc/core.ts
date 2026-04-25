@@ -8,6 +8,7 @@
  * binding correspondente em wailsjs/go/main/<Struct>.
  */
 
+import * as App from "../../wailsjs/go/main/App";
 import * as Config from "../../wailsjs/go/main/Config";
 import * as About from "../../wailsjs/go/main/About";
 import * as CommandCenter from "../../wailsjs/go/main/CommandCenter";
@@ -20,12 +21,9 @@ type P = Record<string, unknown> | undefined;
 // (já deserializados do JSON pelo Wails) e retorna uma Promise.
 const routes: Record<string, (p: P) => Promise<unknown>> = {
   // ── Config ──────────────────────────────────────────────────────────────────
-  "config.get": (p) =>
-    Config.Get((p?.key as string) ?? "", p?.defaultValue ?? null),
-  "config.set": (p) =>
-    Config.Set((p?.key as string) ?? "", p?.value ?? null),
-  "config.reset": (p) =>
-    Config.Reset((p?.key as string) ?? ""),
+  "config.get": (p) => Config.Get((p?.key as string) ?? "", p?.defaultValue ?? null),
+  "config.set": (p) => Config.Set((p?.key as string) ?? "", p?.value ?? null),
+  "config.reset": (p) => Config.Reset((p?.key as string) ?? ""),
 
   // ── Settings ─────────────────────────────────────────────────────────────────
   "settings.openJson": () => Config.OpenSettingsJson(),
@@ -40,7 +38,8 @@ const routes: Record<string, (p: P) => Promise<unknown>> = {
     }),
 
   // ── Updates (não implementado ainda — desabilitado) ───────────────────────────
-  "update.getState": () => Promise.resolve({ type: "disabled", reason: "Auto-update não disponível nesta versão." }),
+  "update.getState": () =>
+    Promise.resolve({ type: "disabled", reason: "Auto-update não disponível nesta versão." }),
   "update.check": () => Promise.resolve(),
   "update.download": () => Promise.resolve(),
   "update.apply": () => Promise.resolve(),
@@ -52,6 +51,11 @@ const routes: Record<string, (p: P) => Promise<unknown>> = {
 
   // ── Onboarding ───────────────────────────────────────────────────────────────
   "onboarding.complete": () => Config.Set("onboarding.completed", true),
+
+  // ── CLI launcher (~/.local/bin/adila) ───────────────────────────────────────
+  "cli.isInstalled": () => App.IsCLIInstalled(),
+  "cli.install": () => App.InstallCLI(),
+  "cli.uninstall": () => App.UninstallCLI(),
 
   // ── CommandCenter ────────────────────────────────────────────────────────────
   "commandCenter.list": (p) =>
@@ -103,10 +107,7 @@ export const state = {
   },
 };
 
-export function on(
-  event: string,
-  handler: (payload: unknown) => void,
-): () => void {
+export function on(event: string, handler: (payload: unknown) => void): () => void {
   // EventsOn retorna a função de cleanup no Wails v2
   return EventsOn(event, handler);
 }

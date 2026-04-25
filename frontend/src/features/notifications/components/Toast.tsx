@@ -1,12 +1,4 @@
-import {
-  AlertCircle,
-  AlertTriangle,
-  ChevronDown,
-  ChevronUp,
-  Info,
-  Tag,
-  X,
-} from "lucide-react";
+import { AlertCircle, AlertTriangle, ChevronDown, ChevronUp, Info, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { rpc } from "../rpc";
@@ -45,8 +37,7 @@ interface ToastProps {
 
 export function Toast({ item, inCenter = false }: ToastProps) {
   const Icon = ICON_BY_SEVERITY[item.severity];
-  const hasActions =
-    item.primaryActions.length > 0 || item.secondaryActions.length > 0;
+  const hasActions = item.primaryActions.length > 0 || item.secondaryActions.length > 0;
   const showActions = item.expanded && hasActions;
 
   // Non-sticky toasts auto-dismiss after a fixed delay — but only on the
@@ -74,10 +65,7 @@ export function Toast({ item, inCenter = false }: ToastProps) {
       )}
     >
       {/* Severity strip on the leading edge — subtle but unmistakable. */}
-      <div
-        aria-hidden
-        className={cn("w-1 shrink-0", STRIP_TONE_BY_SEVERITY[item.severity])}
-      />
+      <div aria-hidden className={cn("w-1 shrink-0", STRIP_TONE_BY_SEVERITY[item.severity])} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start gap-3 px-3.5 py-3">
@@ -92,11 +80,13 @@ export function Toast({ item, inCenter = false }: ToastProps) {
 
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              <span className={cn(
-                "rounded-sm px-1 py-px",
-                item.severity === "error" && "text-destructive",
-                item.severity === "warning" && "text-yellow-600 dark:text-yellow-400",
-              )}>
+              <span
+                className={cn(
+                  "rounded-sm px-1 py-px",
+                  item.severity === "error" && "text-destructive",
+                  item.severity === "warning" && "text-yellow-600 dark:text-yellow-400",
+                )}
+              >
                 {SEVERITY_LABEL[item.severity]}
               </span>
               {item.source && (
@@ -111,9 +101,7 @@ export function Toast({ item, inCenter = false }: ToastProps) {
               {item.sticky && (
                 <>
                   <span className="opacity-40">•</span>
-                  <span className="rounded-sm bg-muted px-1 text-muted-foreground">
-                    fixo
-                  </span>
+                  <span className="rounded-sm bg-muted px-1 text-muted-foreground">fixo</span>
                 </>
               )}
             </div>
@@ -205,10 +193,7 @@ function ProgressBar({ progress }: { progress: NonNullable<NotificationItem["pro
     const pct = Math.min(100, Math.max(0, (progress.worked / progress.total) * 100));
     return (
       <div className="h-0.5 bg-border/60">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
       </div>
     );
   }

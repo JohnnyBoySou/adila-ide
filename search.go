@@ -171,6 +171,8 @@ func (a *App) SearchInFiles(rootPath string, opts SearchOptions) ([]SearchMatch,
 		return nil, err
 	}
 
+	exc := resolveExcludeFolders(a.cfg)
+
 	ctx, cancel := context.WithCancel(a.ctx)
 	defer cancel()
 
@@ -202,7 +204,7 @@ func (a *App) SearchInFiles(rootPath string, opts SearchOptions) ([]SearchMatch,
 				return nil
 			}
 			name := d.Name()
-			if strings.HasPrefix(name, ".") || (d.IsDir() && ignoreDirs[name]) {
+			if strings.HasPrefix(name, ".") || (d.IsDir() && exc[name]) {
 				if d.IsDir() {
 					return filepath.SkipDir
 				}
@@ -234,7 +236,7 @@ func (a *App) SearchInFiles(rootPath string, opts SearchOptions) ([]SearchMatch,
 	var results []SearchMatch
 	for _, e := range topEntries {
 		name := e.Name()
-		if strings.HasPrefix(name, ".") || ignoreDirs[name] {
+		if strings.HasPrefix(name, ".") || exc[name] {
 			continue
 		}
 		full := filepath.Join(rootPath, name)
@@ -281,6 +283,8 @@ func (a *App) ReplaceInFiles(rootPath string, opts SearchOptions, replacement st
 	if err != nil {
 		return 0, err
 	}
+
+	exc := resolveExcludeFolders(a.cfg)
 
 	var total int
 	var mu sync.Mutex
@@ -346,7 +350,7 @@ func (a *App) ReplaceInFiles(rootPath string, opts SearchOptions, replacement st
 				return nil
 			}
 			name := d.Name()
-			if strings.HasPrefix(name, ".") || (d.IsDir() && ignoreDirs[name]) {
+			if strings.HasPrefix(name, ".") || (d.IsDir() && exc[name]) {
 				if d.IsDir() {
 					return filepath.SkipDir
 				}
@@ -366,7 +370,7 @@ func (a *App) ReplaceInFiles(rootPath string, opts SearchOptions, replacement st
 	}
 	for _, e := range topEntries {
 		name := e.Name()
-		if strings.HasPrefix(name, ".") || ignoreDirs[name] {
+		if strings.HasPrefix(name, ".") || exc[name] {
 			continue
 		}
 		full := filepath.Join(rootPath, name)

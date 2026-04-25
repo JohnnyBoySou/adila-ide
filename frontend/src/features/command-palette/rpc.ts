@@ -10,10 +10,8 @@ export type FileEntry = {
 
 export const rpc = {
   ready: () => call<void>("commandCenter.ready"),
-  list: (mode: Mode, query: string) =>
-    call<PaletteItem[]>("commandCenter.list", { mode, query }),
-  execute: (mode: Mode, id: string) =>
-    call<void>("commandCenter.execute", { mode, id }),
+  list: (mode: Mode, query: string) => call<PaletteItem[]>("commandCenter.list", { mode, query }),
+  execute: (mode: Mode, id: string) => call<void>("commandCenter.execute", { mode, id }),
   gotoLine: (line: number, column?: number) =>
     call<void>("commandCenter.gotoLine", { line, column }),
   close: () => call<void>("commandCenter.close"),

@@ -11,10 +11,8 @@ export const rpc = {
   fs: {
     listWorkspaceRoots: () => call<FileEntry[]>("fs.listWorkspaceRoots"),
     list: (path: string) => call<FileEntry[]>("fs.list", { path }),
-    rename: (from: string, to: string) =>
-      call<void>("fs.rename", { from, to }),
-    createFile: (parent: string, name: string) =>
-      call<string>("fs.createFile", { parent, name }),
+    rename: (from: string, to: string) => call<void>("fs.rename", { from, to }),
+    createFile: (parent: string, name: string) => call<string>("fs.createFile", { parent, name }),
     createDirectory: (parent: string, name: string) =>
       call<string>("fs.createDirectory", { parent, name }),
     delete: (path: string) => call<void>("fs.delete", { path }),

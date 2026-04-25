@@ -1,10 +1,5 @@
 import { call, on } from "@/rpc/core";
-import type {
-  ProductInfo,
-  ReleaseNotesPayload,
-  UpdateState,
-  VersionMeta,
-} from "./types";
+import type { ProductInfo, ReleaseNotesPayload, UpdateState, VersionMeta } from "./types";
 
 export const rpc = {
   productInfo: () => call<ProductInfo>("product.info"),

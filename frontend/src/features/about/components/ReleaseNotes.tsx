@@ -61,11 +61,7 @@ export function ReleaseNotes({ updateState }: ReleaseNotesProps) {
           >
             <h2 className="text-base font-semibold">What's new</h2>
             <div className="flex-1" />
-            <VersionDropdown
-              versions={versions}
-              selected={selected}
-              onChange={setSelected}
-            />
+            <VersionDropdown versions={versions} selected={selected} onChange={setSelected} />
           </div>
           <div className="flex-1 px-6 py-4 overflow-auto">
             {error && (
@@ -85,10 +81,7 @@ export function ReleaseNotes({ updateState }: ReleaseNotesProps) {
                 <h3 className="text-base font-semibold mb-2">
                   Release notes for {selected} not available yet
                 </h3>
-                <p
-                  className="mb-3"
-                  style={{ color: "var(--vscode-descriptionForeground)" }}
-                >
+                <p className="mb-3" style={{ color: "var(--vscode-descriptionForeground)" }}>
                   This version hasn't been documented. Track progress on GitHub.
                 </p>
               </div>

@@ -16,12 +16,14 @@ import {
   GitCommitHorizontal,
   History,
   Loader2,
+  LogOut,
   Minus,
   MoreHorizontal,
   Plus,
   RefreshCw,
   RotateCcw,
   Undo2,
+  Upload,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,7 +32,9 @@ import { Button } from "@/components/ui/button";
 import { SymbolIcon } from "@/components/SymbolIcon";
 import { rpc } from "./rpc";
 import { GitGraph } from "./GitGraph";
-import type { GitChangedFile, GitCommit, GitFileStatus, GitStash } from "./types";
+import { GitHubConnect, PublishRepoDialog } from "./GitHubConnect";
+import { GithubIcon } from "./GithubIcon";
+import type { GitChangedFile, GitCommit, GitFileStatus, GitHubUser, GitStash } from "./types";
 
 type DiffStyle = "unified" | "split";
 
@@ -68,9 +72,7 @@ interface FileRowProps {
 
 function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps) {
   const name = file.path.split("/").pop() ?? file.path;
-  const dir = file.path.includes("/")
-    ? file.path.slice(0, file.path.lastIndexOf("/"))
-    : undefined;
+  const dir = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : undefined;
 
   return (
     <div
@@ -83,9 +85,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
       <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />
       <span className="flex-1 truncate min-w-0">
         <span>{name}</span>
-        {dir && (
-          <span className="ml-1.5 text-xs text-muted-foreground">{dir}</span>
-        )}
+        {dir && <span className="ml-1.5 text-xs text-muted-foreground">{dir}</span>}
         {file.prevPath && (
           <span className="ml-1.5 text-xs text-muted-foreground">
             ← {file.prevPath.split("/").pop()}
@@ -94,10 +94,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
       </span>
       <div className="flex items-center gap-0.5 shrink-0 ml-auto">
         <span
-          className={cn(
-            "text-[10px] font-bold tabular-nums px-0.5",
-            STATUS_COLOR[file.status],
-          )}
+          className={cn("text-[10px] font-bold tabular-nums px-0.5", STATUS_COLOR[file.status])}
           title={file.status}
         >
           {STATUS_LABEL[file.status]}
@@ -124,11 +121,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
           }}
           className="rounded p-0.5 text-muted-foreground/50 hover:text-primary"
         >
-          {file.staged ? (
-            <Minus className="size-3" />
-          ) : (
-            <Plus className="size-3" />
-          )}
+          {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
         </button>
       </div>
     </div>
@@ -278,29 +271,92 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
   const [branches, setBranches] = useState<string[]>([]);
   const [stashes, setStashes] = useState<GitStash[]>([]);
   const [showMenu, setShowMenu] = useState(false);
+  const [hasOrigin, setHasOrigin] = useState(false);
+  const [ghUser, setGhUser] = useState<GitHubUser | null>(null);
+  const [showConnect, setShowConnect] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(() => {
-    rpc.git.isRepo().then((repo) => {
-      setIsRepo(repo);
-      if (!repo) {
-        setFiles([]);
-        setBranch("");
-        setCommits([]);
-        return;
-      }
-      setLoading(true);
-      setError(undefined);
-      rpc.git
-        .status()
-        .then((result) => setFiles(result))
-        .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
-        .finally(() => setLoading(false));
-      rpc.git.getBranch().then(setBranch).catch(() => {});
-      rpc.git.getLog(20).then(setCommits).catch(() => {});
-      rpc.git.listBranches().then(bs => setBranches(bs.map(b => b.name))).catch(() => {});
-      rpc.git.stashList().then(setStashes).catch(() => {});
-    }).catch(() => setIsRepo(false));
+    rpc.git
+      .isRepo()
+      .then((repo) => {
+        setIsRepo(repo);
+        if (!repo) {
+          setFiles([]);
+          setBranch("");
+          setCommits([]);
+          return;
+        }
+        setLoading(true);
+        setError(undefined);
+        rpc.git
+          .status()
+          .then((result) => setFiles(result))
+          .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+          .finally(() => setLoading(false));
+        rpc.git
+          .getBranch()
+          .then(setBranch)
+          .catch(() => {});
+        rpc.git
+          .getLog(20)
+          .then(setCommits)
+          .catch(() => {});
+        rpc.git
+          .listBranches()
+          .then((bs) => setBranches(bs.map((b) => b.name)))
+          .catch(() => {});
+        rpc.git
+          .stashList()
+          .then(setStashes)
+          .catch(() => {});
+        rpc.git
+          .listRemotes()
+          .then((rs) => setHasOrigin(rs.some((r) => r.name === "origin")))
+          .catch(() => setHasOrigin(false));
+      })
+      .catch(() => setIsRepo(false));
+  }, []);
+
+  const refreshGitHub = useCallback(() => {
+    rpc.github
+      .isAuthenticated()
+      .then((auth) => {
+        if (!auth) {
+          setGhUser(null);
+          return;
+        }
+        rpc.github
+          .getUser()
+          .then(setGhUser)
+          .catch(() => setGhUser(null));
+      })
+      .catch(() => setGhUser(null));
+  }, []);
+
+  useEffect(() => {
+    refreshGitHub();
+    const off = rpc.on("github.changed", () => refreshGitHub());
+    return off;
+  }, [refreshGitHub]);
+
+  const onGitHubClick = useCallback(() => {
+    if (!ghUser) {
+      setShowConnect(true);
+      return;
+    }
+    setShowPublish(true);
+  }, [ghUser]);
+
+  const logoutGitHub = useCallback(() => {
+    rpc.github
+      .logout()
+      .then(() => {
+        setGhUser(null);
+        toast.success("Desconectado do GitHub");
+      })
+      .catch((err: unknown) => toast.error("Erro ao desconectar", err));
   }, []);
 
   const initRepo = useCallback(() => {
@@ -339,28 +395,31 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
     return off;
   }, [refresh]);
 
-  const selectFile = useCallback((path: string, staged: boolean) => {
-    setSelectedPath(path);
-    setSelectedStaged(staged);
-    if (compact) {
-      onOpenFile?.(path);
-      return;
-    }
-    abortRef.current?.abort();
-    setPatch(undefined);
-    setPatchLoading(true);
-    rpc.git
-      .diff(path, staged)
-      .then((p) => {
-        setPatch(p);
-      })
-      .catch(() => {
-        setPatch(undefined);
-      })
-      .finally(() => {
-        setPatchLoading(false);
-      });
-  }, [compact, onOpenFile]);
+  const selectFile = useCallback(
+    (path: string, staged: boolean) => {
+      setSelectedPath(path);
+      setSelectedStaged(staged);
+      if (compact) {
+        onOpenFile?.(path);
+        return;
+      }
+      abortRef.current?.abort();
+      setPatch(undefined);
+      setPatchLoading(true);
+      rpc.git
+        .diff(path, staged)
+        .then((p) => {
+          setPatch(p);
+        })
+        .catch(() => {
+          setPatch(undefined);
+        })
+        .finally(() => {
+          setPatchLoading(false);
+        });
+    },
+    [compact, onOpenFile],
+  );
 
   const stageFile = useCallback((file: GitChangedFile) => {
     const op = file.staged ? rpc.git.unstage(file.path) : rpc.git.stage(file.path);
@@ -402,6 +461,52 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
   const staged = files.filter((f) => f.staged);
   const unstaged = files.filter((f) => !f.staged);
 
+  const defaultRepoName = rootPath ? rootPath.split("/").filter(Boolean).pop() ?? "" : "";
+
+  const ghButtonTitle = ghUser
+    ? hasOrigin
+      ? `@${ghUser.login} — publicar de novo`
+      : `@${ghUser.login} — publicar repositório`
+    : "Conectar ao GitHub";
+
+  const githubMenuItems = ghUser ? (
+    <>
+      <div className="border-t border-border/40 px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
+        GitHub
+      </div>
+      <div className="flex items-center gap-2 px-3 py-1.5">
+        {ghUser.avatarUrl ? (
+          <img src={ghUser.avatarUrl} alt={ghUser.login} className="size-5 rounded-full" />
+        ) : (
+          <GithubIcon className="size-4" />
+        )}
+        <span className="flex-1 truncate text-xs">@{ghUser.login}</span>
+        <button
+          type="button"
+          title="Desconectar"
+          onClick={() => {
+            logoutGitHub();
+            setShowMenu(false);
+          }}
+          className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="size-3" />
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          setShowPublish(true);
+          setShowMenu(false);
+        }}
+        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+      >
+        <Upload className="size-3.5" />
+        {hasOrigin ? "Publicar como novo repositório" : "Publicar no GitHub"}
+      </button>
+    </>
+  ) : null;
+
   const diffOptions: FileDiffOptions<undefined> = {
     ...DIFF_OPTIONS,
     diffStyle,
@@ -412,9 +517,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
       <div className="flex h-full flex-col overflow-hidden text-sm">
         <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="flex-1 truncate text-xs font-medium">
-            {branch || "—"}
-          </span>
+          <span className="flex-1 truncate text-xs font-medium">{branch || "—"}</span>
           {(loading || syncing) && (
             <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           )}
@@ -446,8 +549,19 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           </button>
           <button
             type="button"
+            title={ghButtonTitle}
+            onClick={onGitHubClick}
+            className={cn(
+              "rounded p-1 hover:bg-accent",
+              ghUser ? "text-emerald-400 hover:text-emerald-300" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <GithubIcon className="size-3.5" />
+          </button>
+          <button
+            type="button"
             title="Menu git"
-            onClick={() => setShowMenu(v => !v)}
+            onClick={() => setShowMenu((v) => !v)}
             className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             <MoreHorizontal className="size-3.5" />
@@ -456,16 +570,40 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
 
         {showMenu && (
           <div className="border-b border-border/60 bg-popover text-popover-foreground shadow-sm text-xs">
-            <button type="button" onClick={() => { setShowGraph(true); setShowMenu(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => {
+                setShowGraph(true);
+                setShowMenu(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+            >
               <GitBranchIcon className="size-3.5" /> Ver grafo do repositório
             </button>
-            <button type="button" onClick={() => { rpc.git.undoLastCommit().then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => {
+                rpc.git
+                  .undoLastCommit()
+                  .then(refresh)
+                  .catch((e: unknown) => toast.error("Erro", e));
+                setShowMenu(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+            >
               <RotateCcw className="size-3.5" /> Desfazer último commit
             </button>
-            <button type="button" onClick={() => { rpc.git.stashSave("").then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => {
+                rpc.git
+                  .stashSave("")
+                  .then(refresh)
+                  .catch((e: unknown) => toast.error("Erro", e));
+                setShowMenu(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+            >
               <Archive className="size-3.5" /> Guardar mudanças (stash)
             </button>
             {stashes.length > 0 && (
@@ -473,15 +611,35 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 Stashes ({stashes.length})
               </div>
             )}
-            {stashes.map(s => (
+            {stashes.map((s) => (
               <div key={s.index} className="flex items-center gap-1 px-3 py-1.5 hover:bg-accent/50">
                 <span className="flex-1 truncate">{s.message || `stash@{${s.index}}`}</span>
-                <button type="button" title="Aplicar" onClick={() => { rpc.git.stashPop(s.index).then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-                  className="rounded p-0.5 hover:text-primary text-muted-foreground">
+                <button
+                  type="button"
+                  title="Aplicar"
+                  onClick={() => {
+                    rpc.git
+                      .stashPop(s.index)
+                      .then(refresh)
+                      .catch((e: unknown) => toast.error("Erro", e));
+                    setShowMenu(false);
+                  }}
+                  className="rounded p-0.5 hover:text-primary text-muted-foreground"
+                >
                   <RotateCcw className="size-3" />
                 </button>
-                <button type="button" title="Descartar" onClick={() => { rpc.git.stashDrop(s.index).then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-                  className="rounded p-0.5 hover:text-destructive text-muted-foreground">
+                <button
+                  type="button"
+                  title="Descartar"
+                  onClick={() => {
+                    rpc.git
+                      .stashDrop(s.index)
+                      .then(refresh)
+                      .catch((e: unknown) => toast.error("Erro", e));
+                    setShowMenu(false);
+                  }}
+                  className="rounded p-0.5 hover:text-destructive text-muted-foreground"
+                >
                   <X className="size-3" />
                 </button>
               </div>
@@ -491,17 +649,29 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 <div className="border-t border-border/40 px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                   Branches
                 </div>
-                {branches.slice(0, 8).map(b => (
-                  <button key={b} type="button"
-                    onClick={() => { rpc.git.checkoutBranch(b).then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-                    className={cn("flex w-full items-center gap-2 px-3 py-1.5 hover:bg-accent text-left",
-                      b === branch && "text-primary font-medium")}>
+                {branches.slice(0, 8).map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => {
+                      rpc.git
+                        .checkoutBranch(b)
+                        .then(refresh)
+                        .catch((e: unknown) => toast.error("Erro", e));
+                      setShowMenu(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-1.5 hover:bg-accent text-left",
+                      b === branch && "text-primary font-medium",
+                    )}
+                  >
                     <GitBranchIcon className="size-3 shrink-0" />
                     <span className="truncate">{b}</span>
                   </button>
                 ))}
               </>
             )}
+            {githubMenuItems}
           </div>
         )}
 
@@ -517,9 +687,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 }
               }}
               placeholder={
-                staged.length > 0
-                  ? "Mensagem (Ctrl+Enter)"
-                  : "Stage arquivos para commitar"
+                staged.length > 0 ? "Mensagem (Ctrl+Enter)" : "Stage arquivos para commitar"
               }
               disabled={staged.length === 0}
               rows={2}
@@ -575,9 +743,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           ) : files.length === 0 && !loading ? (
             <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
               <Check className="size-5 text-emerald-400/60" />
-              <p className="text-xs text-muted-foreground">
-                Sem mudanças pendentes.
-              </p>
+              <p className="text-xs text-muted-foreground">Sem mudanças pendentes.</p>
             </div>
           ) : (
             <>
@@ -606,6 +772,20 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           )}
         </div>
         {showGraph && <GitGraph onClose={() => setShowGraph(false)} />}
+        <GitHubConnect
+          open={showConnect}
+          onOpenChange={setShowConnect}
+          onAuthenticated={(u) => setGhUser(u)}
+        />
+        <PublishRepoDialog
+          open={showPublish}
+          onOpenChange={setShowPublish}
+          defaultName={defaultRepoName}
+          onPublished={() => {
+            setHasOrigin(true);
+            refresh();
+          }}
+        />
       </div>
     );
   }
@@ -617,9 +797,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
         {/* Toolbar */}
         <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="flex-1 truncate text-xs font-medium">
-            {branch || "—"}
-          </span>
+          <span className="flex-1 truncate text-xs font-medium">{branch || "—"}</span>
           {(loading || syncing) && (
             <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           )}
@@ -651,8 +829,19 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           </button>
           <button
             type="button"
+            title={ghButtonTitle}
+            onClick={onGitHubClick}
+            className={cn(
+              "rounded p-1 hover:bg-accent",
+              ghUser ? "text-emerald-400 hover:text-emerald-300" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <GithubIcon className="size-3.5" />
+          </button>
+          <button
+            type="button"
             title="Menu git"
-            onClick={() => setShowMenu(v => !v)}
+            onClick={() => setShowMenu((v) => !v)}
             className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             <MoreHorizontal className="size-3.5" />
@@ -661,16 +850,40 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
 
         {showMenu && (
           <div className="border-b border-border/60 bg-popover text-popover-foreground shadow-sm text-xs">
-            <button type="button" onClick={() => { setShowGraph(true); setShowMenu(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => {
+                setShowGraph(true);
+                setShowMenu(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+            >
               <GitBranchIcon className="size-3.5" /> Ver grafo do repositório
             </button>
-            <button type="button" onClick={() => { rpc.git.undoLastCommit().then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => {
+                rpc.git
+                  .undoLastCommit()
+                  .then(refresh)
+                  .catch((e: unknown) => toast.error("Erro", e));
+                setShowMenu(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+            >
               <RotateCcw className="size-3.5" /> Desfazer último commit
             </button>
-            <button type="button" onClick={() => { rpc.git.stashSave("").then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => {
+                rpc.git
+                  .stashSave("")
+                  .then(refresh)
+                  .catch((e: unknown) => toast.error("Erro", e));
+                setShowMenu(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+            >
               <Archive className="size-3.5" /> Guardar mudanças (stash)
             </button>
             {stashes.length > 0 && (
@@ -678,15 +891,35 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 Stashes ({stashes.length})
               </div>
             )}
-            {stashes.map(s => (
+            {stashes.map((s) => (
               <div key={s.index} className="flex items-center gap-1 px-3 py-1.5 hover:bg-accent/50">
                 <span className="flex-1 truncate">{s.message || `stash@{${s.index}}`}</span>
-                <button type="button" title="Aplicar" onClick={() => { rpc.git.stashPop(s.index).then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-                  className="rounded p-0.5 hover:text-primary text-muted-foreground">
+                <button
+                  type="button"
+                  title="Aplicar"
+                  onClick={() => {
+                    rpc.git
+                      .stashPop(s.index)
+                      .then(refresh)
+                      .catch((e: unknown) => toast.error("Erro", e));
+                    setShowMenu(false);
+                  }}
+                  className="rounded p-0.5 hover:text-primary text-muted-foreground"
+                >
                   <RotateCcw className="size-3" />
                 </button>
-                <button type="button" title="Descartar" onClick={() => { rpc.git.stashDrop(s.index).then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-                  className="rounded p-0.5 hover:text-destructive text-muted-foreground">
+                <button
+                  type="button"
+                  title="Descartar"
+                  onClick={() => {
+                    rpc.git
+                      .stashDrop(s.index)
+                      .then(refresh)
+                      .catch((e: unknown) => toast.error("Erro", e));
+                    setShowMenu(false);
+                  }}
+                  className="rounded p-0.5 hover:text-destructive text-muted-foreground"
+                >
                   <X className="size-3" />
                 </button>
               </div>
@@ -696,17 +929,29 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 <div className="border-t border-border/40 px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                   Branches
                 </div>
-                {branches.slice(0, 8).map(b => (
-                  <button key={b} type="button"
-                    onClick={() => { rpc.git.checkoutBranch(b).then(refresh).catch((e: unknown) => toast.error("Erro", e)); setShowMenu(false); }}
-                    className={cn("flex w-full items-center gap-2 px-3 py-1.5 hover:bg-accent text-left",
-                      b === branch && "text-primary font-medium")}>
+                {branches.slice(0, 8).map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => {
+                      rpc.git
+                        .checkoutBranch(b)
+                        .then(refresh)
+                        .catch((e: unknown) => toast.error("Erro", e));
+                      setShowMenu(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-1.5 hover:bg-accent text-left",
+                      b === branch && "text-primary font-medium",
+                    )}
+                  >
                     <GitBranchIcon className="size-3 shrink-0" />
                     <span className="truncate">{b}</span>
                   </button>
                 ))}
               </>
             )}
+            {githubMenuItems}
           </div>
         )}
 
@@ -745,9 +990,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           ) : files.length === 0 && !loading ? (
             <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
               <Check className="size-5 text-emerald-400/60" />
-              <p className="text-xs text-muted-foreground">
-                Sem mudanças pendentes.
-              </p>
+              <p className="text-xs text-muted-foreground">Sem mudanças pendentes.</p>
             </div>
           ) : (
             <>
@@ -778,39 +1021,39 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
 
         {/* Commit area */}
         {isRepo !== false && (
-        <div className="border-t border-border/60 p-2 flex flex-col gap-2">
-          <textarea
-            value={commitMsg}
-            onChange={(e) => setCommitMsg(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                commit();
+          <div className="border-t border-border/60 p-2 flex flex-col gap-2">
+            <textarea
+              value={commitMsg}
+              onChange={(e) => setCommitMsg(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  commit();
+                }
+              }}
+              placeholder={
+                staged.length > 0
+                  ? "Mensagem do commit (Ctrl+Enter)"
+                  : "Faça stage de arquivos para commitar"
               }
-            }}
-            placeholder={
-              staged.length > 0
-                ? "Mensagem do commit (Ctrl+Enter)"
-                : "Faça stage de arquivos para commitar"
-            }
-            disabled={staged.length === 0}
-            rows={3}
-            className="w-full resize-none rounded-md border border-border/60 bg-input/30 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-40"
-          />
-          <Button
-            size="sm"
-            onClick={commit}
-            disabled={!commitMsg.trim() || staged.length === 0 || committing}
-            className="w-full justify-center gap-1.5"
-          >
-            {committing ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <GitCommitHorizontal className="size-3.5" />
-            )}
-            Commit{staged.length > 0 ? ` (${staged.length})` : ""}
-          </Button>
-        </div>
+              disabled={staged.length === 0}
+              rows={3}
+              className="w-full resize-none rounded-md border border-border/60 bg-input/30 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-40"
+            />
+            <Button
+              size="sm"
+              onClick={commit}
+              disabled={!commitMsg.trim() || staged.length === 0 || committing}
+              className="w-full justify-center gap-1.5"
+            >
+              {committing ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <GitCommitHorizontal className="size-3.5" />
+              )}
+              Commit{staged.length > 0 ? ` (${staged.length})` : ""}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -823,13 +1066,9 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
               <FileDiffIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="flex-1 truncate text-xs text-muted-foreground">
                 {selectedStaged ? (
-                  <span className="mr-1.5 text-[10px] font-semibold text-emerald-400">
-                    STAGED
-                  </span>
+                  <span className="mr-1.5 text-[10px] font-semibold text-emerald-400">STAGED</span>
                 ) : (
-                  <span className="mr-1.5 text-[10px] font-semibold text-amber-400">
-                    UNSTAGED
-                  </span>
+                  <span className="mr-1.5 text-[10px] font-semibold text-amber-400">UNSTAGED</span>
                 )}
                 {selectedPath}
               </span>
@@ -867,11 +1106,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           ) : patch ? (
-            <PatchDiff
-              patch={patch}
-              options={diffOptions}
-              style={{ height: "100%" }}
-            />
+            <PatchDiff patch={patch} options={diffOptions} style={{ height: "100%" }} />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
               <FileDiffIcon className="size-8 opacity-20" />
@@ -885,6 +1120,20 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
         </div>
       </div>
       {showGraph && <GitGraph onClose={() => setShowGraph(false)} />}
+      <GitHubConnect
+        open={showConnect}
+        onOpenChange={setShowConnect}
+        onAuthenticated={(u) => setGhUser(u)}
+      />
+      <PublishRepoDialog
+        open={showPublish}
+        onOpenChange={setShowPublish}
+        defaultName={defaultRepoName}
+        onPublished={() => {
+          setHasOrigin(true);
+          refresh();
+        }}
+      />
     </div>
   );
 }

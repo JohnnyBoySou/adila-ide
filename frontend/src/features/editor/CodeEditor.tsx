@@ -4,10 +4,7 @@ import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import { useEditorConfig } from "./useEditorConfig";
 import { useLSP } from "./useLSP";
 import type { EditorMarker } from "./ProblemsPanel";
-import {
-  TAILWIND_MONACO_THEME,
-  installMonacoTailwindTheme,
-} from "@/lib/monacoTailwindTheme";
+import { TAILWIND_MONACO_THEME, installMonacoTailwindTheme } from "@/lib/monacoTailwindTheme";
 import { EditorContextMenu } from "./EditorContextMenu";
 
 const LANG_MAP: Record<string, string> = {
@@ -49,7 +46,14 @@ type Props = {
   onMarkersChange?: (path: string, markers: EditorMarker[]) => void;
 };
 
-export function CodeEditor({ path, content, rootUri, onChange, onCursorChange, onMarkersChange }: Props) {
+export function CodeEditor({
+  path,
+  content,
+  rootUri,
+  onChange,
+  onCursorChange,
+  onMarkersChange,
+}: Props) {
   const cfg = useEditorConfig();
   const lang = detectLanguage(path);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);

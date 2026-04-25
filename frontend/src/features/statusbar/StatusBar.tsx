@@ -65,12 +65,11 @@ export function StatusBar({
     maxSeverity === "error"
       ? "text-destructive"
       : maxSeverity === "warning"
-      ? "text-amber-500"
-      : undefined;
+        ? "text-amber-500"
+        : undefined;
 
   return (
     <div className="h-6 border-t bg-muted/20 flex items-center text-[11px] text-muted-foreground shrink-0 overflow-hidden">
-
       {/* Left */}
       <div className="flex items-center h-full">
         {rootPath && branch && (
@@ -87,9 +86,7 @@ export function StatusBar({
             <span className="truncate max-w-xs" title={activeTab.path}>
               {fileName}
             </span>
-            {activeTab.dirty && (
-              <span className="size-1.5 rounded-full bg-primary shrink-0" />
-            )}
+            {activeTab.dirty && <span className="size-1.5 rounded-full bg-primary shrink-0" />}
           </Item>
         )}
       </div>
@@ -137,15 +134,10 @@ export function StatusBar({
 
         <Divider />
         <Item onClick={onOpenNotifications} className={bellColor}>
-          {count > 0 ? (
-            <BellDot className="size-3" />
-          ) : (
-            <Bell className="size-3" />
-          )}
+          {count > 0 ? <BellDot className="size-3" /> : <Bell className="size-3" />}
           {count > 0 && <span className="tabular-nums">{count}</span>}
         </Item>
       </div>
-
     </div>
   );
 }

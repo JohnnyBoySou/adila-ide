@@ -21,9 +21,7 @@ function ActionRow({ icon, label, shortcut, onClick }: ActionRowProps) {
       </span>
       <span className="flex-1">{label}</span>
       {shortcut && (
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-          {shortcut}
-        </span>
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity">{shortcut}</span>
       )}
     </button>
   );
@@ -70,7 +68,6 @@ export function WelcomePage({
 }: Props) {
   return (
     <div className="h-full overflow-y-auto scrollbar">
-
       {/* Hero */}
       <motion.div
         className="flex flex-col items-center gap-3 pt-12 pb-8"
@@ -102,7 +99,6 @@ export function WelcomePage({
       {/* Content */}
       <div className="max-w-3xl mx-auto px-10 py-10">
         <div className="grid grid-cols-2 gap-10">
-
           {/* Iniciar */}
           <motion.section
             initial={{ opacity: 0, x: -20 }}
@@ -182,7 +178,10 @@ export function WelcomePage({
                   const name = path.split("/").filter(Boolean).pop() ?? path;
                   const parent = path.split("/").slice(0, -1).join("/") || "/";
                   return (
-                    <div key={path} className="group flex items-center gap-1 rounded-md hover:bg-accent">
+                    <div
+                      key={path}
+                      className="group flex items-center gap-1 rounded-md hover:bg-accent"
+                    >
                       <button
                         type="button"
                         onClick={() => onOpenRecentFolder?.(path)}
@@ -191,7 +190,9 @@ export function WelcomePage({
                         <FolderOpen className="size-4 text-muted-foreground group-hover:text-foreground shrink-0 transition-colors" />
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{name}</span>
-                          <span className="block truncate text-[11px] text-muted-foreground">{parent}</span>
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {parent}
+                          </span>
                         </span>
                       </button>
                       <button
@@ -208,7 +209,6 @@ export function WelcomePage({
               )}
             </div>
           </motion.section>
-
         </div>
 
         {/* Atalhos rápidos */}
@@ -230,7 +230,6 @@ export function WelcomePage({
             <TipRow label="Mover linha" keys={["Alt", "↑ ↓"]} />
           </div>
         </motion.section>
-
       </div>
     </div>
   );

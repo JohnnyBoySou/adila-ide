@@ -10,7 +10,7 @@ wails build -platform windows/amd64 -clean
 
 # Build for Linux AMD64
 echo "Building for Linux (amd64)..."
-wails build -platform linux/amd64 -clean
+wails build -platform linux/amd64 -clean -tags webkit2_41
 
 # Build for macOS ARM64 (Apple Silicon)
 echo "Building for macOS (arm64)..."

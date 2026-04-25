@@ -37,6 +37,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { loadSession, saveSession } from "@/hooks/useSession";
 import "@/index.css";
 import {
+  GetInitialPath,
   ListDir,
   OpenFolderDialog,
   ReadFile,
@@ -44,41 +45,33 @@ import {
   WriteFile,
 } from "../wailsjs/go/main/App";
 import { SetWorkdir as cmdSetWorkdir } from "../wailsjs/go/main/CommandCenter";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { BookOpen, X } from "lucide-react";
 import { EventsEmit, EventsOn } from "../wailsjs/runtime/runtime";
 
 const TerminalPanel = lazy(() =>
-  import("@/features/terminal/TerminalPanel").then((m) => ({ default: m.TerminalPanel }))
+  import("@/features/terminal/TerminalPanel").then((m) => ({ default: m.TerminalPanel })),
 );
 const CommandPalette = lazy(() =>
-  import("@/features/command-palette/CommandPalette").then((m) => ({ default: m.CommandPalette }))
+  import("@/features/command-palette/CommandPalette").then((m) => ({ default: m.CommandPalette })),
 );
 const SettingsView = lazy(() =>
-  import("@/features/settings/SettingsView").then((m) => ({ default: m.SettingsView }))
+  import("@/features/settings/SettingsView").then((m) => ({ default: m.SettingsView })),
 );
 const AboutView = lazy(() =>
-  import("@/features/about/AboutView").then((m) => ({ default: m.AboutView }))
+  import("@/features/about/AboutView").then((m) => ({ default: m.AboutView })),
 );
 const OnboardingView = lazy(() =>
-  import("@/features/onboarding/OnboardingView").then((m) => ({ default: m.OnboardingView }))
+  import("@/features/onboarding/OnboardingView").then((m) => ({ default: m.OnboardingView })),
 );
-const GitView = lazy(() =>
-  import("@/features/git/GitView").then((m) => ({ default: m.GitView }))
-);
+const GitView = lazy(() => import("@/features/git/GitView").then((m) => ({ default: m.GitView })));
 const KeybindingsView = lazy(() =>
-  import("@/features/keybindings/KeybindingsView").then((m) => ({ default: m.KeybindingsView }))
+  import("@/features/keybindings/KeybindingsView").then((m) => ({ default: m.KeybindingsView })),
 );
 const MarkdownPreview = lazy(() =>
-  import("@/features/editor/MarkdownPreview").then((m) => ({ default: m.MarkdownPreview }))
+  import("@/features/editor/MarkdownPreview").then((m) => ({ default: m.MarkdownPreview })),
 );
-const PatchDiff = lazy(() =>
-  import("@pierre/diffs/react").then((m) => ({ default: m.PatchDiff }))
-);
+const PatchDiff = lazy(() => import("@pierre/diffs/react").then((m) => ({ default: m.PatchDiff })));
 
 function ViewFallback() {
   return (
@@ -92,13 +85,40 @@ type Entry = { name: string; path: string; isDir: boolean };
 type View = "editor" | "settings" | "about" | "onboarding" | "git" | "keybindings";
 type BottomPanel = "terminal" | "problems" | "diff";
 
+function SettingsOverlay({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-40 bg-background">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Fechar configurações"
+        className="absolute right-4 top-4 z-10 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <X className="size-4" />
+      </button>
+      <Suspense fallback={<ViewFallback />}>
+        <SettingsView />
+      </Suspense>
+    </div>
+  );
+}
+
 function App() {
   const [rootPath, setRootPath] = useState<string>("");
   const [rootEntries, setRootEntries] = useState<Entry[]>([]);
   const [rootPane, setRootPane] = useState<PaneNode>(() => emptyLeaf());
-  const [focusedPaneId, setFocusedPaneId] = useState<PaneId>(() =>
-    (rootPane as { id: PaneId }).id,
-  );
+  const [focusedPaneId, setFocusedPaneId] = useState<PaneId>(() => (rootPane as { id: PaneId }).id);
   const [bottomPanel, setBottomPanel] = useState<BottomPanel | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
@@ -111,12 +131,20 @@ function App() {
   const [markdownPreviewOpen, setMarkdownPreviewOpen] = useState(false);
   const [diffPatch, setDiffPatch] = useState<string | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const { value: sidebarLocation } = useConfig<"left" | "right">("workbench.sideBar.location", "left");
+  const { value: sidebarLocation } = useConfig<"left" | "right">(
+    "workbench.sideBar.location",
+    "left",
+  );
   const { value: zenMode, set: setZenMode } = useConfig<boolean>("workbench.zenMode", false);
   const { value: autoSave } = useConfig<string>("editor.autoSave", "off");
   const { value: autoSaveDelay } = useConfig<number>("editor.autoSaveDelay", 1000);
-  const { folders: recentFolders, push: pushRecentFolder, remove: removeRecentFolder } = useRecentFolders();
+  const {
+    folders: recentFolders,
+    push: pushRecentFolder,
+    remove: removeRecentFolder,
+  } = useRecentFolders();
   useTheme();
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [shortcutHint, setShortcutHint] = useState<ShortcutHint | null>(null);
@@ -139,7 +167,13 @@ function App() {
 
   // Refs para auto-save sem stale closure
   const rootPaneRef = useRef(rootPane);
-  useEffect(() => { rootPaneRef.current = rootPane; });
+  useEffect(() => {
+    rootPaneRef.current = rootPane;
+  });
+  const focusedPaneIdRef = useRef(focusedPaneId);
+  useEffect(() => {
+    focusedPaneIdRef.current = focusedPaneId;
+  }, [focusedPaneId]);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -147,9 +181,14 @@ function App() {
     setCursorPos({ line: 1, col: 1 });
   }, [activePath]);
 
-  // Restaura sessão salva ao iniciar
+  // Restaura sessão salva ao iniciar — CLI path tem prioridade sobre sessão
   useEffect(() => {
     void (async () => {
+      const cliPath = await GetInitialPath().catch(() => "");
+      if (cliPath) {
+        await openFolderRef.current(cliPath);
+        return;
+      }
       const session = await loadSession();
       if (!session?.rootPath) return;
       await openFolderRef.current(session.rootPath);
@@ -161,8 +200,7 @@ function App() {
         // foco: se o id salvo ainda existe, usa-o; senão, primeiro leaf com tabs
         const leaves = getAllLeaves(tree);
         const focusable =
-          (session.focusedPaneId &&
-            leaves.find((l) => l.id === session.focusedPaneId)) ||
+          (session.focusedPaneId && leaves.find((l) => l.id === session.focusedPaneId)) ||
           leaves.find((l) => l.tabs.length > 0) ||
           leaves[0];
         if (focusable) setFocusedPaneId(focusable.id);
@@ -171,7 +209,11 @@ function App() {
 
       // legado: lista plana de arquivos
       for (const filePath of session.openFiles) {
-        await openFileRef.current({ name: filePath.split("/").pop() ?? filePath, path: filePath, isDir: false });
+        await openFileRef.current({
+          name: filePath.split("/").pop() ?? filePath,
+          path: filePath,
+          isDir: false,
+        });
       }
       if (session.activePath) {
         setRootPane((prev) => {
@@ -207,9 +249,7 @@ function App() {
   const openFolder = async (folderPath?: string) => {
     try {
       const path =
-        typeof folderPath === "string" && folderPath
-          ? folderPath
-          : await OpenFolderDialog();
+        typeof folderPath === "string" && folderPath ? folderPath : await OpenFolderDialog();
       if (!path) return;
       setRootPath(path);
       gitRpc.git.setWorkdir(path);
@@ -273,16 +313,24 @@ function App() {
   };
 
   const openFileRef = useRef(openFile);
-  useEffect(() => { openFileRef.current = openFile; });
+  useEffect(() => {
+    openFileRef.current = openFile;
+  });
 
   const setViewRef = useRef(setView);
-  useEffect(() => { setViewRef.current = setView; });
+  useEffect(() => {
+    setViewRef.current = setView;
+  });
 
   const openFolderRef = useRef(openFolder);
-  useEffect(() => { openFolderRef.current = openFolder; });
+  useEffect(() => {
+    openFolderRef.current = openFolder;
+  });
 
   const zenModeRef = useRef(zenMode as boolean);
-  useEffect(() => { zenModeRef.current = zenMode as boolean; }, [zenMode]);
+  useEffect(() => {
+    zenModeRef.current = zenMode as boolean;
+  }, [zenMode]);
   const chordRef = useRef<string | null>(null);
 
   const refreshRoot = useCallback(async () => {
@@ -296,7 +344,9 @@ function App() {
   }, [rootPath]);
 
   const refreshRootRef = useRef(refreshRoot);
-  useEffect(() => { refreshRootRef.current = refreshRoot; });
+  useEffect(() => {
+    refreshRootRef.current = refreshRoot;
+  });
 
   // Evento do file watcher Go → atualiza árvore
   useEffect(() => {
@@ -315,13 +365,27 @@ function App() {
   useEffect(() => {
     return EventsOn("commandCenter.exec", (id: unknown) => {
       switch (id) {
-        case "openFolder": void openFolderRef.current(); break;
-        case "toggleTerminal": setBottomPanel((p) => p === "terminal" ? null : "terminal"); break;
-        case "openSettings": setViewRef.current("settings"); break;
-        case "openKeybindings": setViewRef.current("keybindings"); break;
-        case "openGitView": setViewRef.current("git"); break;
-        case "openOnboarding": setViewRef.current("onboarding"); break;
-        case "openAbout": setViewRef.current("about"); break;
+        case "openFolder":
+          void openFolderRef.current();
+          break;
+        case "toggleTerminal":
+          setBottomPanel((p) => (p === "terminal" ? null : "terminal"));
+          break;
+        case "openSettings":
+          setViewRef.current("settings");
+          break;
+        case "openKeybindings":
+          setViewRef.current("keybindings");
+          break;
+        case "openGitView":
+          setViewRef.current("git");
+          break;
+        case "openOnboarding":
+          setViewRef.current("onboarding");
+          break;
+        case "openAbout":
+          setViewRef.current("about");
+          break;
       }
     });
   }, []);
@@ -330,7 +394,10 @@ function App() {
     const result = closeTabInTree(rootPaneRef.current, paneId, path);
     setRootPane(result.root);
     if (result.focusId) setFocusedPaneId(result.focusId);
-    setMarkers((m) => { const { [path]: _, ...rest } = m; return rest; });
+    setMarkers((m) => {
+      const { [path]: _, ...rest } = m;
+      return rest;
+    });
   };
 
   const onActivateTab = (paneId: PaneId, path: string) => {
@@ -376,6 +443,31 @@ function App() {
     trackRecent(file.path);
   };
 
+  const splitActiveTab = useCallback((side: Exclude<DropSide, "center">) => {
+    const focusId = focusedPaneIdRef.current;
+    const leaf = findLeafById(rootPaneRef.current, focusId);
+    const tab = leaf?.tabs.find((t) => t.path === leaf.activePath);
+    if (!leaf || !tab) return;
+    setRootPane((prev) => {
+      const result = openOrMoveTab(prev, focusId, tab, side);
+      setFocusedPaneId(result.focusId);
+      return result.root;
+    });
+  }, []);
+
+  const closeActiveTab = useCallback(() => {
+    const focusId = focusedPaneIdRef.current;
+    const leaf = findLeafById(rootPaneRef.current, focusId);
+    if (!leaf || !leaf.activePath) return;
+    onCloseTab(focusId, leaf.activePath);
+  }, []);
+
+  const focusNthLeaf = useCallback((n: number) => {
+    const leaves = getAllLeaves(rootPaneRef.current);
+    const target = leaves[n];
+    if (target) setFocusedPaneId(target.id);
+  }, []);
+
   const saveActive = useCallback(async () => {
     const path = activePath;
     if (!path) return;
@@ -415,6 +507,31 @@ function App() {
           setThemePickerOpen(true);
           return;
         }
+        if (e.key === "\\") {
+          e.preventDefault();
+          showHint("Ctrl + K + \\");
+          splitActiveTab("bottom");
+          return;
+        }
+      }
+
+      if (meta && !e.shiftKey && !e.altKey && e.key === "\\") {
+        e.preventDefault();
+        showHint("Ctrl + \\");
+        splitActiveTab("right");
+        return;
+      }
+      if (meta && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        showHint("Ctrl + W");
+        closeActiveTab();
+        return;
+      }
+      if (meta && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        showHint(`Ctrl + ${e.key}`);
+        focusNthLeaf(Number(e.key) - 1);
+        return;
       }
 
       if (meta && e.shiftKey && e.key.toLowerCase() === "o") {
@@ -438,7 +555,7 @@ function App() {
       if (meta && e.shiftKey && e.key.toLowerCase() === "m") {
         e.preventDefault();
         showHint("Ctrl + Shift + M");
-        setBottomPanel((p) => p === "problems" ? null : "problems");
+        setBottomPanel((p) => (p === "problems" ? null : "problems"));
         return;
       }
       if (meta && e.key.toLowerCase() === "s") {
@@ -450,13 +567,13 @@ function App() {
       if (meta && e.key === "`") {
         e.preventDefault();
         showHint("Ctrl + `");
-        setBottomPanel((p) => p === "terminal" ? null : "terminal");
+        setBottomPanel((p) => (p === "terminal" ? null : "terminal"));
         return;
       }
       if (meta && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {
         e.preventDefault();
         showHint("Ctrl + J");
-        setBottomPanel((p) => p === "terminal" ? null : "terminal");
+        setBottomPanel((p) => (p === "terminal" ? null : "terminal"));
         return;
       }
       if (meta && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") {
@@ -473,7 +590,7 @@ function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [saveActive, setZenMode, showHint]);
+  }, [saveActive, setZenMode, showHint, splitActiveTab, closeActiveTab, focusNthLeaf]);
 
   const allMarkers = Object.values(markers).flat();
   const errorCount = allMarkers.filter((m) => m.severity === 8).length;
@@ -487,9 +604,13 @@ function App() {
 
   // Carrega diff quando o painel de diff abre ou o arquivo ativo muda
   useEffect(() => {
-    if (bottomPanel !== "diff" || !activePath) { setDiffPatch(null); return; }
+    if (bottomPanel !== "diff" || !activePath) {
+      setDiffPatch(null);
+      return;
+    }
     setDiffLoading(true);
-    gitRpc.git.diff(activePath, false)
+    gitRpc.git
+      .diff(activePath, false)
       .then((p) => setDiffPatch(p as string))
       .catch(() => setDiffPatch(null))
       .finally(() => setDiffLoading(false));
@@ -514,9 +635,11 @@ function App() {
                     : "border-transparent text-muted-foreground hover:text-foreground")
                 }
               >
-                {panel === "terminal" ? "Terminal"
-                  : panel === "diff" ? "Diff"
-                  : (
+                {panel === "terminal" ? (
+                  "Terminal"
+                ) : panel === "diff" ? (
+                  "Diff"
+                ) : (
                   <>
                     Problemas
                     {errorCount > 0 && <span className="text-destructive">{errorCount}</span>}
@@ -538,7 +661,11 @@ function App() {
           <div className="flex-1 overflow-hidden min-h-0">
             {/* Terminal: mantido montado para preservar sessão PTY */}
             <div
-              style={{ display: bottomPanel === "terminal" ? "flex" : "none", height: "100%", flexDirection: "column" }}
+              style={{
+                display: bottomPanel === "terminal" ? "flex" : "none",
+                height: "100%",
+                flexDirection: "column",
+              }}
             >
               <Suspense fallback={<ViewFallback />}>
                 <TerminalPanel
@@ -633,9 +760,7 @@ function App() {
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {activeTab && isMarkdown && markdownPreviewOpen ? (
         <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-          <ResizablePanel className="flex flex-col overflow-hidden">
-            {paneTreeEl}
-          </ResizablePanel>
+          <ResizablePanel className="flex flex-col overflow-hidden">{paneTreeEl}</ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel className="overflow-hidden">
             <Suspense fallback={<ViewFallback />}>
@@ -650,13 +775,10 @@ function App() {
   );
 
   const sidebarPanel = (
-    <ResizablePanel
-      key="sidebar"
-      defaultSize="18%"
-      minSize="10%"
-      maxSize="40%"
-    >
-      <aside className={`h-full overflow-hidden ${sidebarLocation === "right" ? "border-l" : "border-r"}`}>
+    <ResizablePanel key="sidebar" defaultSize="18%" minSize="10%" maxSize="40%">
+      <aside
+        className={`h-full overflow-hidden ${sidebarLocation === "right" ? "border-l" : "border-r"}`}
+      >
         <Sidebar
           rootPath={rootPath}
           files={{
@@ -677,7 +799,7 @@ function App() {
 
   const mainPanel = (
     <ResizablePanel key="main">
-      {view === "editor" ? (
+      {view === "editor" || view === "settings" ? (
         <div style={{ height: "100%", overflow: "hidden" }}>
           <ResizablePanelGroup orientation="vertical">
             <ResizablePanel className="flex flex-col overflow-hidden">
@@ -712,7 +834,6 @@ function App() {
             <X className="size-4" />
           </button>
           <Suspense fallback={<ViewFallback />}>
-            {view === "settings" && <SettingsView />}
             {view === "about" && <AboutView />}
             {view === "onboarding" && <OnboardingView onComplete={() => setView("editor")} />}
             {view === "git" && <GitView rootPath={rootPath} />}
@@ -736,7 +857,7 @@ function App() {
           onOpenFolder={openFolder}
           onSave={saveActive}
           onCloseTab={() => activePath && focusedLeaf && onCloseTab(focusedLeaf.id, activePath)}
-          onToggleTerminal={() => setBottomPanel((p) => p === "terminal" ? null : "terminal")}
+          onToggleTerminal={() => setBottomPanel((p) => (p === "terminal" ? null : "terminal"))}
           onSetView={setView}
           onOpenPalette={() => setPaletteOpen(true)}
           onToggleZen={() => void setZenMode(!zenModeRef.current)}
@@ -747,9 +868,17 @@ function App() {
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           {sidebarVisible ? (
             sidebarLocation === "right" ? (
-              <>{mainPanel}<ResizableHandle withHandle />{sidebarPanel}</>
+              <>
+                {mainPanel}
+                <ResizableHandle withHandle />
+                {sidebarPanel}
+              </>
             ) : (
-              <>{sidebarPanel}<ResizableHandle withHandle />{mainPanel}</>
+              <>
+                {sidebarPanel}
+                <ResizableHandle withHandle />
+                {mainPanel}
+              </>
             )
           ) : (
             mainPanel
@@ -760,7 +889,7 @@ function App() {
       {!zenMode && (
         <StatusBar
           activeTab={activeTab}
-          activeLang={activeTab ? activeTab.path.split(".").pop()?.toLowerCase() ?? "" : ""}
+          activeLang={activeTab ? (activeTab.path.split(".").pop()?.toLowerCase() ?? "") : ""}
           cursorLine={cursorPos.line}
           cursorCol={cursorPos.col}
           rootPath={rootPath}
@@ -768,8 +897,8 @@ function App() {
           errorCount={errorCount}
           warningCount={warningCount}
           onOpenGit={() => setView("git")}
-          onOpenProblems={() => setBottomPanel((p) => p === "problems" ? null : "problems")}
-          onOpenNotifications={() => {/* notifications center opens via Notifications component */}}
+          onOpenProblems={() => setBottomPanel((p) => (p === "problems" ? null : "problems"))}
+          onOpenNotifications={() => setNotificationsOpen((v) => !v)}
         />
       )}
 
@@ -789,7 +918,10 @@ function App() {
         }}
       />
       <ShortcutHud hint={shortcutHint} />
-      <Notifications />
+      <Notifications centerOpen={notificationsOpen} onCenterOpenChange={setNotificationsOpen} />
+      {view === "settings" && (
+        <SettingsOverlay onClose={() => setView("editor")} />
+      )}
       <Toaster />
     </div>
   );

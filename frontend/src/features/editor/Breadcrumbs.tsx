@@ -18,22 +18,22 @@ export function Breadcrumbs({ path, rootPath, onOpenFile }: Props) {
   const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const rel = rootPath
-    ? path.replace(rootPath.replace(/\/$/, "") + "/", "")
-    : path;
+  const rel = rootPath ? path.replace(rootPath.replace(/\/$/, "") + "/", "") : path;
   const parts = rel.split("/").filter(Boolean);
 
   const crumbs: Crumb[] = parts.map((label, i) => {
     const isLast = i === parts.length - 1;
     const dirPath = isLast
       ? path.split("/").slice(0, -1).join("/") || "/"
-      : (rootPath + "/" + parts.slice(0, i + 1).join("/"));
+      : rootPath + "/" + parts.slice(0, i + 1).join("/");
     return { label, dirPath, isLast };
   });
 
   useEffect(() => {
     if (!dropdownDir) return;
-    ListDir(dropdownDir).then(setEntries).catch(() => setEntries([]));
+    ListDir(dropdownDir)
+      .then(setEntries)
+      .catch(() => setEntries([]));
   }, [dropdownDir]);
 
   // Fecha ao clicar fora

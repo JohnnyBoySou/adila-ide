@@ -27,8 +27,27 @@ import {
   UndoLastCommit,
   Unstage,
 } from "../../../wailsjs/go/main/Git";
+import {
+  CancelDeviceFlow,
+  CreateAndPublish,
+  GetUser,
+  IsAuthenticated,
+  Logout,
+  PollDeviceToken,
+  StartDeviceFlow,
+} from "../../../wailsjs/go/main/GitHub";
 import { on } from "@/rpc/core";
-import type { GitBranch, GitChangedFile, GitCommit, GitGraphNode, GitRemote, GitStash } from "./types";
+import type {
+  DeviceFlowStart,
+  GitBranch,
+  GitChangedFile,
+  GitCommit,
+  GitGraphNode,
+  GitHubRepo,
+  GitHubUser,
+  GitRemote,
+  GitStash,
+} from "./types";
 
 export const rpc = {
   git: {
@@ -59,6 +78,17 @@ export const rpc = {
     amendLastCommit: (message: string) => AmendLastCommit(message),
     listRemotes: () => ListRemotes() as Promise<GitRemote[]>,
     getGraph: (limit: number) => GetGraph(limit) as Promise<GitGraphNode[]>,
+  },
+  github: {
+    startDeviceFlow: () => StartDeviceFlow() as Promise<DeviceFlowStart>,
+    pollDeviceToken: (deviceCode: string, interval: number) =>
+      PollDeviceToken(deviceCode, interval),
+    cancelDeviceFlow: () => CancelDeviceFlow(),
+    isAuthenticated: () => IsAuthenticated() as Promise<boolean>,
+    getUser: () => GetUser() as Promise<GitHubUser>,
+    logout: () => Logout(),
+    createAndPublish: (name: string, priv: boolean) =>
+      CreateAndPublish(name, priv) as Promise<GitHubRepo>,
   },
   on,
 };

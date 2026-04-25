@@ -214,9 +214,7 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelected((i) =>
-          filtered.length === 0 ? 0 : Math.min(i + 1, filtered.length - 1),
-        );
+        setSelected((i) => (filtered.length === 0 ? 0 : Math.min(i + 1, filtered.length - 1)));
         return;
       }
       if (e.key === "ArrowUp") {
@@ -235,9 +233,7 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
 
   // Keep the highlighted item visible as the user arrows through.
   useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>(
-      `[data-palette-index="${selected}"]`,
-    );
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-palette-index="${selected}"]`);
     el?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
@@ -254,8 +250,7 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
     setQuery(e.target.value);
   }, []);
 
-  const gotoHint =
-    parsed.mode === "gotoLine" ? parseGotoLine(parsed.search) : null;
+  const gotoHint = parsed.mode === "gotoLine" ? parseGotoLine(parsed.search) : null;
 
   return (
     <div
@@ -344,11 +339,7 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
   );
 }
 
-function filterFiles(
-  files: FileEntry[],
-  roots: FileEntry[],
-  search: string,
-): PaletteItem[] {
+function filterFiles(files: FileEntry[], roots: FileEntry[], search: string): PaletteItem[] {
   if (files.length === 0) {
     return [];
   }
@@ -395,8 +386,7 @@ function filterFiles(
       scored.push({ item: toItem(f), score: 500 });
       continue;
     }
-    const score =
-      nameIdx >= 0 ? nameIdx : 100 + (relIdx >= 0 ? relIdx : 0);
+    const score = nameIdx >= 0 ? nameIdx : 100 + (relIdx >= 0 ? relIdx : 0);
     scored.push({ item: toItem(f), score });
   }
   scored.sort((a, b) => a.score - b.score);
@@ -432,9 +422,7 @@ function parseQuery(raw: string): ParsedQuery {
   return { mode: "files", search: raw.trim(), rawPrefix: "" };
 }
 
-function parseGotoLine(
-  search: string,
-): { line: number; column: number } | null {
+function parseGotoLine(search: string): { line: number; column: number } | null {
   if (!search) {
     return null;
   }
@@ -497,21 +485,9 @@ function ItemIcon({ icon }: { icon: string | undefined }) {
   }
 }
 
-function EmptyState({
-  mode,
-  query,
-  loading,
-}: {
-  mode: Mode;
-  query: string;
-  loading: boolean;
-}) {
+function EmptyState({ mode, query, loading }: { mode: Mode; query: string; loading: boolean }) {
   if (loading) {
-    return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
-        Buscando...
-      </div>
-    );
+    return <div className="py-10 text-center text-sm text-muted-foreground">Buscando...</div>;
   }
   if ((mode === "files" || mode === "symbols") && !query) {
     return (
@@ -529,11 +505,7 @@ function EmptyState({
   );
 }
 
-function GotoLineHint({
-  target,
-}: {
-  target: { line: number; column: number } | null;
-}) {
+function GotoLineHint({ target }: { target: { line: number; column: number } | null }) {
   if (!target) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
@@ -566,9 +538,7 @@ function Footer({ mode }: { mode: Mode }) {
         <span>
           Prefixos: <Kbd>&gt;</Kbd> <Kbd>@</Kbd> <Kbd>:</Kbd> <Kbd>?</Kbd>
         </span>
-        <span className="rounded bg-accent/30 px-1 py-0.5">
-          {MODE_LABEL[mode]}
-        </span>
+        <span className="rounded bg-accent/30 px-1 py-0.5">{MODE_LABEL[mode]}</span>
       </div>
     </div>
   );

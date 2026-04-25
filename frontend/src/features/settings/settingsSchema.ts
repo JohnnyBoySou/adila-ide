@@ -1,9 +1,4 @@
-export type SettingType =
-  | "boolean"
-  | "string"
-  | "number"
-  | "enum"
-  | "color";
+export type SettingType = "boolean" | "string" | "number" | "enum" | "color" | "string-list";
 
 export interface SettingDef {
   key: string;
@@ -77,7 +72,19 @@ export const settingsGroups: SettingsGroupDef[] = [
           { value: "meslo-lgs-nf", label: "Meslo LGS NF" },
           { value: "system", label: "Sistema" },
         ],
-        keywords: ["fonte", "font", "mono", "code", "nerd", "jetbrains", "fira", "cascadia", "hack", "geist", "meslo"],
+        keywords: [
+          "fonte",
+          "font",
+          "mono",
+          "code",
+          "nerd",
+          "jetbrains",
+          "fira",
+          "cascadia",
+          "hack",
+          "geist",
+          "meslo",
+        ],
       },
       {
         key: "adila.appearance.radius",
@@ -129,7 +136,8 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "editor.fontFamily",
         title: "Fonte do editor",
-        description: "Fonte usada no Monaco Editor. Nerd Fonts incluem ícones para uso no terminal.",
+        description:
+          "Fonte usada no Monaco Editor. Nerd Fonts incluem ícones para uso no terminal.",
         type: "enum",
         defaultValue: "'Google Sans Code', monospace",
         options: [
@@ -374,19 +382,54 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "workbench.zenMode",
         title: "Modo Zen",
-        description: "Oculta a barra superior e a barra de status para uma experiência sem distrações.",
+        description:
+          "Oculta a barra superior e a barra de status para uma experiência sem distrações.",
         type: "boolean",
         defaultValue: false,
         keywords: ["zen", "foco", "distração", "fullscreen", "ocultar"],
+      },
+      {
+        key: "explorer.excludeFolders",
+        title: "Pastas ocultas no explorer",
+        description:
+          "Lista de nomes de diretórios ignorados pelo file explorer, busca de arquivos e indexação. Separe por vírgula.",
+        type: "string-list",
+        defaultValue: [
+          ".git",
+          ".svn",
+          ".hg",
+          "node_modules",
+          "vendor",
+          "dist",
+          "build",
+          "out",
+          "target",
+          ".next",
+          ".nuxt",
+          "coverage",
+          "__pycache__",
+          ".cache",
+          ".gradle",
+          ".turbo",
+          ".parcel-cache",
+        ],
+        keywords: [
+          "exclude",
+          "ignore",
+          "ocultar",
+          "hidden",
+          "node_modules",
+          "vendor",
+          "dist",
+          "explorer",
+          "indexação",
+        ],
       },
     ],
   },
 ];
 
-export function filterGroups(
-  groups: SettingsGroupDef[],
-  query: string,
-): SettingsGroupDef[] {
+export function filterGroups(groups: SettingsGroupDef[], query: string): SettingsGroupDef[] {
   const q = query.trim().toLowerCase();
   if (!q) {
     return groups;

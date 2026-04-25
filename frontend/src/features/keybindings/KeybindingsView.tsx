@@ -11,9 +11,7 @@ function KeySequence({ keys }: { keys: string[][] }) {
     <div className="flex items-center gap-2">
       {keys.map((chord, i) => (
         <span key={i} className="flex items-center gap-1">
-          {i > 0 && (
-            <span className="text-xs text-muted-foreground/50 mx-0.5">então</span>
-          )}
+          {i > 0 && <span className="text-xs text-muted-foreground/50 mx-0.5">então</span>}
           <KbdGroup>
             {chord.map((key) => (
               <Kbd key={key}>{key}</Kbd>
@@ -31,9 +29,7 @@ function BindingRow({ binding }: { binding: Keybinding }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{binding.title}</p>
         {binding.description && (
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-            {binding.description}
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">{binding.description}</p>
         )}
         {binding.when && (
           <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">
@@ -76,9 +72,7 @@ export function KeybindingsView() {
 
         <nav className="flex-1 overflow-y-auto scrollbar p-2">
           {groups.length === 0 && (
-            <p className="text-xs text-muted-foreground px-3 py-4">
-              Nada encontrado.
-            </p>
+            <p className="text-xs text-muted-foreground px-3 py-4">Nada encontrado.</p>
           )}
           {groups.map((g) => (
             <button
@@ -127,11 +121,7 @@ export function KeybindingsView() {
           )}
 
           {groups.map((g) => (
-            <section
-              key={g.id}
-              id={`group-${g.id}`}
-              className="mb-10 scroll-mt-8"
-            >
+            <section key={g.id} id={`group-${g.id}`} className="mb-10 scroll-mt-8">
               <header className="mb-4">
                 <h2 className="text-lg font-semibold">{g.title}</h2>
               </header>

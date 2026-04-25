@@ -7,9 +7,7 @@ import {
 } from "@/features/explorer/FileExplorer";
 import { SearchView } from "@/features/search/SearchView";
 
-const GitView = lazy(() =>
-  import("@/features/git/GitView").then((m) => ({ default: m.GitView })),
-);
+const GitView = lazy(() => import("@/features/git/GitView").then((m) => ({ default: m.GitView })));
 const ChatPanel = lazy(() =>
   import("@/features/ai/ChatPanel").then((m) => ({ default: m.ChatPanel })),
 );

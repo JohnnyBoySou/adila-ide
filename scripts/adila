@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# adila — abre o Adila IDE numa pasta (default: cwd)
+#
+# Uso:
+#   adila              # abre cwd
+#   adila .            # idem
+#   adila path/projeto
+#
+# Resolução do binário (na ordem):
+#   1. $ADILA_BIN (se exportado)
+#   2. adila-ide ao lado deste script (caso scripts/ esteja num release)
+#   3. <repo>/build/bin/adila-ide (build local de dev)
+#   4. adila-ide no PATH
+
+set -euo pipefail
+
+target="${1:-.}"
+
+if [ ! -d "$target" ]; then
+  echo "adila: '$target' não é um diretório" >&2
+  exit 1
+fi
+
+abs="$(cd "$target" && pwd)"
+
+script_dir="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+
+if [ -n "${ADILA_BIN:-}" ] && [ -x "$ADILA_BIN" ]; then
+  bin="$ADILA_BIN"
+elif [ -x "$script_dir/adila-ide" ]; then
+  bin="$script_dir/adila-ide"
+elif [ -x "$repo_root/build/bin/adila-ide" ]; then
+  bin="$repo_root/build/bin/adila-ide"
+elif command -v adila-ide >/dev/null 2>&1; then
+  bin="$(command -v adila-ide)"
+else
+  echo "adila: binário adila-ide não encontrado. Rode 'bun run build' ou exporte ADILA_BIN." >&2
+  exit 1
+fi
+
+# Detacha do terminal: stdio fechado, processo independente.
+if command -v setsid >/dev/null 2>&1; then
+  setsid -f "$bin" "$abs" </dev/null >/dev/null 2>&1 || \
+    setsid "$bin" "$abs" </dev/null >/dev/null 2>&1 &
+else
+  nohup "$bin" "$abs" </dev/null >/dev/null 2>&1 &
+fi
+
+disown 2>/dev/null || true

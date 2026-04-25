@@ -74,21 +74,12 @@ function mapNode(node: PaneNode, fn: (n: PaneNode) => PaneNode): PaneNode {
   return node;
 }
 
-export function updateLeaf(
-  root: PaneNode,
-  id: PaneId,
-  fn: (leaf: LeafPane) => LeafPane,
-): PaneNode {
-  return mapNode(root, (n) =>
-    n.kind === "leaf" && n.id === id ? fn(n) : n,
-  );
+export function updateLeaf(root: PaneNode, id: PaneId, fn: (leaf: LeafPane) => LeafPane): PaneNode {
+  return mapNode(root, (n) => (n.kind === "leaf" && n.id === id ? fn(n) : n));
 }
 
 /** Aplica `fn` em todos os leafs (útil para updateFile global). */
-export function updateAllLeaves(
-  root: PaneNode,
-  fn: (leaf: LeafPane) => LeafPane,
-): PaneNode {
+export function updateAllLeaves(root: PaneNode, fn: (leaf: LeafPane) => LeafPane): PaneNode {
   return mapNode(root, (n) => (n.kind === "leaf" ? fn(n) : n));
 }
 
@@ -133,9 +124,7 @@ export function closeTabInTree(
   return collapseEmptyLeaves(updated);
 }
 
-function collapseEmptyLeaves(
-  root: PaneNode,
-): { root: PaneNode; focusId: PaneId | null } {
+function collapseEmptyLeaves(root: PaneNode): { root: PaneNode; focusId: PaneId | null } {
   let focusId: PaneId | null = null;
 
   function visit(node: PaneNode): PaneNode {
@@ -235,9 +224,7 @@ export function updateTabContent(
     if (!leaf.tabs.some((t) => t.path === path)) return leaf;
     return {
       ...leaf,
-      tabs: leaf.tabs.map((t) =>
-        t.path === path ? { ...t, content, dirty } : t,
-      ),
+      tabs: leaf.tabs.map((t) => (t.path === path ? { ...t, content, dirty } : t)),
     };
   });
 }
@@ -326,8 +313,9 @@ export async function deserializePane(
       }),
     );
     const tabs = results.filter((t): t is PaneTab => t !== null);
-    const activePath =
-      tabs.some((t) => t.path === s.activePath) ? s.activePath : tabs[0]?.path ?? "";
+    const activePath = tabs.some((t) => t.path === s.activePath)
+      ? s.activePath
+      : (tabs[0]?.path ?? "");
     return { kind: "leaf", id: s.id, tabs, activePath };
   }
   const [a, b] = await Promise.all([
@@ -338,14 +326,8 @@ export async function deserializePane(
 }
 
 /** Atualiza `size` de um split node (0..100, refere-se ao filho `a`). */
-export function setSplitSize(
-  root: PaneNode,
-  splitId: PaneId,
-  size: number,
-): PaneNode {
-  return mapNode(root, (n) =>
-    n.kind === "split" && n.id === splitId ? { ...n, size } : n,
-  );
+export function setSplitSize(root: PaneNode, splitId: PaneId, size: number): PaneNode {
+  return mapNode(root, (n) => (n.kind === "split" && n.id === splitId ? { ...n, size } : n));
 }
 
 /** Lista de paths de todas as tabs (para sessão). */

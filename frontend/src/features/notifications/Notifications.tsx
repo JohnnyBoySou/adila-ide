@@ -1,5 +1,5 @@
 import { Bell } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { rpc } from "./rpc";
 import type { LayoutMode, NotificationItem } from "./types";
 import { Center } from "./components/Center";
@@ -8,9 +8,22 @@ import { ToastList } from "./components/Toast";
 // Matches the longest transition in <Center /> (panel translate) — keep in sync.
 const CENTER_EXIT_MS = 320;
 
-export function Notifications() {
+type Props = {
+  /** Controle externo opcional do center (ex.: clique no sino da StatusBar). */
+  centerOpen?: boolean;
+  onCenterOpenChange?: (open: boolean) => void;
+};
+
+export function Notifications({ centerOpen: centerOpenProp, onCenterOpenChange }: Props = {}) {
   const [items, setItems] = useState<NotificationItem[]>([]);
-  const [centerOpen, setCenterOpen] = useState(false);
+  const [centerOpenInternal, setCenterOpenInternal] = useState(false);
+  const centerOpen = centerOpenProp ?? centerOpenInternal;
+  const setCenterOpenRef = useRef((_open: boolean) => {});
+  setCenterOpenRef.current = (open: boolean) => {
+    if (onCenterOpenChange) onCenterOpenChange(open);
+    else setCenterOpenInternal(open);
+  };
+  const setCenterOpen = (open: boolean) => setCenterOpenRef.current(open);
 
   // Wire up workbench → react event stream once.
   useEffect(() => {

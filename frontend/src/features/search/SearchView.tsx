@@ -163,15 +163,17 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
           </button>
         </div>
         <div className="text-xs text-muted-foreground min-h-[1.25rem]">
-          {!rootPath
-            ? "Abra uma pasta para buscar."
-            : loading
-              ? "Buscando…"
-              : error
-                ? <span className="text-red-400">{error}</span>
-                : query
-                  ? `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}`
-                  : "Digite para buscar."}
+          {!rootPath ? (
+            "Abra uma pasta para buscar."
+          ) : loading ? (
+            "Buscando…"
+          ) : error ? (
+            <span className="text-red-400">{error}</span>
+          ) : query ? (
+            `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}`
+          ) : (
+            "Digite para buscar."
+          )}
           {replaceMsg && <span className="ml-2">· {replaceMsg}</span>}
         </div>
       </div>
@@ -256,9 +258,7 @@ function ToggleIcon({
       title={title}
       className={
         "p-0.5 rounded text-xs " +
-        (active
-          ? "bg-accent text-foreground"
-          : "text-muted-foreground hover:text-foreground")
+        (active ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")
       }
     >
       <Icon className="size-3.5" />

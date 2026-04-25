@@ -6,11 +6,15 @@ import { toast } from "@/hooks/useToast";
 import { rpc } from "./rpc";
 import { Welcome } from "./steps/Welcome";
 import { Theme } from "./steps/Theme";
+import { CLI } from "./steps/CLI";
+import { GitHub } from "./steps/GitHub";
 import { OpenFolder } from "./steps/OpenFolder";
 
 const steps = [
   { id: "welcome", label: "Boas-vindas", Component: Welcome },
   { id: "theme", label: "Tema", Component: Theme },
+  { id: "cli", label: "CLI", Component: CLI },
+  { id: "github", label: "GitHub", Component: GitHub },
   { id: "folder", label: "Pasta", Component: OpenFolder },
 ];
 
@@ -46,7 +50,6 @@ export function OnboardingView({ onComplete }: Props) {
   return (
     <div className="flex h-full w-full items-center justify-center p-8 overflow-hidden">
       <div className="flex w-full max-w-xl flex-col gap-8">
-
         {/* Step content — fade simples, sem slide */}
         <div className="overflow-hidden w-full min-h-[260px] flex items-center">
           <AnimatePresence mode="wait">
@@ -120,7 +123,6 @@ export function OnboardingView({ onComplete }: Props) {
             </button>
           </div>
         </footer>
-
       </div>
     </div>
   );

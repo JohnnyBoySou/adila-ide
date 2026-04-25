@@ -28,7 +28,9 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    GetLSPStatus().then(setServers).catch(() => {});
+    GetLSPStatus()
+      .then(setServers)
+      .catch(() => {});
   }, []);
 
   // escuta eventos de progresso e conclusão
@@ -42,7 +44,7 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
             ...s,
             [lang]: { installing: true, progress: pct, error: "" },
           }));
-        })
+        }),
       );
       unsubs.push(
         EventsOn(`lsp:install:done:${lang}`, () => {
@@ -51,8 +53,10 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
             [lang]: { installing: false, progress: 100, error: "" },
           }));
           // recarrega status após instalação
-          GetLSPStatus().then(setServers).catch(() => {});
-        })
+          GetLSPStatus()
+            .then(setServers)
+            .catch(() => {});
+        }),
       );
     }
 
@@ -123,7 +127,8 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
           </div>
 
           <p className="text-muted-foreground mb-3 text-[11px]">
-            TypeScript, JavaScript, JSON, CSS e HTML rodam sem instalação — workers embutidos no editor.
+            TypeScript, JavaScript, JSON, CSS e HTML rodam sem instalação — workers embutidos no
+            editor.
           </p>
 
           <div className="space-y-2">
@@ -133,10 +138,7 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
               const hasError = state?.error;
 
               return (
-                <div
-                  key={s.lang}
-                  className="flex items-center justify-between gap-2 py-1"
-                >
+                <div key={s.lang} className="flex items-center justify-between gap-2 py-1">
                   <div className="flex items-center gap-2 min-w-0">
                     {s.installed ? (
                       <CheckCircle className="size-3.5 text-emerald-500 shrink-0" />
@@ -152,9 +154,7 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
                     {s.installed ? (
                       <span className="text-muted-foreground">instalado</span>
                     ) : isInstalling ? (
-                      <span className="text-blue-500 tabular-nums">
-                        {state.progress}%
-                      </span>
+                      <span className="text-blue-500 tabular-nums">{state.progress}%</span>
                     ) : (
                       <button
                         onClick={() => install(s.lang)}
@@ -168,14 +168,10 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
                   </div>
 
                   {hasError && (
-                    <p className="text-destructive text-[10px] mt-0.5 pl-5">
-                      {state.error}
-                    </p>
+                    <p className="text-destructive text-[10px] mt-0.5 pl-5">{state.error}</p>
                   )}
                   {!s.installed && !isInstalling && s.installHint && (
-                    <p className="text-muted-foreground text-[10px] mt-0.5 pl-5">
-                      {s.installHint}
-                    </p>
+                    <p className="text-muted-foreground text-[10px] mt-0.5 pl-5">{s.installHint}</p>
                   )}
                 </div>
               );

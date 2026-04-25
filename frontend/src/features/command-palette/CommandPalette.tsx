@@ -8,11 +8,7 @@ interface CommandPaletteProps {
   initialQuery?: string;
 }
 
-export function CommandPalette({
-  open,
-  onOpenChange,
-  initialQuery = "",
-}: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, initialQuery = "" }: CommandPaletteProps) {
   const [query, setQuery] = useState(initialQuery);
 
   useEffect(() => {

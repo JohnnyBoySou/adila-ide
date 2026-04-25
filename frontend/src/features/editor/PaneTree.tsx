@@ -6,20 +6,14 @@
  * right, top, bottom) — estilo Ubuntu window-tile.
  */
 
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Suspense, lazy, useRef, useState } from "react";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { Breadcrumbs } from "./Breadcrumbs";
-import { TabBar } from "./TabBar";
 import type { EditorMarker } from "./ProblemsPanel";
-import type { DropSide, LeafPane, PaneId, PaneNode, PaneTab } from "./panes";
+import { TabBar } from "./TabBar";
+import type { DropSide, LeafPane, PaneId, PaneNode } from "./panes";
 
-const CodeEditor = lazy(() =>
-  import("./CodeEditor").then((m) => ({ default: m.CodeEditor })),
-);
+const CodeEditor = lazy(() => import("./CodeEditor").then((m) => ({ default: m.CodeEditor })));
 
 export const FILE_DRAG_MIME = "application/x-adila-file";
 
@@ -44,11 +38,7 @@ type PaneTreeProps = {
   onChange: (path: string, content: string) => void;
   onCursorChange: (line: number, column: number) => void;
   onMarkersChange: (path: string, markers: EditorMarker[]) => void;
-  onDropFile: (
-    paneId: PaneId,
-    side: DropSide,
-    file: DraggedFile,
-  ) => void;
+  onDropFile: (paneId: PaneId, side: DropSide, file: DraggedFile) => void;
   onSplitSizeChange?: (splitId: PaneId, size: number) => void;
   onOpenFileByPath: (path: string) => void;
   emptyState: React.ReactNode;
@@ -58,16 +48,12 @@ export function PaneTree(props: PaneTreeProps) {
   return <PaneNodeView node={props.root} {...props} />;
 }
 
-function PaneNodeView({
-  node,
-  ...props
-}: { node: PaneNode } & PaneTreeProps) {
+function PaneNodeView({ node, ...props }: { node: PaneNode } & PaneTreeProps) {
   if (node.kind === "leaf") {
     return <LeafView leaf={node} {...props} />;
   }
 
-  const orientation =
-    node.direction === "horizontal" ? "horizontal" : "vertical";
+  const orientation = node.direction === "horizontal" ? "horizontal" : "vertical";
   const idA = `${node.id}-a`;
   const idB = `${node.id}-b`;
 
@@ -82,11 +68,19 @@ function PaneNodeView({
         }
       }}
     >
-      <ResizablePanel id={idA} defaultSize={`${node.size}%`} className="flex flex-col overflow-hidden">
+      <ResizablePanel
+        id={idA}
+        defaultSize={`${node.size}%`}
+        className="flex flex-col overflow-hidden"
+      >
         <PaneNodeView node={node.a} {...props} />
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel id={idB} defaultSize={`${100 - node.size}%`} className="flex flex-col overflow-hidden">
+      <ResizablePanel
+        id={idB}
+        defaultSize={`${100 - node.size}%`}
+        className="flex flex-col overflow-hidden"
+      >
         <PaneNodeView node={node.b} {...props} />
       </ResizablePanel>
     </ResizablePanelGroup>
@@ -201,11 +195,7 @@ function LeafView({
 
       {/* Breadcrumbs + editor */}
       {activeTab && (
-        <Breadcrumbs
-          path={activeTab.path}
-          rootPath={rootPath}
-          onOpenFile={onOpenFileByPath}
-        />
+        <Breadcrumbs path={activeTab.path} rootPath={rootPath} onOpenFile={onOpenFileByPath} />
       )}
       <div className="flex-1 overflow-hidden min-h-0">
         {activeTab ? (
@@ -241,9 +231,7 @@ function DropOverlay({ side }: { side: DropSide | null }) {
   const cls = (active: boolean) =>
     [
       "absolute pointer-events-none transition-colors",
-      active
-        ? "bg-primary/20 border-2 border-primary"
-        : "bg-transparent border border-primary/20",
+      active ? "bg-primary/20 border-2 border-primary" : "bg-transparent border border-primary/20",
     ].join(" ");
 
   return (

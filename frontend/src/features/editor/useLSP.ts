@@ -1,12 +1,6 @@
 import { useEffect, useRef } from "react";
-import {
-  MonacoLanguageClient,
-} from "monaco-languageclient";
-import {
-  toSocket,
-  WebSocketMessageReader,
-  WebSocketMessageWriter,
-} from "vscode-ws-jsonrpc";
+import { MonacoLanguageClient } from "monaco-languageclient";
+import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CloseAction, ErrorAction } from "vscode-languageclient";
 import { GetLSPPort } from "../../../wailsjs/go/main/LSP";
 

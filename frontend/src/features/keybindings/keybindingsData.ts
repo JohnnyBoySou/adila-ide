@@ -31,12 +31,18 @@ export const keybindingGroups: KeybindingGroup[] = [
       {
         id: "keybindings",
         title: "Atalhos de teclado",
-        keys: [["Ctrl", "K"], ["Ctrl", "S"]],
+        keys: [
+          ["Ctrl", "K"],
+          ["Ctrl", "S"],
+        ],
       },
       {
         id: "open-folder",
         title: "Abrir pasta",
-        keys: [["Ctrl", "K"], ["Ctrl", "O"]],
+        keys: [
+          ["Ctrl", "K"],
+          ["Ctrl", "O"],
+        ],
       },
     ],
   },
@@ -291,20 +297,14 @@ export const keybindingGroups: KeybindingGroup[] = [
   },
 ];
 
-export function filterGroups(
-  groups: KeybindingGroup[],
-  query: string,
-): KeybindingGroup[] {
+export function filterGroups(groups: KeybindingGroup[], query: string): KeybindingGroup[] {
   const q = query.trim().toLowerCase();
   if (!q) return groups;
   return groups
     .map((group) => ({
       ...group,
       bindings: group.bindings.filter((b) =>
-        [b.title, b.description ?? "", b.when ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
+        [b.title, b.description ?? "", b.when ?? ""].join(" ").toLowerCase().includes(q),
       ),
     }))
     .filter((g) => g.bindings.length > 0);

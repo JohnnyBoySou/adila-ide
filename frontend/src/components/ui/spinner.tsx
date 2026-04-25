@@ -11,10 +11,7 @@ export function Spinner({ className, label }: SpinnerProps) {
     <div
       role="status"
       aria-live="polite"
-      className={cn(
-        "flex items-center gap-2 text-xs text-muted-foreground",
-        className,
-      )}
+      className={cn("flex items-center gap-2 text-xs text-muted-foreground", className)}
     >
       <Loader2 className="size-3.5 animate-spin" />
       {label && <span>{label}</span>}

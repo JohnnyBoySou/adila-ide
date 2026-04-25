@@ -14,6 +14,18 @@ export function DeleteEntry(arg1) {
   return window['go']['main']['App']['DeleteEntry'](arg1);
 }
 
+export function GetInitialPath() {
+  return window['go']['main']['App']['GetInitialPath']();
+}
+
+export function InstallCLI() {
+  return window['go']['main']['App']['InstallCLI']();
+}
+
+export function IsCLIInstalled() {
+  return window['go']['main']['App']['IsCLIInstalled']();
+}
+
 export function ListDir(arg1) {
   return window['go']['main']['App']['ListDir'](arg1);
 }
@@ -40,6 +52,14 @@ export function SearchFiles(arg1, arg2) {
 
 export function SearchInFiles(arg1, arg2) {
   return window['go']['main']['App']['SearchInFiles'](arg1, arg2);
+}
+
+export function SetInitialPath(arg1) {
+  return window['go']['main']['App']['SetInitialPath'](arg1);
+}
+
+export function UninstallCLI() {
+  return window['go']['main']['App']['UninstallCLI']();
 }
 
 export function WatchRoot(arg1) {

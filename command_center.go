@@ -83,6 +83,8 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 	batchCh := make(chan []CmdFileEntry, len(topEntries)+1)
 	var wg sync.WaitGroup
 
+	exc := resolveExcludeFolders(c.cfg)
+
 	for _, entry := range topEntries {
 		wg.Add(1)
 		go func(p string) {
@@ -96,7 +98,7 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 					return nil
 				}
 				if d.IsDir() {
-					if ignoreDirs[d.Name()] {
+					if exc[d.Name()] {
 						return filepath.SkipDir
 					}
 					return nil

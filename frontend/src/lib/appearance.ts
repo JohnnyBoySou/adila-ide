@@ -62,18 +62,12 @@ const FONT_UI_STACKS: Record<FontUiPreset, string> = {
 const FONT_MONO_STACKS: Record<FontMonoPreset, string> = {
   "google-sans-code":
     '"Google Sans Code", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace',
-  "jetbrains-mono-nf":
-    '"JetBrains Mono NF", ui-monospace, Menlo, Consolas, monospace',
-  "fira-code-nf":
-    '"Fira Code NF", ui-monospace, Menlo, Consolas, monospace',
-  "cascadia-code-nf":
-    '"Cascadia Code NF", ui-monospace, Menlo, Consolas, monospace',
-  "hack-nf":
-    '"Hack NF", ui-monospace, Menlo, Consolas, monospace',
-  "geist-mono-nf":
-    '"Geist Mono NF", ui-monospace, Menlo, Consolas, monospace',
-  "meslo-lgs-nf":
-    '"Meslo LGS NF", ui-monospace, Menlo, Consolas, monospace',
+  "jetbrains-mono-nf": '"JetBrains Mono NF", ui-monospace, Menlo, Consolas, monospace',
+  "fira-code-nf": '"Fira Code NF", ui-monospace, Menlo, Consolas, monospace',
+  "cascadia-code-nf": '"Cascadia Code NF", ui-monospace, Menlo, Consolas, monospace',
+  "hack-nf": '"Hack NF", ui-monospace, Menlo, Consolas, monospace',
+  "geist-mono-nf": '"Geist Mono NF", ui-monospace, Menlo, Consolas, monospace',
+  "meslo-lgs-nf": '"Meslo LGS NF", ui-monospace, Menlo, Consolas, monospace',
   system:
     'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace',
 };
@@ -233,30 +227,15 @@ export function applyAppearance(opts: AppearanceOptions): void {
   root.style.setProperty("--color-card", palette.card);
   root.style.setProperty("--color-card-foreground", palette.cardForeground);
   root.style.setProperty("--color-popover", palette.popover);
-  root.style.setProperty(
-    "--color-popover-foreground",
-    palette.popoverForeground,
-  );
+  root.style.setProperty("--color-popover-foreground", palette.popoverForeground);
   root.style.setProperty("--color-secondary", palette.secondary);
-  root.style.setProperty(
-    "--color-secondary-foreground",
-    palette.secondaryForeground,
-  );
+  root.style.setProperty("--color-secondary-foreground", palette.secondaryForeground);
   root.style.setProperty("--color-muted", palette.muted);
-  root.style.setProperty(
-    "--color-muted-foreground",
-    palette.mutedForeground,
-  );
+  root.style.setProperty("--color-muted-foreground", palette.mutedForeground);
   root.style.setProperty("--color-accent", palette.accent);
-  root.style.setProperty(
-    "--color-accent-foreground",
-    palette.accentForeground,
-  );
+  root.style.setProperty("--color-accent-foreground", palette.accentForeground);
   root.style.setProperty("--color-destructive", palette.destructive);
-  root.style.setProperty(
-    "--color-destructive-foreground",
-    palette.destructiveForeground,
-  );
+  root.style.setProperty("--color-destructive-foreground", palette.destructiveForeground);
   root.style.setProperty("--color-border", palette.border);
   root.style.setProperty("--color-input", palette.input);
 
@@ -276,15 +255,13 @@ export function applyAppearance(opts: AppearanceOptions): void {
 
 export async function loadAppearance(): Promise<AppearanceOptions> {
   const entries = await Promise.all(
-    (Object.keys(APPEARANCE_KEYS) as (keyof AppearanceOptions)[]).map(
-      async (k) => {
-        const value = await call<unknown>("config.get", {
-          key: APPEARANCE_KEYS[k],
-          defaultValue: APPEARANCE_DEFAULTS[k],
-        });
-        return [k, value ?? APPEARANCE_DEFAULTS[k]] as const;
-      },
-    ),
+    (Object.keys(APPEARANCE_KEYS) as (keyof AppearanceOptions)[]).map(async (k) => {
+      const value = await call<unknown>("config.get", {
+        key: APPEARANCE_KEYS[k],
+        defaultValue: APPEARANCE_DEFAULTS[k],
+      });
+      return [k, value ?? APPEARANCE_DEFAULTS[k]] as const;
+    }),
   );
   const opts = { ...APPEARANCE_DEFAULTS };
   for (const [k, v] of entries) {
@@ -315,15 +292,9 @@ export function notifyAppearanceChanged(key: string): void {
 
 let mediaListener: ((e: MediaQueryListEvent) => void) | undefined;
 
-export function subscribeAppearance(
-  getOptions: () => AppearanceOptions,
-): () => void {
+export function subscribeAppearance(getOptions: () => AppearanceOptions): () => void {
   const offConfig = on("config.changed", (payload) => {
-    if (
-      payload &&
-      typeof payload === "object" &&
-      "key" in (payload as Record<string, unknown>)
-    ) {
+    if (payload && typeof payload === "object" && "key" in (payload as Record<string, unknown>)) {
       const key = (payload as { key: string }).key;
       if (key.startsWith("adila.appearance.")) {
         applyAppearance(getOptions());

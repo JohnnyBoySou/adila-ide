@@ -1,16 +1,6 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  ClosePty,
-  GetPty,
-  StartPtyWith,
-} from "../../../wailsjs/go/main/Terminal";
+import { ClosePty, GetPty, StartPtyWith } from "../../../wailsjs/go/main/Terminal";
 
 export type TermSession = {
   id: string;
@@ -82,7 +72,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const updateSession = useCallback(
     (id: string, patch: Partial<TermSession>) =>
       setSessions((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x))),
-    []
+    [],
   );
 
   return (

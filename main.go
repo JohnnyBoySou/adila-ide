@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"embed"
+	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -13,13 +15,17 @@ import (
 var assets embed.FS
 
 func main() {
-	app := NewApp()
+	cfg := NewConfig()
+	app := NewApp(cfg)
+	if initial := resolveInitialPath(os.Args); initial != "" {
+		app.SetInitialPath(initial)
+	}
 	term := NewTerminal()
 	git := NewGit()
-	cfg := NewConfig()
 	about := NewAbout()
 	lsp := NewLSP()
 	cmd := NewCommandCenter(git, cfg)
+	gh := NewGitHub(cfg, git)
 
 	err := wails.Run(&options.App{
 		Title:  "Adila IDE",
@@ -37,6 +43,7 @@ func main() {
 			about.startup(ctx)
 			lsp.startup(ctx)
 			cmd.startup(ctx)
+			gh.startup(ctx)
 		},
 		OnShutdown: func(ctx context.Context) {
 			term.shutdown(ctx)
@@ -51,10 +58,32 @@ func main() {
 			about,
 			lsp,
 			cmd,
+			gh,
 		},
 	})
 
 	if err != nil {
 		println("Error:", err.Error())
 	}
+}
+
+// resolveInitialPath pega o primeiro arg posicional não-flag, resolve para
+// caminho absoluto e valida que é um diretório existente. Retorna "" se
+// nada foi passado ou o caminho é inválido.
+func resolveInitialPath(args []string) string {
+	for _, a := range args[1:] {
+		if a == "" || a[0] == '-' {
+			continue
+		}
+		abs, err := filepath.Abs(a)
+		if err != nil {
+			return ""
+		}
+		info, err := os.Stat(abs)
+		if err != nil || !info.IsDir() {
+			return ""
+		}
+		return abs
+	}
+	return ""
 }

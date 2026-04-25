@@ -1,27 +1,14 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Plus,
-  Search,
-  X,
-  XCircle,
-} from "lucide-react";
-import { useTerminals } from "./store";
-import { ShellPicker } from "./ShellPicker";
-import type { TerminalHandle } from "../../components/Terminal";
 import type { ISearchOptions } from "@xterm/addon-search";
+import { ChevronDown, ChevronUp, Plus, Search, X, XCircle } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { WritePty } from "../../../wailsjs/go/main/Terminal";
+import type { TerminalHandle } from "../../components/Terminal";
+import { Checkbox } from "../../components/ui/checkbox";
+import { ShellPicker } from "./ShellPicker";
+import { useTerminals } from "./store";
 
 const Terminal = lazy(() =>
-  import("../../components/Terminal").then((m) => ({ default: m.Terminal }))
+  import("../../components/Terminal").then((m) => ({ default: m.Terminal })),
 );
 
 const MIN_HEIGHT = 120;
@@ -52,10 +39,16 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
   const { sessions, activeId, create, close, focus, updateSession } = useTerminals();
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [search, setSearch] = useState<SearchState>({
-    open: false, query: "", caseSensitive: false, regex: false,
+    open: false,
+    query: "",
+    caseSensitive: false,
+    regex: false,
   });
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    open: false, x: 0, y: 0, sessionId: "",
+    open: false,
+    x: 0,
+    y: 0,
+    sessionId: "",
   });
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -72,9 +65,12 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
     }
   }, []);
 
-  const newTab = useCallback((shell = "") => {
-    create({ cwd: defaultCwd, shell }).catch(() => {});
-  }, [create, defaultCwd]);
+  const newTab = useCallback(
+    (shell = "") => {
+      create({ cwd: defaultCwd, shell }).catch(() => {});
+    },
+    [create, defaultCwd],
+  );
 
   // --- Resize por drag ---
   const onDragStart = (e: React.MouseEvent) => {
@@ -90,7 +86,9 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
       const next = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, dragStart.current.height + delta));
       setHeight(next);
     };
-    const onUp = () => { isDragging.current = false; };
+    const onUp = () => {
+      isDragging.current = false;
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
@@ -151,17 +149,12 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
     return () => window.removeEventListener("click", close);
   }, [contextMenu.open]);
 
-  const ctxHandle = contextMenu.sessionId
-    ? handlesRef.current.get(contextMenu.sessionId)
-    : null;
+  const ctxHandle = contextMenu.sessionId ? handlesRef.current.get(contextMenu.sessionId) : null;
 
   const activeSession = sessions.find((s) => s.id === activeId);
 
   return (
-    <div
-      className="flex flex-col border-t bg-background shrink-0 relative"
-      style={{ height }}
-    >
+    <div className="flex flex-col border-t bg-background shrink-0 relative" style={{ height }}>
       {/* drag handle */}
       <div
         className="absolute inset-x-0 top-0 h-1 cursor-ns-resize hover:bg-primary/30 transition-colors z-10"
@@ -183,14 +176,15 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
                   : "text-muted-foreground hover:bg-accent hover:text-foreground")
               }
             >
-              <span className="truncate max-w-[10rem]">{s.title}</span>
-              {!s.running && (
-                <XCircle className="size-3 text-destructive shrink-0" />
-              )}
+              <span className="truncate max-w-40">{s.title}</span>
+              {!s.running && <XCircle className="size-3 text-destructive shrink-0" />}
               <span
                 role="button"
                 aria-label="Fechar"
-                onClick={(e) => { e.stopPropagation(); close(s.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  close(s.id);
+                }}
                 className="opacity-50 hover:opacity-100 shrink-0"
               >
                 <X className="size-3" />
@@ -242,27 +236,31 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
             value={search.query}
             onChange={(e) => setSearch((s) => ({ ...s, query: e.target.value }))}
             onKeyDown={(e) => {
-              if (e.key === "Enter") e.shiftKey ? doPrev() : doSearch(search.query);
+              if (e.key === "Enter") {
+                if (e.shiftKey) {
+                  doPrev();
+                } else {
+                  doSearch(search.query);
+                }
+              }
               if (e.key === "Escape") setSearch((s) => ({ ...s, open: false }));
             }}
             placeholder="Buscar no terminal..."
             className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
           />
           <label className="flex items-center gap-1 cursor-pointer select-none">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={search.caseSensitive}
-              onChange={(e) => setSearch((s) => ({ ...s, caseSensitive: e.target.checked }))}
-              className="accent-primary"
+              onCheckedChange={(v) => setSearch((s) => ({ ...s, caseSensitive: v }))}
+              aria-label="Case sensitive"
             />
             Aa
           </label>
           <label className="flex items-center gap-1 cursor-pointer select-none">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={search.regex}
-              onChange={(e) => setSearch((s) => ({ ...s, regex: e.target.checked }))}
-              className="accent-primary"
+              onCheckedChange={(v) => setSearch((s) => ({ ...s, regex: v }))}
+              aria-label="Regex"
             />
             .*
           </label>
@@ -283,7 +281,13 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
 
       {/* terminal instances */}
       <div className="flex-1 relative overflow-hidden">
-        <Suspense fallback={<div className="h-full flex items-center justify-center text-xs text-muted-foreground">Carregando terminal…</div>}>
+        <Suspense
+          fallback={
+            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+              Carregando terminal…
+            </div>
+          }
+        >
           {sessions.map((s) => (
             <div
               key={s.id}
@@ -311,9 +315,7 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
       {/* status bar */}
       {activeSession && (
         <div className="flex items-center justify-between px-3 py-0.5 border-t text-[10px] text-muted-foreground bg-muted/20 shrink-0 font-mono">
-          <span className="truncate max-w-[60%]">
-            {activeSession.cwd || "—"}
-          </span>
+          <span className="truncate max-w-[60%]">{activeSession.cwd || "—"}</span>
           <span className="shrink-0">
             {activeSession.running
               ? activeSession.shell || "shell"
@@ -339,9 +341,12 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
             {
               label: "Colar",
               action: () => {
-                navigator.clipboard.readText().then((t) => {
-                  WritePty(contextMenu.sessionId, t).catch(() => {});
-                }).catch(() => {});
+                navigator.clipboard
+                  .readText()
+                  .then((t) => {
+                    WritePty(contextMenu.sessionId, t).catch(() => {});
+                  })
+                  .catch(() => {});
               },
             },
             {

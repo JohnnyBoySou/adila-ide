@@ -18,6 +18,26 @@ export namespace main {
 	        this.mtime = source["mtime"];
 	    }
 	}
+	export class DeviceFlowStart {
+	    userCode: string;
+	    verificationUri: string;
+	    deviceCode: string;
+	    interval: number;
+	    expiresIn: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeviceFlowStart(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.userCode = source["userCode"];
+	        this.verificationUri = source["verificationUri"];
+	        this.deviceCode = source["deviceCode"];
+	        this.interval = source["interval"];
+	        this.expiresIn = source["expiresIn"];
+	    }
+	}
 	export class FileEntry {
 	    name: string;
 	    path: string;
@@ -110,6 +130,40 @@ export namespace main {
 	        this.author = source["author"];
 	        this.date = source["date"];
 	        this.ts = source["ts"];
+	    }
+	}
+	export class GitHubRepo {
+	    name: string;
+	    cloneUrl: string;
+	    sshUrl: string;
+	    htmlUrl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitHubRepo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.cloneUrl = source["cloneUrl"];
+	        this.sshUrl = source["sshUrl"];
+	        this.htmlUrl = source["htmlUrl"];
+	    }
+	}
+	export class GitHubUser {
+	    login: string;
+	    name: string;
+	    avatarUrl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitHubUser(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.login = source["login"];
+	        this.name = source["name"];
+	        this.avatarUrl = source["avatarUrl"];
 	    }
 	}
 	export class GitRemote {

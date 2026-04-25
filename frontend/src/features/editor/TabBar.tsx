@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { SymbolIcon } from "@/components/SymbolIcon";
 
@@ -85,26 +86,44 @@ export function TabBar({ tabs, activePath, paneId, onActivate, onClose, onReorde
             onDragEnd={handleDragEnd}
             onClick={() => onActivate(t.path)}
             className={cn(
-              "relative flex items-center gap-2 px-3 py-1.5 border-r text-sm cursor-pointer select-none shrink-0 transition-colors",
-              active ? "bg-background" : "hover:bg-accent",
+              "relative flex items-center gap-2 px-3 py-1.5 border-r text-sm cursor-pointer select-none shrink-0",
+              !active && "hover:bg-accent transition-colors",
               isDragging && "opacity-40",
               isDropTarget && "bg-accent/60",
             )}
           >
-            {/* indicador de drop à esquerda */}
-            {isDropTarget && (
-              <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
+            {active && (
+              <motion.span
+                layoutId={`tab-active-${paneId ?? "root"}`}
+                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                className="absolute inset-0 bg-background"
+              />
+            )}
+            {active && (
+              <motion.span
+                layoutId={`tab-underline-${paneId ?? "root"}`}
+                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary"
+              />
             )}
 
-            <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />
-            <span className="truncate max-w-[12rem]">
+            {/* indicador de drop à esquerda */}
+            {isDropTarget && (
+              <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-full z-10" />
+            )}
+
+            <SymbolIcon name={name} isDir={false} className="size-4 shrink-0 relative z-10" />
+            <span className="truncate max-w-[12rem] relative z-10">
               {name}
               {t.dirty && <span className="ml-1 text-primary">•</span>}
             </span>
 
             <button
-              onClick={(ev) => { ev.stopPropagation(); onClose(t.path); }}
-              className="opacity-50 hover:opacity-100 transition-opacity"
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onClose(t.path);
+              }}
+              className="opacity-50 hover:opacity-100 transition-opacity relative z-10"
               aria-label="Fechar aba"
             >
               <X className="size-3.5" />

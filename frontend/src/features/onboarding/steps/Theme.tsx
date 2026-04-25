@@ -30,9 +30,7 @@ const themes: Array<{
 
 export function Theme() {
   const { value: current, set } = useConfig<string>("workbench.colorTheme", "");
-  const selected: ThemeId = current.toLowerCase().includes("light")
-    ? "light"
-    : "dark";
+  const selected: ThemeId = current.toLowerCase().includes("light") ? "light" : "dark";
 
   function pick(theme: (typeof themes)[number]) {
     set(theme.vscodeTheme).catch((err: unknown) => {
@@ -50,9 +48,7 @@ export function Theme() {
         />
       </div>
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Escolha um tema
-        </h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Escolha um tema</h2>
         <p className="text-sm text-muted-foreground">
           Você pode trocar a qualquer momento nas configurações.
         </p>
@@ -77,9 +73,7 @@ export function Theme() {
               </div>
               <div>
                 <div className="text-sm font-medium">{t.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {t.description}
-                </div>
+                <div className="text-xs text-muted-foreground">{t.description}</div>
               </div>
             </button>
           );

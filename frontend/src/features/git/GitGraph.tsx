@@ -14,19 +14,31 @@ import { rpc } from "./rpc";
 import type { GitGraphNode } from "./types";
 
 // ─── layout constants ────────────────────────────────────────────────────────
-const COL_W = 20;      // horizontal spacing between lanes
-const ROW_H = 36;      // row height
-const R = 5;           // node circle radius
-const PAD_LEFT = 10;   // left padding before first lane
+const COL_W = 20; // horizontal spacing between lanes
+const ROW_H = 36; // row height
+const R = 5; // node circle radius
+const PAD_LEFT = 10; // left padding before first lane
 
 const COLORS = [
-  "#4f9cf9", "#f97b3d", "#4ade80", "#fbbf24",
-  "#c084fc", "#f87171", "#38bdf8", "#a78bfa",
-  "#34d399", "#fb923c", "#818cf8", "#e879f9",
+  "#4f9cf9",
+  "#f97b3d",
+  "#4ade80",
+  "#fbbf24",
+  "#c084fc",
+  "#f87171",
+  "#38bdf8",
+  "#a78bfa",
+  "#34d399",
+  "#fb923c",
+  "#818cf8",
+  "#e879f9",
 ];
 
 // ─── types ───────────────────────────────────────────────────────────────────
-interface Lane { hash: string; colorIdx: number }
+interface Lane {
+  hash: string;
+  colorIdx: number;
+}
 
 interface LayoutNode extends GitGraphNode {
   row: number;
@@ -151,26 +163,20 @@ export function GitGraph({ onClose }: GitGraphProps) {
   const [limit, setLimit] = useState(150);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(
-    (l: number) => {
-      setLoading(true);
-      rpc.git
-        .getGraph(l)
-        .then(setRawNodes)
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    },
-    [],
-  );
+  const load = useCallback((l: number) => {
+    setLoading(true);
+    rpc.git
+      .getGraph(l)
+      .then(setRawNodes)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     load(limit);
   }, [load, limit]);
 
-  const { nodes, edges, width, height } = useMemo(
-    () => computeLayout(rawNodes),
-    [rawNodes],
-  );
+  const { nodes, edges, width, height } = useMemo(() => computeLayout(rawNodes), [rawNodes]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -306,10 +312,12 @@ export function GitGraph({ onClose }: GitGraphProps) {
                   {node.refs.map((ref) => (
                     <RefBadge key={ref} label={ref} />
                   ))}
-                  <span className={cn(
-                    "truncate max-w-xs",
-                    node.refs.length > 0 ? "text-foreground" : "text-muted-foreground",
-                  )}>
+                  <span
+                    className={cn(
+                      "truncate max-w-xs",
+                      node.refs.length > 0 ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
                     {node.subject}
                   </span>
                   <span className="text-muted-foreground/50 text-[10px] shrink-0 ml-1">
@@ -341,8 +349,12 @@ export function GitGraph({ onClose }: GitGraphProps) {
             <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
               <p className="font-medium leading-snug">{selected.subject}</p>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p><span className="text-foreground/70">Autor:</span> {selected.author}</p>
-                <p><span className="text-foreground/70">Data:</span> {selected.date}</p>
+                <p>
+                  <span className="text-foreground/70">Autor:</span> {selected.author}
+                </p>
+                <p>
+                  <span className="text-foreground/70">Data:</span> {selected.date}
+                </p>
                 <p className="font-mono break-all">
                   <span className="text-foreground/70">Hash:</span> {selected.hash}
                 </p>
@@ -358,7 +370,9 @@ export function GitGraph({ onClose }: GitGraphProps) {
                 <div className="text-xs text-muted-foreground">
                   <p className="text-foreground/70 mb-1">Parents:</p>
                   {selected.parents.map((p) => (
-                    <p key={p} className="font-mono">{p.slice(0, 12)}</p>
+                    <p key={p} className="font-mono">
+                      {p.slice(0, 12)}
+                    </p>
                   ))}
                 </div>
               )}

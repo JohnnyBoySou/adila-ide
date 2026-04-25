@@ -5,11 +5,9 @@ import { rpc } from "../rpc";
 
 export function OpenFolder() {
   function openPicker() {
-    rpc.config
-      .set("adila.onboarding.pendingOpenFolder", true)
-      .catch((err: unknown) => {
-        toast.error("Não foi possível agendar a escolha de pasta", err);
-      });
+    rpc.config.set("adila.onboarding.pendingOpenFolder", true).catch((err: unknown) => {
+      toast.error("Não foi possível agendar a escolha de pasta", err);
+    });
   }
 
   return (
@@ -22,12 +20,9 @@ export function OpenFolder() {
         />
       </div>
       <div className="max-w-md space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Abrir uma pasta
-        </h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Abrir uma pasta</h2>
         <p className="text-sm text-muted-foreground">
-          Você pode começar agora abrindo um projeto existente ou deixar pra
-          depois.
+          Você pode começar agora abrindo um projeto existente ou deixar pra depois.
         </p>
       </div>
       <Button variant="outline" onClick={openPicker}>

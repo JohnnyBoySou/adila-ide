@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 interface DialogProps {
@@ -9,13 +10,7 @@ interface DialogProps {
   ariaLabel?: string;
 }
 
-export function Dialog({
-  open,
-  onOpenChange,
-  children,
-  className,
-  ariaLabel,
-}: DialogProps) {
+export function Dialog({ open, onOpenChange, children, className, ariaLabel }: DialogProps) {
   useEffect(() => {
     if (!open) {
       return;
@@ -32,28 +27,38 @@ export function Dialog({
     };
   }, [open, onOpenChange]);
 
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={ariaLabel}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
-      onClick={() => onOpenChange(false)}
-    >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className={cn(
-          "relative z-10 w-full max-w-xl rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl",
-          className,
-        )}
-      >
-        {children}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={ariaLabel}
+          className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
+          onClick={() => onOpenChange(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: -8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: -4 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "relative z-10 w-full max-w-xl rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl",
+              className,
+            )}
+          >
+            {children}
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

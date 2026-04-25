@@ -47,3 +47,24 @@ export interface GitGraphNode {
   date: string;
   ts: number;
 }
+
+export interface GitHubUser {
+  login: string;
+  name: string;
+  avatarUrl: string;
+}
+
+export interface DeviceFlowStart {
+  userCode: string;
+  verificationUri: string;
+  deviceCode: string;
+  interval: number;
+  expiresIn: number;
+}
+
+export interface GitHubRepo {
+  name: string;
+  cloneUrl: string;
+  sshUrl: string;
+  htmlUrl: string;
+}
