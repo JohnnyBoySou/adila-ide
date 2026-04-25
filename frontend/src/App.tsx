@@ -153,6 +153,12 @@ function App() {
       document.documentElement.style.fontSize = "";
     };
   }, [zoomLevel]);
+
+  // Zen mode só faz sentido com pasta aberta — desativa no welcome
+  // para evitar abrir o app numa tela "vazia" sem topbar/statusbar.
+  useEffect(() => {
+    if (!rootPath && zenMode) void setZenMode(false);
+  }, [rootPath, zenMode, setZenMode]);
   const {
     folders: recentFolders,
     push: pushRecentFolder,
