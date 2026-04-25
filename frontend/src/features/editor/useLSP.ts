@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type * as monaco from "monaco-editor";
-import { GetLSPPort } from "../../../wailsjs/go/main/LSP";
+import { GetLSPPort, ListAvailableLSP } from "../../../wailsjs/go/main/LSP";
 import { toast } from "@/hooks/useToast";
 import { getOrCreateClient, isLSPRelevant } from "./lspBridge";
 
@@ -9,6 +9,18 @@ async function getLSPPort(): Promise<number> {
   if (portCache !== null) return portCache;
   portCache = await GetLSPPort();
   return portCache;
+}
+
+let availableCache: Promise<Record<string, string>> | null = null;
+function getAvailableLSP(): Promise<Record<string, string>> {
+  if (!availableCache) {
+    availableCache = ListAvailableLSP().catch(() => ({}));
+  }
+  return availableCache;
+}
+
+export function invalidateLSPAvailabilityCache() {
+  availableCache = null;
 }
 
 // Toasts são deduplicados por mensagem — evita spam quando vários arquivos
@@ -45,6 +57,13 @@ export function useLSP({ monaco, model, lang, rootUri, enabled = true }: UseLSPO
     let detach: (() => void) | undefined;
 
     void (async () => {
+      const available = await getAvailableLSP();
+      if (cancelled) return;
+      if (!available[lang]) {
+        // servidor não instalado — silencioso (LSPStatus mostra o aviso no rodapé)
+        return;
+      }
+
       let port: number;
       try {
         port = await getLSPPort();

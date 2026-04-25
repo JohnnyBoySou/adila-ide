@@ -175,6 +175,9 @@ func (t *Terminal) pump(s *ptySession) {
 		if len(pending) == 0 {
 			return
 		}
+		// Bench mede latência por flush (chunk → frontend). pump() em si é
+		// goroutine de vida longa, então benchear a função inteira não diz nada.
+		defer bench.Time("Terminal.pumpFlush")()
 		// só envia até o último boundary UTF-8 válido,
 		// guardando bytes parciais pra próxima rodada
 		safe := utf8SafeBoundary(pending)
@@ -283,6 +286,7 @@ func (t *Terminal) get(id string) (*ptySession, bool) {
 // WritePty aceita base64 (preferido pro frontend) ou texto cru — detecta automaticamente.
 // O frontend usa base64 pra evitar problemas de serialização JSON com bytes binários.
 func (t *Terminal) WritePty(id string, data string) error {
+	defer bench.Time("Terminal.WritePty")()
 	s, ok := t.get(id)
 	if !ok {
 		return errors.New("sessão não encontrada")
@@ -292,6 +296,7 @@ func (t *Terminal) WritePty(id string, data string) error {
 }
 
 func (t *Terminal) WritePtyB64(id string, data string) error {
+	defer bench.Time("Terminal.WritePtyB64")()
 	s, ok := t.get(id)
 	if !ok {
 		return errors.New("sessão não encontrada")

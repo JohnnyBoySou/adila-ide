@@ -14,6 +14,12 @@
     "fmt:go": "gofmt -w .",
     "fmt:frontend": "cd frontend && bun run fmt",
     "fmt:check": "gofmt -l . && cd frontend && bun run fmt:check",
-    "install:cli": "mkdir -p \"$HOME/.local/bin\" && ln -sf \"$PWD/scripts/adila\" \"$HOME/.local/bin/adila\" && echo 'adila instalado em ~/.local/bin/adila'"
+    "install:cli": "mkdir -p \"$HOME/.local/bin\" && ln -sf \"$PWD/scripts/adila\" \"$HOME/.local/bin/adila\" && echo 'adila instalado em ~/.local/bin/adila'",
+    "benchmark:all": "bash scripts/benchmark.sh .",
+    "benchmark:quick": "BENCHTIME=500ms bash scripts/benchmark.sh .",
+    "benchmark:fs": "bash scripts/benchmark.sh 'ListDir|ListAllFiles|SearchFiles'",
+    "benchmark:git": "bash scripts/benchmark.sh 'ParseStatus'",
+    "benchmark:search": "bash scripts/benchmark.sh 'SearchInFiles|CompileSearchRegex'",
+    "benchmark:frontend": "bash scripts/benchmark-frontend.sh"
   }
 }

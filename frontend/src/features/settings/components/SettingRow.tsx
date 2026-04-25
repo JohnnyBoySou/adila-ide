@@ -1,19 +1,20 @@
-import { RotateCcw } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useConfig } from "@/hooks/useConfig";
 import { toast } from "@/hooks/useToast";
-import { cn } from "@/lib/utils";
 import { ACCENT_PRESETS, notifyAppearanceChanged } from "@/lib/appearance";
+import { cn } from "@/lib/utils";
+import { RotateCcw } from "lucide-react";
+import { memo } from "react";
 import { EventsEmit } from "../../../../wailsjs/runtime/runtime";
 import type { SettingDef } from "../settingsSchema";
 
@@ -39,7 +40,9 @@ interface SettingRowProps {
   onDirty?: () => void;
 }
 
-export function SettingRow({ def, highlighted, onDirty }: SettingRowProps) {
+export const SettingRow = memo(SettingRowImpl);
+
+function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
   const { value, set, reset, loading } = useConfig<unknown>(def.key, def.defaultValue);
 
   function update(next: unknown) {
@@ -76,7 +79,7 @@ export function SettingRow({ def, highlighted, onDirty }: SettingRowProps) {
         highlighted && "bg-accent/60 ring-1 ring-primary/40",
       )}
     >
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 ">
         <div className="flex items-center gap-2">
           <label htmlFor={def.key} className="text-sm font-medium">
             {def.title}

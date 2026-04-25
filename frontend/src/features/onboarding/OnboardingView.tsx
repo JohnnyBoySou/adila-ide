@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/useToast";
+import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/useToast";
+import { useState } from "react";
 import { rpc } from "./rpc";
-import { Welcome } from "./steps/Welcome";
-import { Theme } from "./steps/Theme";
 import { CLI } from "./steps/CLI";
 import { GitHub } from "./steps/GitHub";
 import { OpenFolder } from "./steps/OpenFolder";
+import { Theme } from "./steps/Theme";
+import { Welcome } from "./steps/Welcome";
 
 const steps = [
   { id: "welcome", label: "Boas-vindas", Component: Welcome },
@@ -88,14 +89,15 @@ export function OnboardingView({ onComplete }: Props) {
 
           {/* Botões à direita */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="sm"
               onClick={finish}
               disabled={finishing}
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-40 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors p-2 underline"
             >
-              pular
-            </button>
+              Pular
+            </Button>
 
             <button
               type="button"

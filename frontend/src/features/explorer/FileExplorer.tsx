@@ -1,6 +1,8 @@
 import { SymbolIcon } from "@/components/SymbolIcon";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/hooks/useConfig";
+import { sortEntries } from "./sortEntries";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDownAZ,
@@ -9,7 +11,6 @@ import {
   Clock,
   FilePlus2,
   FolderPlus,
-  Loader2,
   Pencil,
   Search,
   Star,
@@ -20,6 +21,7 @@ import {
 import {
   createContext,
   forwardRef,
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -58,8 +60,10 @@ interface ContextMenuState {
 }
 
 interface ExplorerCtx {
-  renamingPath: string | null;
-  renameValue: string;
+  // Apenas callbacks e bookmarks (estáveis ou raramente atualizados).
+  // Estado de alta frequência (renameValue/createName) e por-linha
+  // (isRenaming/isBookmarked/expanded/loading) chega via props para que
+  // memo(FileRow) consiga curto-circuitar re-renders.
   onRenameValueChange: (v: string) => void;
   onRenameStart: (path: string, name: string) => void;
   onRenameCommit: () => void;
@@ -67,19 +71,13 @@ interface ExplorerCtx {
   bookmarks: Bookmark[];
   onToggleBookmark: (entry: FileEntry) => void;
   onContextMenu: (entry: FileEntry, e: React.MouseEvent) => void;
-  createParentPath: string | null;
-  createMode: CreateMode;
-  createName: string;
   onCreateNameChange: (v: string) => void;
   onCreateCommit: () => void;
   onCreateCancel: () => void;
   onOpenFile: (entry: FileEntry) => void;
   onRefresh: () => void;
-  sort: SortMode;
-  recentPaths: string[];
-  expandedPaths: Set<string>;
-  loadingPaths: Set<string>;
   onToggleExpand: (entry: FileEntry) => void;
+  ultraFast: boolean;
 }
 
 const ExplorerContext = createContext<ExplorerCtx | null>(null);
@@ -87,34 +85,15 @@ const useExplorer = () => useContext(ExplorerContext)!;
 
 const BOOKMARKS_KEY = "adila:bookmarks";
 
-function sortEntries(entries: FileEntry[], sort: SortMode, recentPaths: string[]): FileEntry[] {
-  const out = [...entries];
-  if (sort === "name-asc") {
-    out.sort((a, b) => {
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-    });
-  } else if (sort === "name-desc") {
-    out.sort((a, b) => {
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-      return b.name.toLowerCase().localeCompare(a.name.toLowerCase());
-    });
-  } else {
-    const idx = new Map(recentPaths.map((p, i) => [p, i]));
-    out.sort((a, b) => {
-      const ra = idx.get(a.path) ?? Infinity;
-      const rb = idx.get(b.path) ?? Infinity;
-      if (ra !== rb) return ra - rb;
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-    });
-  }
-  return out;
-}
-
 // ── CreateInput ───────────────────────────────────────────────────────────────
 
-function CreateInput({ depth }: { depth: number }) {
+interface CreateInputProps {
+  depth: number;
+  createName: string;
+  createMode: CreateMode;
+}
+
+const CreateInput = memo(function CreateInput({ depth, createName, createMode }: CreateInputProps) {
   const ctx = useExplorer();
   const ref = useRef<HTMLInputElement>(null);
 
@@ -125,42 +104,52 @@ function CreateInput({ depth }: { depth: number }) {
   return (
     <div className="flex items-center gap-2 py-1.5" style={{ paddingLeft: `${depth * 14 + 4}px` }}>
       <span className="size-4 shrink-0" />
-      <SymbolIcon
-        name={ctx.createName || (ctx.createMode === "dir" ? "folder" : "file")}
-        isDir={ctx.createMode === "dir"}
-        className="size-4 shrink-0"
-      />
+      {!ctx.ultraFast && (
+        <SymbolIcon
+          name={createName || (createMode === "dir" ? "folder" : "file")}
+          isDir={createMode === "dir"}
+          className="size-4 shrink-0"
+        />
+      )}
       <input
         ref={ref}
-        value={ctx.createName}
+        value={createName}
         onChange={(e) => ctx.onCreateNameChange(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === "Enter") ctx.onCreateCommit();
           if (e.key === "Escape") ctx.onCreateCancel();
         }}
-        placeholder={ctx.createMode === "dir" ? "nova-pasta" : "novo-arquivo.txt"}
+        placeholder={createMode === "dir" ? "nova-pasta" : "novo-arquivo.txt"}
         className="flex-1 min-w-0 bg-transparent border-0 border-b border-transparent focus:border-ring px-0.5 py-0 text-sm leading-tight outline-none placeholder:text-muted-foreground/40 transition-colors"
       />
     </div>
   );
-}
+});
 
 // ── FileRow ───────────────────────────────────────────────────────────────────
 
 interface FileRowProps {
   entry: FileEntry;
   depth: number;
+  isRenaming: boolean;
+  renameValue: string;
+  isBookmarked: boolean;
+  expanded: boolean;
+  loadingChildren: boolean;
 }
 
-function FileRow({ entry, depth }: FileRowProps) {
+const FileRow = memo(function FileRow({
+  entry,
+  depth,
+  isRenaming,
+  renameValue,
+  isBookmarked,
+  expanded,
+  loadingChildren,
+}: FileRowProps) {
   const ctx = useExplorer();
   const renameRef = useRef<HTMLInputElement>(null);
-
-  const isRenaming = ctx.renamingPath === entry.path;
-  const isBookmarked = ctx.bookmarks.some((b) => b.path === entry.path);
-  const expanded = entry.isDir && ctx.expandedPaths.has(entry.path);
-  const loadingChildren = ctx.loadingPaths.has(entry.path);
 
   useEffect(() => {
     if (isRenaming) {
@@ -212,12 +201,14 @@ function FileRow({ entry, depth }: FileRowProps) {
         )}
       </span>
 
-      <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-4 shrink-0" />
+      {!ctx.ultraFast && (
+        <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-4 shrink-0" />
+      )}
 
       {isRenaming ? (
         <input
           ref={renameRef}
-          value={ctx.renameValue}
+          value={renameValue}
           onChange={(e) => ctx.onRenameValueChange(e.target.value)}
           onKeyDown={(e) => {
             e.stopPropagation();
@@ -231,15 +222,15 @@ function FileRow({ entry, depth }: FileRowProps) {
         <span className="flex-1 truncate text-sm">{entry.name}</span>
       )}
 
-      {isBookmarked && (
+      {isBookmarked && !ctx.ultraFast && (
         <Star className="size-3 shrink-0 text-amber-400/70 opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
       {loadingChildren && (
-        <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
+        <Spinner size="xs" className="shrink-0 text-muted-foreground" />
       )}
     </div>
   );
-}
+});
 
 // ── Tree flattening ──────────────────────────────────────────────────────────
 
@@ -283,7 +274,10 @@ function flattenTree(
 
 // ── SearchResultRow ───────────────────────────────────────────────────────────
 
-function SearchResultRow({ entry, rootPath }: { entry: FileEntry; rootPath: string }) {
+const SearchResultRow = memo(function SearchResultRow({
+  entry,
+  rootPath,
+}: { entry: FileEntry; rootPath: string }) {
   const ctx = useExplorer();
   const rel = entry.path.startsWith(rootPath + "/")
     ? entry.path.slice(rootPath.length + 1)
@@ -315,11 +309,13 @@ function SearchResultRow({ entry, rootPath }: { entry: FileEntry; rootPath: stri
       }}
       className="flex w-full items-center gap-1.5 px-2 py-1 text-xs hover:bg-accent/60 text-left cursor-pointer select-none"
     >
-      <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-3.5 shrink-0" />
+      {!ctx.ultraFast && (
+        <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-3.5 shrink-0" />
+      )}
       <span className="flex-1 truncate">{rel}</span>
     </div>
   );
-}
+});
 
 // ── BookmarksSection ──────────────────────────────────────────────────────────
 
@@ -469,6 +465,7 @@ export function FileExplorer({
   const [searchLoading, setSearchLoading] = useState(false);
   const { value: sort, set: setSort } = useConfig<SortMode>("explorer.sortOrder", "name-asc");
   const { value: confirmDelete } = useConfig<boolean>("explorer.confirmDelete", true);
+  const { value: ultraFast } = useConfig<boolean>("performance.ultraFast", false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() =>
     JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? "[]"),
   );
@@ -726,30 +723,40 @@ export function FileExplorer({
     overscan: 12,
   });
 
-  const ctx: ExplorerCtx = {
-    renamingPath,
-    renameValue,
-    onRenameValueChange: setRenameValue,
-    onRenameStart,
-    onRenameCommit,
-    onRenameCancel,
-    bookmarks,
-    onToggleBookmark,
-    onContextMenu,
-    createParentPath,
-    createMode,
-    createName,
-    onCreateNameChange: setCreateName,
-    onCreateCommit,
-    onCreateCancel,
-    onOpenFile,
-    onRefresh,
-    sort,
-    recentPaths,
-    expandedPaths,
-    loadingPaths,
-    onToggleExpand,
-  };
+  const bookmarksSet = useMemo(() => new Set(bookmarks.map((b) => b.path)), [bookmarks]);
+
+  const ctx = useMemo<ExplorerCtx>(
+    () => ({
+      onRenameValueChange: setRenameValue,
+      onRenameStart,
+      onRenameCommit,
+      onRenameCancel,
+      bookmarks,
+      onToggleBookmark,
+      onContextMenu,
+      onCreateNameChange: setCreateName,
+      onCreateCommit,
+      onCreateCancel,
+      onOpenFile,
+      onRefresh,
+      onToggleExpand,
+      ultraFast,
+    }),
+    [
+      onRenameStart,
+      onRenameCommit,
+      onRenameCancel,
+      bookmarks,
+      onToggleBookmark,
+      onContextMenu,
+      onCreateCommit,
+      onCreateCancel,
+      onOpenFile,
+      onRefresh,
+      onToggleExpand,
+      ultraFast,
+    ],
+  );
 
   // suppress unused warning
   void saveBookmarks;
@@ -815,7 +822,7 @@ export function FileExplorer({
           <div ref={searchScrollRef} className="flex-1 overflow-y-auto scrollbar py-1">
             {searchLoading ? (
               <div className="flex justify-center py-6">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                <Spinner size="md" className="text-muted-foreground" />
               </div>
             ) : searchResults.length === 0 ? (
               <p className="px-3 py-2 text-xs text-muted-foreground">Nenhum resultado.</p>
@@ -832,13 +839,12 @@ export function FileExplorer({
                   return (
                     <div
                       key={entry.path}
-                      data-index={vRow.index}
-                      ref={searchVirtualizer.measureElement}
                       style={{
                         position: "absolute",
                         top: 0,
                         left: 0,
                         right: 0,
+                        height: vRow.size,
                         transform: `translateY(${vRow.start}px)`,
                       }}
                     >
@@ -865,20 +871,31 @@ export function FileExplorer({
                 return (
                   <div
                     key={row.kind === "entry" ? row.entry.path : `create-${row.depth}`}
-                    data-index={vRow.index}
-                    ref={rowVirtualizer.measureElement}
                     style={{
                       position: "absolute",
                       top: 0,
                       left: 0,
                       right: 0,
+                      height: vRow.size,
                       transform: `translateY(${vRow.start}px)`,
                     }}
                   >
                     {row.kind === "create" ? (
-                      <CreateInput depth={row.depth} />
+                      <CreateInput
+                        depth={row.depth}
+                        createName={createName}
+                        createMode={createMode}
+                      />
                     ) : (
-                      <FileRow entry={row.entry} depth={row.depth} />
+                      <FileRow
+                        entry={row.entry}
+                        depth={row.depth}
+                        isRenaming={renamingPath === row.entry.path}
+                        renameValue={renamingPath === row.entry.path ? renameValue : ""}
+                        isBookmarked={bookmarksSet.has(row.entry.path)}
+                        expanded={row.entry.isDir && expandedPaths.has(row.entry.path)}
+                        loadingChildren={loadingPaths.has(row.entry.path)}
+                      />
                     )}
                   </div>
                 );

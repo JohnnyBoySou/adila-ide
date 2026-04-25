@@ -153,6 +153,60 @@ export const THEMES: Theme[] = [
   },
 ];
 
+export const CUSTOM_THEME_ID = "Custom";
+
+THEMES.push({
+  id: CUSTOM_THEME_ID,
+  label: "Personalizado",
+  mode: "dark",
+  cssClass: "theme-custom",
+  monaco: "vs-dark",
+  preview: { bg: "#1e1e2e", text: "#cdd6f4", border: "#313244", accent: "#89b4fa" },
+});
+
+/**
+ * Variáveis CSS editáveis pelo Theme Editor. Cada uma é aplicada via
+ * `documentElement.style.setProperty(--<key>, value)` quando o tema custom
+ * está ativo. Os defaults aqui são fallbacks razoáveis para inicializar o
+ * editor — o tema base (.dark/.light) ainda fornece os valores por classe.
+ */
+export type CustomThemeVar = {
+  key: string;
+  label: string;
+  group: string;
+};
+
+export const CUSTOM_THEME_VARS: CustomThemeVar[] = [
+  { key: "background", label: "Fundo", group: "Geral" },
+  { key: "foreground", label: "Texto", group: "Geral" },
+  { key: "primary", label: "Primária", group: "Geral" },
+  { key: "primary-foreground", label: "Texto primária", group: "Geral" },
+  { key: "secondary", label: "Secundária", group: "Geral" },
+  { key: "secondary-foreground", label: "Texto secundária", group: "Geral" },
+  { key: "muted", label: "Atenuado", group: "Geral" },
+  { key: "muted-foreground", label: "Texto atenuado", group: "Geral" },
+  { key: "accent", label: "Destaque", group: "Geral" },
+  { key: "accent-foreground", label: "Texto destaque", group: "Geral" },
+  { key: "destructive", label: "Destrutiva", group: "Geral" },
+  { key: "border", label: "Borda", group: "Geral" },
+  { key: "input", label: "Borda de input", group: "Geral" },
+  { key: "ring", label: "Anel de foco", group: "Geral" },
+  { key: "card", label: "Card", group: "Cards / Popovers" },
+  { key: "card-foreground", label: "Texto card", group: "Cards / Popovers" },
+  { key: "popover", label: "Popover", group: "Cards / Popovers" },
+  { key: "popover-foreground", label: "Texto popover", group: "Cards / Popovers" },
+  { key: "sidebar", label: "Sidebar", group: "Sidebar" },
+  { key: "sidebar-foreground", label: "Texto sidebar", group: "Sidebar" },
+  { key: "sidebar-primary", label: "Primária sidebar", group: "Sidebar" },
+  { key: "sidebar-primary-foreground", label: "Texto primária sidebar", group: "Sidebar" },
+  { key: "sidebar-accent", label: "Destaque sidebar", group: "Sidebar" },
+  { key: "sidebar-accent-foreground", label: "Texto destaque sidebar", group: "Sidebar" },
+  { key: "sidebar-border", label: "Borda sidebar", group: "Sidebar" },
+  { key: "sidebar-ring", label: "Anel foco sidebar", group: "Sidebar" },
+];
+
+export const CUSTOM_THEME_VAR_KEYS = CUSTOM_THEME_VARS.map((v) => v.key);
+
 export const THEMES_BY_ID: Record<string, Theme> = Object.fromEntries(THEMES.map((t) => [t.id, t]));
 
 export const DEFAULT_THEME_ID = "Default Dark Modern";

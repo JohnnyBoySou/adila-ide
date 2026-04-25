@@ -269,6 +269,9 @@ func (g *GitHub) exchangeDeviceCode(deviceCode string) (token string, slowDown b
 // ── API REST ──────────────────────────────────────────────────────────────────
 
 func (g *GitHub) apiRequest(method, path string, body any) (*http.Response, error) {
+	// Bench mede latência de TODAS as chamadas REST GitHub. Nome inclui método+
+	// path pra separar (ex: "GitHub.api.GET /user" vs "POST /user/repos").
+	defer bench.Time("GitHub.api." + method + " " + path)()
 	tok := g.token()
 	if tok == "" {
 		return nil, errors.New("não autenticado no GitHub")

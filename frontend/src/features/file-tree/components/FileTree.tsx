@@ -450,9 +450,21 @@ export function FileTree() {
       }
     };
 
-    const off = model.subscribe(scan);
+    // Coalesce rapid model events em 1 scan por frame para evitar
+    // varrer knownDirs (potencialmente centenas) a cada toggle/drag.
+    let scanRaf = 0;
+    const scheduleScan = () => {
+      if (scanRaf !== 0) return;
+      scanRaf = requestAnimationFrame(() => {
+        scanRaf = 0;
+        scan();
+      });
+    };
+
+    const off = model.subscribe(scheduleScan);
     return () => {
       off();
+      if (scanRaf !== 0) cancelAnimationFrame(scanRaf);
     };
   }, [model]);
 

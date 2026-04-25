@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
-import { Keyboard, Search, SearchX } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { Search, SearchX } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { filterGroups, keybindingGroups, type Keybinding } from "./keybindingsData";
 
 function KeySequence({ keys }: { keys: string[][] }) {
@@ -48,6 +48,18 @@ export function KeybindingsView() {
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState(keybindingGroups[0].id);
   const groups = useMemo(() => filterGroups(keybindingGroups, query), [query]);
+  // Sem query: só o grupo da tab ativa. Com query: todos que casaram.
+  const visibleGroups = useMemo(
+    () => (query ? groups : groups.filter((g) => g.id === activeId)),
+    [groups, query, activeId],
+  );
+
+  // Se a busca filtrou o grupo ativo, salta pro primeiro grupo do resultado.
+  useEffect(() => {
+    if (query && groups.length > 0 && !groups.find((g) => g.id === activeId)) {
+      setActiveId(groups[0].id);
+    }
+  }, [query, groups, activeId]);
 
   const totalCount = groups.reduce((acc, g) => acc + g.bindings.length, 0);
 
@@ -55,10 +67,7 @@ export function KeybindingsView() {
     <div className="flex h-full w-full">
       <aside className="w-64 shrink-0 border-r border-border/60 bg-card/40 flex flex-col">
         <div className="p-5 border-b border-border/60">
-          <div className="flex items-center gap-2 mb-4">
-            <Keyboard className="size-4 text-primary" />
-            <h1 className="text-sm font-semibold">Atalhos de teclado</h1>
-          </div>
+         
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
@@ -78,13 +87,7 @@ export function KeybindingsView() {
             <button
               key={g.id}
               type="button"
-              onClick={() => {
-                setActiveId(g.id);
-                document.getElementById(`group-${g.id}`)?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-              }}
+              onClick={() => setActiveId(g.id)}
               className={cn(
                 "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
                 activeId === g.id
@@ -111,7 +114,7 @@ export function KeybindingsView() {
 
       <main className="flex-1 overflow-y-auto scrollbar">
         <div className="max-w-3xl mx-auto px-10 py-8">
-          {groups.length === 0 && (
+          {visibleGroups.length === 0 && (
             <EmptyState
               className="py-20"
               icon={SearchX}
@@ -120,7 +123,7 @@ export function KeybindingsView() {
             />
           )}
 
-          {groups.map((g) => (
+          {visibleGroups.map((g) => (
             <section key={g.id} id={`group-${g.id}`} className="mb-10 scroll-mt-8">
               <header className="mb-4">
                 <h2 className="text-lg font-semibold">{g.title}</h2>

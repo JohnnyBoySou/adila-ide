@@ -1,17 +1,16 @@
 import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarTrigger,
+    Menubar,
+    MenubarContent,
+    MenubarItem,
+    MenubarMenu,
+    MenubarSeparator,
+    MenubarShortcut,
+    MenubarTrigger,
 } from "@/components/ui/menubar";
 
-type View = "editor" | "settings" | "about" | "onboarding" | "git" | "keybindings";
+type View = "editor" | "settings" | "about" | "onboarding" | "git" | "keybindings" | "bench";
 
 type Props = {
-  rootPath: string;
   terminalOpen: boolean;
   zenMode: boolean;
   onOpenFolder: () => void;
@@ -24,7 +23,6 @@ type Props = {
 };
 
 export function TopBar({
-  rootPath,
   terminalOpen,
   zenMode,
   onOpenFolder,
@@ -103,9 +101,7 @@ export function TopBar({
         </MenubarMenu>
       </Menubar>
 
-      {rootPath && (
-        <span className="text-muted-foreground text-xs truncate flex-1 ml-2">{rootPath}</span>
-      )}
+    
     </header>
   );
 }

@@ -62,6 +62,7 @@ func (c *CommandCenter) GetWorkspaceRoots() []CmdFileEntry {
 const maxIndexFiles = 10_000
 
 func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
+	defer bench.Time("CommandCenter.ListAllFiles")()
 	c.mu.RLock()
 	root := c.workdir
 	c.mu.RUnlock()
@@ -92,7 +93,7 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			var batch []CmdFileEntry
+			batch := make([]CmdFileEntry, 0, 32)
 			_ = filepath.WalkDir(p, func(fp string, d fs.DirEntry, walkErr error) error {
 				if walkErr != nil {
 					return nil
@@ -120,7 +121,7 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 		close(batchCh)
 	}()
 
-	var files []CmdFileEntry
+	files := make([]CmdFileEntry, 0, 1024)
 	for batch := range batchCh {
 		files = append(files, batch...)
 		if len(files) >= maxIndexFiles {
@@ -150,12 +151,14 @@ var builtinCommands = []PaletteItem{
 	{ID: "toggleTerminal", Title: "Alternar terminal", Icon: "terminal", Hint: "Ctrl+`"},
 	{ID: "toggleZen", Title: "Visualização: Alternar modo Zen", Icon: "screen-full", Hint: "Ctrl+K Z"},
 	{ID: "openWebview", Title: "Webview: Abrir URL como aba", Icon: "globe", Hint: "Ctrl+Shift+U"},
+	{ID: "openThemeEditor", Title: "Tema: Abrir editor de tema personalizado", Icon: "symbol-color"},
 	{ID: "git.stageAll", Title: "Git: Adicionar todos os arquivos", Icon: "diff-added"},
 	{ID: "git.push", Title: "Git: Enviar (push)", Icon: "cloud-upload"},
 	{ID: "reloadWindow", Title: "Recarregar janela", Icon: "refresh"},
 }
 
 func (c *CommandCenter) List(mode, query string) []PaletteItem {
+	defer bench.Time("CommandCenter.List")()
 	switch mode {
 	case "commands":
 		if query == "" {

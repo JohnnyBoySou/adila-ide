@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -13,6 +15,28 @@ import (
 	"github.com/gorilla/websocket"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// stripFileScheme converte um URI "file:///abs/path" no caminho local "/abs/path".
+// Retorna "" se o resultado não for um diretório existente — o LSP gopls falha
+// com ENOENT (mensagem confusa "fork/exec gopls: no such file or directory") se
+// passarmos cmd.Dir inválido, então é melhor não setar nada.
+func stripFileScheme(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	path := raw
+	if strings.HasPrefix(path, "file://") {
+		if u, err := url.Parse(path); err == nil && u.Path != "" {
+			path = u.Path
+		} else {
+			path = strings.TrimPrefix(path, "file://")
+		}
+	}
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		return ""
+	}
+	return path
+}
 
 // lspServers mapeia linguagem → candidatos de binário (em ordem de preferência).
 var lspServers = map[string][]string{
@@ -164,8 +188,8 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 	cmdArgs := append(binParts[1:], args...)
 
 	cmd := exec.CommandContext(r.Context(), cmdBin, cmdArgs...)
-	if rootPath != "" {
-		cmd.Dir = rootPath
+	if dir := stripFileScheme(rootPath); dir != "" {
+		cmd.Dir = dir
 	}
 	if runtime.GOOS != "windows" {
 		// evita que o LSP receba sinais do terminal
@@ -193,6 +217,11 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	done := make(chan struct{})
 
+	// Bench: nome inclui a linguagem para separar latência por servidor (gopls
+	// vs rust-analyzer têm perfis muito diferentes).
+	stdoutOp := "LSP." + lang + ".stdoutToWS"
+	stdinOp := "LSP." + lang + ".wsToStdin"
+
 	// LSP stdout → WebSocket
 	go func() {
 		defer close(done)
@@ -200,7 +229,9 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
+				stop := bench.Time(stdoutOp)
 				ws.WriteMessage(websocket.BinaryMessage, buf[:n])
+				stop()
 			}
 			if err != nil {
 				return
@@ -215,7 +246,10 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			if _, err := stdin.Write(msg); err != nil {
+			stop := bench.Time(stdinOp)
+			_, werr := stdin.Write(msg)
+			stop()
+			if werr != nil {
 				return
 			}
 		}

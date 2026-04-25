@@ -110,6 +110,7 @@ func (c *Config) scheduleSave() {
 
 // Get retorna o valor armazenado para key, ou defaultValue se a chave não existir.
 func (c *Config) Get(key string, defaultValue any) any {
+	defer bench.Time("Config.Get")()
 	c.mu.RLock()
 	v, ok := c.data[key]
 	c.mu.RUnlock()
@@ -121,6 +122,7 @@ func (c *Config) Get(key string, defaultValue any) any {
 
 // Set armazena value para key e emite o evento "config.changed" no frontend.
 func (c *Config) Set(key string, value any) error {
+	defer bench.Time("Config.Set")()
 	c.mu.Lock()
 	c.data[key] = value
 	c.mu.Unlock()
@@ -136,6 +138,7 @@ func (c *Config) Set(key string, value any) error {
 
 // Reset remove key (próximo Get retorna o defaultValue passado pelo caller).
 func (c *Config) Reset(key string) error {
+	defer bench.Time("Config.Reset")()
 	c.mu.Lock()
 	delete(c.data, key)
 	c.mu.Unlock()

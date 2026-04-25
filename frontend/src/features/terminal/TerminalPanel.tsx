@@ -80,20 +80,32 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
   };
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
-      const delta = dragStart.current.y - e.clientY;
+    let rafId = 0;
+    let pendingY = 0;
+    const flush = () => {
+      rafId = 0;
+      const delta = dragStart.current.y - pendingY;
       const next = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, dragStart.current.height + delta));
       setHeight(next);
     };
+    const onMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      pendingY = e.clientY;
+      if (rafId === 0) rafId = requestAnimationFrame(flush);
+    };
     const onUp = () => {
       isDragging.current = false;
+      if (rafId !== 0) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      if (rafId !== 0) cancelAnimationFrame(rafId);
     };
   }, []);
 

@@ -154,6 +154,10 @@ func (g *Git) autoFetchLoop(ctx context.Context, period time.Duration) {
 }
 
 func (g *Git) git(args ...string) (string, error) {
+	// Bench único cobrindo TODAS as ops git (status, diff, log, stage, commit,
+	// push, etc). Funções específicas como Git.Status/Diff/GetLog ainda têm
+	// seu próprio bench — assim dá pra comparar overhead do exec vs. parsing.
+	defer bench.Time("Git.git")()
 	cmd := exec.CommandContext(g.ctx, "git", args...)
 	cmd.Dir = g.workdir
 	var out bytes.Buffer
@@ -188,15 +192,28 @@ func (g *Git) Status() ([]GitChangedFile, error) {
 }
 
 func parseStatus(raw string) []GitChangedFile {
-	var files []GitChangedFile
 	// --porcelain=v1 -z: entradas separadas por NUL, cada entrada tem 2 chars de status + espaço + path
 	// renomes: XY path NUL origPath NUL
-	entries := strings.Split(raw, "\x00")
-	i := 0
-	for i < len(entries) {
-		e := entries[i]
+	// Estimativa: ~50 chars por entrada — pré-dimensiona p/ evitar growth.
+	files := make([]GitChangedFile, 0, len(raw)/50+8)
+	nextEntry := func(s string) (entry, rest string, ok bool) {
+		idx := strings.IndexByte(s, 0)
+		if idx < 0 {
+			if s == "" {
+				return "", "", false
+			}
+			return s, "", true
+		}
+		return s[:idx], s[idx+1:], true
+	}
+	rest := raw
+	for {
+		e, r, ok := nextEntry(rest)
+		rest = r
+		if !ok {
+			break
+		}
 		if len(e) < 4 {
-			i++
 			continue
 		}
 		x := rune(e[0]) // staged
@@ -207,9 +224,10 @@ func parseStatus(raw string) []GitChangedFile {
 			f := GitChangedFile{Path: path, Staged: true, Status: xyToStatus(x)}
 			if x == 'R' || x == 'C' {
 				// próxima entrada é o path original
-				i++
-				if i < len(entries) {
-					f.PrevPath = entries[i]
+				orig, r2, ok2 := nextEntry(rest)
+				if ok2 {
+					f.PrevPath = orig
+					rest = r2
 				}
 			}
 			files = append(files, f)
@@ -221,7 +239,6 @@ func parseStatus(raw string) []GitChangedFile {
 		if x == '?' && y == '?' {
 			files = append(files, GitChangedFile{Path: path, Staged: false, Status: "untracked"})
 		}
-		i++
 	}
 	return files
 }

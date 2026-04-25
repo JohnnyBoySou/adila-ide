@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, memo, Suspense, useState } from "react";
 import { Bot, Files, GitBranch, Search } from "lucide-react";
 import {
   FileExplorer,
@@ -28,7 +28,7 @@ const TABS: { id: Tab; label: string; Icon: typeof Files }[] = [
   { id: "ai", label: "Adila AI", Icon: Bot },
 ];
 
-export function Sidebar({ rootPath, files, onOpenFile, onGotoLine }: Props) {
+export const Sidebar = memo(function Sidebar({ rootPath, files, onOpenFile, onGotoLine }: Props) {
   const [tab, setTab] = useState<Tab>("files");
 
   return (
@@ -93,7 +93,7 @@ export function Sidebar({ rootPath, files, onOpenFile, onGotoLine }: Props) {
       </div>
     </div>
   );
-}
+});
 
 function SidebarFallback() {
   return (

@@ -1,5 +1,5 @@
 import { AlertCircle, AlertTriangle, ChevronDown, ChevronUp, Info, Tag, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { rpc } from "../rpc";
 import type { NotificationItem, Severity } from "../types";
@@ -35,7 +35,9 @@ interface ToastProps {
   inCenter?: boolean;
 }
 
-export function Toast({ item, inCenter = false }: ToastProps) {
+export const Toast = memo(ToastImpl);
+
+function ToastImpl({ item, inCenter = false }: ToastProps) {
   const Icon = ICON_BY_SEVERITY[item.severity];
   const hasActions = item.primaryActions.length > 0 || item.secondaryActions.length > 0;
   const showActions = item.expanded && hasActions;

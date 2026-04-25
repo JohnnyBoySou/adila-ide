@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { call } from "@/rpc/core";
 
 export function useConfig<T>(key: string, defaultValue: T) {
+  const defaultRef = useRef(defaultValue);
+  defaultRef.current = defaultValue;
+
   const [value, setValue] = useState<T>(defaultValue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | undefined>(undefined);
@@ -10,10 +13,11 @@ export function useConfig<T>(key: string, defaultValue: T) {
     let cancelled = false;
     setLoading(true);
     setError(undefined);
-    call<T>("config.get", { key, defaultValue })
+    const dv = defaultRef.current;
+    call<T>("config.get", { key, defaultValue: dv })
       .then((v) => {
         if (!cancelled) {
-          setValue((v ?? defaultValue) as T);
+          setValue((v ?? defaultRef.current) as T);
         }
       })
       .catch((err: unknown) => {
@@ -29,7 +33,7 @@ export function useConfig<T>(key: string, defaultValue: T) {
     return () => {
       cancelled = true;
     };
-  }, [key, defaultValue]);
+  }, [key]);
 
   const set = useCallback(
     (next: T) => {
@@ -42,9 +46,9 @@ export function useConfig<T>(key: string, defaultValue: T) {
   const reset = useCallback(
     () =>
       call<void>("config.reset", { key }).then(() => {
-        setValue(defaultValue);
+        setValue(defaultRef.current);
       }),
-    [key, defaultValue],
+    [key],
   );
 
   return { value, set, reset, loading, error };

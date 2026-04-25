@@ -11,7 +11,9 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
-    "fmt:check": "oxfmt --check"
+    "fmt:check": "oxfmt --check",
+    "bench": "vitest bench --run",
+    "devtools": "react-devtools --no-sandbox"
   },
   "dependencies": {
     "@dnd-kit/react": "^0.4.0",
@@ -56,16 +58,20 @@
     "@types/react-dom": "^19.2.3",
     "@typescript/native-preview": "^7.0.0-dev.20260424.2",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/ui": "^4.1.5",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
     "oxfmt": "^0.46.0",
     "oxlint": "^1.61.0",
+    "react-devtools": "^7.0.1",
+    "shadcn": "^4.5.0",
     "tailwindcss": "^4.2.4",
     "tw-animate-css": "^1.4.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   }
 }

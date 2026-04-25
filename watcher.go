@@ -55,6 +55,7 @@ func (w *fileWatcher) watch(appCtx context.Context, path string) {
 }
 
 func (w *fileWatcher) emit() {
+	defer bench.Time("Watcher.emit")()
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -63,6 +64,7 @@ func (w *fileWatcher) emit() {
 	}
 	ctx := w.ctx
 	w.timer = time.AfterFunc(400*time.Millisecond, func() {
+		defer bench.Time("Watcher.fileTreeChanged")()
 		if ctx != nil {
 			wruntime.EventsEmit(ctx, "fileTree.changed")
 		}

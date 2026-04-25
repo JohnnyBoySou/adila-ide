@@ -1,15 +1,14 @@
 import { AlertTriangle, Bell, BellDot, GitBranch, XCircle } from "lucide-react";
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { LSPStatus } from "@/features/editor/LSPStatus";
+import { useUiStore } from "@/stores/uiStore";
 import { useNotificationCount } from "./useNotificationCount";
 
 type Props = {
   activeTab?: { path: string; dirty: boolean };
   activeLang: string;
-  cursorLine: number;
-  cursorCol: number;
   rootPath: string;
-  branch: string;
   errorCount?: number;
   warningCount?: number;
   onOpenGit: () => void;
@@ -44,13 +43,36 @@ function Divider() {
   return <span className="w-px h-3 bg-border/60 shrink-0" />;
 }
 
-export function StatusBar({
+// Lê só o branch — re-renderiza isolado quando o git emite mudança.
+const BranchItem = memo(function BranchItem({ onOpenGit }: { onOpenGit: () => void }) {
+  const branch = useUiStore((s) => s.branch);
+  if (!branch) return null;
+  return (
+    <>
+      <Item onClick={onOpenGit}>
+        <GitBranch className="size-3" />
+        <span>{branch}</span>
+      </Item>
+      <Divider />
+    </>
+  );
+});
+
+// Lê só linha/coluna — re-renderiza isolado a cada movimento de caret.
+const CursorItem = memo(function CursorItem() {
+  const cursorLine = useUiStore((s) => s.cursorLine);
+  const cursorCol = useUiStore((s) => s.cursorCol);
+  return (
+    <Item className="tabular-nums">
+      Ln {cursorLine}, Col {cursorCol}
+    </Item>
+  );
+});
+
+export const StatusBar = memo(function StatusBar({
   activeTab,
   activeLang,
-  cursorLine,
-  cursorCol,
   rootPath,
-  branch,
   errorCount = 0,
   warningCount = 0,
   onOpenGit,
@@ -72,15 +94,7 @@ export function StatusBar({
     <div className="h-6 border-t bg-muted/20 flex items-center text-[11px] text-muted-foreground shrink-0 overflow-hidden">
       {/* Left */}
       <div className="flex items-center h-full">
-        {rootPath && branch && (
-          <>
-            <Item onClick={onOpenGit}>
-              <GitBranch className="size-3" />
-              <span>{branch}</span>
-            </Item>
-            <Divider />
-          </>
-        )}
+        {rootPath && <BranchItem onOpenGit={onOpenGit} />}
         {activeTab && (
           <Item>
             <span className="truncate max-w-xs" title={activeTab.path}>
@@ -126,9 +140,7 @@ export function StatusBar({
         {activeTab && (
           <>
             <Divider />
-            <Item className="tabular-nums">
-              Ln {cursorLine}, Col {cursorCol}
-            </Item>
+            <CursorItem />
           </>
         )}
 
@@ -140,4 +152,4 @@ export function StatusBar({
       </div>
     </div>
   );
-}
+});

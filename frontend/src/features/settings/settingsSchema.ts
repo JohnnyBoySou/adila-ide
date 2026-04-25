@@ -20,7 +20,7 @@ export interface SettingsGroupDef {
 export const settingsGroups: SettingsGroupDef[] = [
   {
     id: "appearance-react",
-    title: "Aparência (React Views)",
+    title: "Aparência",
     description:
       "Tema, accent, tipografia e densidade dos painéis React (notificações, configurações, command center).",
     settings: [
@@ -116,12 +116,12 @@ export const settingsGroups: SettingsGroupDef[] = [
   },
   {
     id: "appearance",
-    title: "Aparência (Workbench)",
-    description: "Tema, fonte e densidade do workbench legacy do VS Code.",
+    title: "Workbench",
+    description: "Layout geral e painéis.",
     settings: [
       {
         key: "workbench.colorTheme",
-        title: "Tema de cores",
+        title: "Tema de cores do workbench",
         description: "Tema principal do editor.",
         type: "string",
         defaultValue: "Default Dark Modern",
@@ -343,7 +343,8 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "editor.fontLigatures",
         title: "Ligaduras de fonte",
-        description: "Combina caracteres como `=>`, `!=`, `>=` em glifos únicos (requer fonte com ligaduras).",
+        description:
+          "Combina caracteres como `=>`, `!=`, `>=` em glifos únicos (requer fonte com ligaduras).",
         type: "boolean",
         defaultValue: true,
         keywords: ["ligatures", "fonte", "ligaduras", "fira", "jetbrains"],
@@ -396,7 +397,7 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "editor.codeLens",
         title: "Code lens",
-        description: "Links \"References\" / \"Implementations\" acima de funções e classes.",
+        description: 'Links "References" / "Implementations" acima de funções e classes.',
         type: "boolean",
         defaultValue: true,
         keywords: ["codelens", "references", "lens"],
@@ -412,7 +413,8 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "editor.gitGutter",
         title: "Git gutter",
-        description: "Marca linhas adicionadas, modificadas e removidas ao lado dos números de linha.",
+        description:
+          "Marca linhas adicionadas, modificadas e removidas ao lado dos números de linha.",
         type: "boolean",
         defaultValue: true,
         keywords: ["git", "gutter", "diff", "added", "modified", "deleted"],
@@ -420,7 +422,8 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "editor.snippets.enabled",
         title: "Snippets embutidos",
-        description: "Atalhos como `clog`, `useState`, `iferr` no autocomplete (TypeScript, JavaScript, Go).",
+        description:
+          "Atalhos como `clog`, `useState`, `iferr` no autocomplete (TypeScript, JavaScript, Go).",
         type: "boolean",
         defaultValue: true,
         keywords: ["snippet", "atalho", "completion", "autocomplete"],
@@ -524,6 +527,15 @@ export const settingsGroups: SettingsGroupDef[] = [
         keywords: ["zen", "foco", "distração", "fullscreen", "ocultar"],
       },
       {
+        key: "workbench.shortcutHud",
+        title: "Exibir HUD de atalhos",
+        description:
+          "Mostra um indicador discreto na parte inferior da tela ao usar atalhos de teclado.",
+        type: "boolean",
+        defaultValue: true,
+        keywords: ["shortcut", "hud", "atalho", "keybinding", "teclado", "indicador"],
+      },
+      {
         key: "window.confirmClose",
         title: "Confirmar antes de fechar",
         description: "Pede confirmação ao fechar a janela do Adila IDE.",
@@ -599,8 +611,7 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "terminal.fontFamily",
         title: "Fonte do terminal",
-        description:
-          "Nerd Fonts contêm glifos extras úteis pra prompts (powerline, devicons).",
+        description: "Nerd Fonts contêm glifos extras úteis pra prompts (powerline, devicons).",
         type: "enum",
         defaultValue: "'Google Sans Code', monospace",
         options: [
@@ -690,22 +701,84 @@ export const settingsGroups: SettingsGroupDef[] = [
       },
     ],
   },
+  {
+    id: "developer",
+    title: "Desenvolvedor",
+    description: "Ferramentas de diagnóstico e profiling.",
+    settings: [
+      {
+        key: "developer.showFps",
+        title: "Mostrar FPS",
+        description:
+          "Exibe um contador de FPS no canto da janela para detectar gargalos de renderização.",
+        type: "boolean",
+        defaultValue: false,
+        keywords: ["fps", "performance", "framerate", "diagnóstico", "developer"],
+      },
+    ],
+  },
+  {
+    id: "performance",
+    title: "Desempenho",
+    description: "Ajustes para acelerar a renderização em máquinas modestas ou repositórios grandes.",
+    settings: [
+      {
+        key: "performance.ultraFast",
+        title: "Modo ultra rápido",
+        description:
+          "Suprime ícones e ornamentos visuais (ex: ícones do explorador de arquivos) para reduzir custo de render. Use em projetos enormes ou quando o FPS estiver baixo.",
+        type: "boolean",
+        defaultValue: false,
+        keywords: [
+          "performance",
+          "rápido",
+          "ultrafast",
+          "ícones",
+          "icons",
+          "leve",
+          "lite",
+          "explorer",
+        ],
+      },
+    ],
+  },
 ];
+
+// Lowercased "haystack" for each SettingDef. Built lazily on first lookup
+// and reused across keystrokes, since settingsGroups is module-level static.
+const searchHaystacks = new WeakMap<SettingDef, string>();
+
+function haystackFor(s: SettingDef): string {
+  let h = searchHaystacks.get(s);
+  if (h === undefined) {
+    const kws = s.keywords;
+    h = `${s.title} ${s.description ?? ""} ${s.key}${kws && kws.length > 0 ? ` ${kws.join(" ")}` : ""}`.toLowerCase();
+    searchHaystacks.set(s, h);
+  }
+  return h;
+}
 
 export function filterGroups(groups: SettingsGroupDef[], query: string): SettingsGroupDef[] {
   const q = query.trim().toLowerCase();
   if (!q) {
     return groups;
   }
-  return groups
-    .map((group) => ({
-      ...group,
-      settings: group.settings.filter((s) =>
-        [s.title, s.description ?? "", s.key, ...(s.keywords ?? [])]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
-      ),
-    }))
-    .filter((g) => g.settings.length > 0);
+  const out: SettingsGroupDef[] = [];
+  for (const group of groups) {
+    const src = group.settings;
+    let filtered: SettingDef[] | null = null;
+    for (let i = 0; i < src.length; i++) {
+      const s = src[i];
+      if (haystackFor(s).includes(q)) {
+        if (filtered === null) {
+          filtered = [];
+        }
+        filtered.push(s);
+      }
+    }
+    if (filtered !== null) {
+      out.push({ ...group, settings: filtered });
+    }
+  }
+  return out;
 }

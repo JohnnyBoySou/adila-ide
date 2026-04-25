@@ -1,0 +1,21 @@
+goos: linux
+goarch: amd64
+pkg: ide
+cpu: AMD Ryzen 5 5600G with Radeon Graphics         
+BenchmarkParseStatus_Small-12                	  234999	      2757 ns/op	    4336 B/op	       7 allocs/op
+BenchmarkParseStatus_Small-12                	  182367	      3327 ns/op	    4336 B/op	       7 allocs/op
+BenchmarkParseStatus_Small-12                	  179086	      2932 ns/op	    4336 B/op	       7 allocs/op
+BenchmarkParseStatus_Large-12                	    2329	    346456 ns/op	  384848 B/op	      14 allocs/op
+BenchmarkParseStatus_Large-12                	    1549	    355218 ns/op	  384849 B/op	      14 allocs/op
+BenchmarkParseStatus_Large-12                	    1382	    539334 ns/op	  384849 B/op	      14 allocs/op
+BenchmarkSearchInFiles_Literal-12            	      64	  31748197 ns/op	 2877831 B/op	    9146 allocs/op
+BenchmarkSearchInFiles_Literal-12            	      50	  23126934 ns/op	 2956642 B/op	    9428 allocs/op
+BenchmarkSearchInFiles_Literal-12            	      55	  11802594 ns/op	 2941004 B/op	    9395 allocs/op
+BenchmarkSearchInFiles_Regex-12              	      56	  28002452 ns/op	 2529197 B/op	   12303 allocs/op
+BenchmarkSearchInFiles_Regex-12              	      38	  38534989 ns/op	 2618387 B/op	   12502 allocs/op
+BenchmarkSearchInFiles_Regex-12              	      28	  28960076 ns/op	 2571643 B/op	   12391 allocs/op
+BenchmarkSearchInFiles_CaseInsensitive-12    	      42	  12198479 ns/op	 2881631 B/op	    9259 allocs/op
+BenchmarkSearchInFiles_CaseInsensitive-12    	      68	  24183947 ns/op	 2809681 B/op	    9006 allocs/op
+BenchmarkSearchInFiles_CaseInsensitive-12    	      51	  11257877 ns/op	 3040017 B/op	    9698 allocs/op
+PASS
+ok  	ide	19.813s

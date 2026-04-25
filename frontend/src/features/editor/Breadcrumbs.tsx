@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ListDir } from "../../../wailsjs/go/main/App";
 
 type FileEntry = { name: string; path: string; isDir: boolean };
@@ -12,7 +12,7 @@ type Props = {
 
 type Crumb = { label: string; dirPath: string; isLast: boolean };
 
-export function Breadcrumbs({ path, rootPath, onOpenFile }: Props) {
+export const Breadcrumbs = memo(function Breadcrumbs({ path, rootPath, onOpenFile }: Props) {
   const [dropdownDir, setDropdownDir] = useState<string | null>(null);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0 });
@@ -107,4 +107,4 @@ export function Breadcrumbs({ path, rootPath, onOpenFile }: Props) {
       )}
     </div>
   );
-}
+});

@@ -44,8 +44,18 @@ export function emptyLeaf(): LeafPane {
 // ── Travessia ────────────────────────────────────────────────────────────────
 
 export function getAllLeaves(node: PaneNode): LeafPane[] {
-  if (node.kind === "leaf") return [node];
-  return [...getAllLeaves(node.a), ...getAllLeaves(node.b)];
+  const out: LeafPane[] = [];
+  collectLeaves(node, out);
+  return out;
+}
+
+function collectLeaves(node: PaneNode, out: LeafPane[]): void {
+  if (node.kind === "leaf") {
+    out.push(node);
+    return;
+  }
+  collectLeaves(node.a, out);
+  collectLeaves(node.b, out);
 }
 
 export function findLeafById(node: PaneNode, id: PaneId): LeafPane | null {
@@ -98,13 +108,21 @@ export function openTabInLeaf(leaf: LeafPane, tab: PaneTab): LeafPane {
 }
 
 export function closeTabInLeaf(leaf: LeafPane, path: string): LeafPane {
-  const idx = leaf.tabs.findIndex((t) => t.path === path);
+  const src = leaf.tabs;
+  let idx = -1;
+  for (let i = 0; i < src.length; i++) {
+    if (src[i].path === path) {
+      idx = i;
+      break;
+    }
+  }
   if (idx === -1) return leaf;
-  const tabs = leaf.tabs.filter((t) => t.path !== path);
+  const tabs: PaneTab[] = new Array(src.length - 1);
+  for (let i = 0; i < idx; i++) tabs[i] = src[i];
+  for (let i = idx + 1; i < src.length; i++) tabs[i - 1] = src[i];
   let activePath = leaf.activePath;
   if (activePath === path) {
-    if (tabs.length === 0) activePath = "";
-    else activePath = tabs[Math.min(idx, tabs.length - 1)].path;
+    activePath = tabs.length === 0 ? "" : tabs[Math.min(idx, tabs.length - 1)].path;
   }
   return { ...leaf, tabs, activePath };
 }
@@ -214,12 +232,23 @@ export function openOrMoveTab(
 
 // ── Atualização de conteúdo ──────────────────────────────────────────────────
 
+function treeContainsPath(node: PaneNode, path: string): boolean {
+  if (node.kind === "leaf") {
+    for (let i = 0; i < node.tabs.length; i++) {
+      if (node.tabs[i].path === path) return true;
+    }
+    return false;
+  }
+  return treeContainsPath(node.a, path) || treeContainsPath(node.b, path);
+}
+
 export function updateTabContent(
   root: PaneNode,
   path: string,
   content: string,
   dirty: boolean,
 ): PaneNode {
+  if (!treeContainsPath(root, path)) return root;
   return updateAllLeaves(root, (leaf) => {
     if (!leaf.tabs.some((t) => t.path === path)) return leaf;
     return {
@@ -230,6 +259,7 @@ export function updateTabContent(
 }
 
 export function setTabClean(root: PaneNode, path: string): PaneNode {
+  if (!treeContainsPath(root, path)) return root;
   return updateAllLeaves(root, (leaf) => {
     if (!leaf.tabs.some((t) => t.path === path)) return leaf;
     return {

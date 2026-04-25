@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PatchDiff } from "@pierre/diffs/react";
 import type { FileDiffOptions } from "@pierre/diffs";
+import { useConfig } from "@/hooks/useConfig";
 import {
   AlertCircle,
   Archive,
@@ -15,7 +16,6 @@ import {
   GitBranch as GitBranchIcon,
   GitCommitHorizontal,
   History,
-  Loader2,
   LogOut,
   Minus,
   MoreHorizontal,
@@ -29,6 +29,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/useToast";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Spinner } from "@/components/ui/spinner";
 import { SymbolIcon } from "@/components/SymbolIcon";
 import { rpc } from "./rpc";
 import { GitGraph } from "./GitGraph";
@@ -65,24 +67,32 @@ const DIFF_OPTIONS: FileDiffOptions<undefined> = {
 interface FileRowProps {
   file: GitChangedFile;
   selected: boolean;
-  onSelect: () => void;
-  onStage: () => void;
-  onDiscard?: () => void;
+  ultraFast: boolean;
+  onSelect: (path: string) => void;
+  onStage: (file: GitChangedFile) => void;
+  onDiscard?: (path: string) => void;
 }
 
-function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps) {
+const FileRow = memo(function FileRow({
+  file,
+  selected,
+  ultraFast,
+  onSelect,
+  onStage,
+  onDiscard,
+}: FileRowProps) {
   const name = file.path.split("/").pop() ?? file.path;
   const dir = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : undefined;
 
   return (
     <div
-      onClick={onSelect}
+      onClick={() => onSelect(file.path)}
       className={cn(
         "group flex items-center gap-1.5 px-2 py-1 text-sm cursor-pointer rounded-sm select-none",
         selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
       )}
     >
-      <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />
+      {!ultraFast && <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />}
       <span className="flex-1 truncate min-w-0">
         <span>{name}</span>
         {dir && <span className="ml-1.5 text-xs text-muted-foreground">{dir}</span>}
@@ -105,7 +115,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
             title="Descartar mudanças"
             onClick={(e) => {
               e.stopPropagation();
-              onDiscard();
+              onDiscard(file.path);
             }}
             className="rounded p-0.5 text-muted-foreground/50 hover:text-destructive"
           >
@@ -117,7 +127,7 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
           title={file.staged ? "Remover do stage" : "Adicionar ao stage"}
           onClick={(e) => {
             e.stopPropagation();
-            onStage();
+            onStage(file);
           }}
           className="rounded p-0.5 text-muted-foreground/50 hover:text-primary"
         >
@@ -126,12 +136,13 @@ function FileRow({ file, selected, onSelect, onStage, onDiscard }: FileRowProps)
       </div>
     </div>
   );
-}
+});
 
 interface FileGroupProps {
   title: string;
   files: GitChangedFile[];
   selected: string | null;
+  ultraFast: boolean;
   onSelect: (path: string) => void;
   onStageFile: (file: GitChangedFile) => void;
   onDiscardFile?: (path: string) => void;
@@ -140,10 +151,11 @@ interface FileGroupProps {
   icon: React.ReactNode;
 }
 
-function FileGroup({
+const FileGroup = memo(function FileGroup({
   title,
   files,
   selected,
+  ultraFast,
   onSelect,
   onStageFile,
   onDiscardFile,
@@ -191,18 +203,19 @@ function FileGroup({
               key={f.path}
               file={f}
               selected={selected === f.path}
-              onSelect={() => onSelect(f.path)}
-              onStage={() => onStageFile(f)}
-              onDiscard={onDiscardFile ? () => onDiscardFile(f.path) : undefined}
+              ultraFast={ultraFast}
+              onSelect={onSelect}
+              onStage={onStageFile}
+              onDiscard={onDiscardFile}
             />
           ))}
         </div>
       )}
     </div>
   );
-}
+});
 
-function CommitsGroup({ commits }: { commits: GitCommit[] }) {
+const CommitsGroup = memo(function CommitsGroup({ commits }: { commits: GitCommit[] }) {
   const [open, setOpen] = useState(false);
 
   if (commits.length === 0) return null;
@@ -243,7 +256,7 @@ function CommitsGroup({ commits }: { commits: GitCommit[] }) {
       )}
     </div>
   );
-}
+});
 
 interface GitViewProps {
   compact?: boolean;
@@ -251,7 +264,12 @@ interface GitViewProps {
   rootPath?: string;
 }
 
-export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps = {}) {
+export const GitView = memo(function GitView({
+  compact = false,
+  onOpenFile,
+  rootPath,
+}: GitViewProps = {}) {
+  const { value: ultraFast } = useConfig<boolean>("performance.ultraFast", false);
   const [files, setFiles] = useState<GitChangedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -458,8 +476,15 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
       });
   }, [commitMsg, refresh]);
 
-  const staged = files.filter((f) => f.staged);
-  const unstaged = files.filter((f) => !f.staged);
+  const { staged, unstaged } = useMemo(() => {
+    const s: GitChangedFile[] = [];
+    const u: GitChangedFile[] = [];
+    for (const f of files) (f.staged ? s : u).push(f);
+    return { staged: s, unstaged: u };
+  }, [files]);
+
+  const selectStaged = useCallback((p: string) => selectFile(p, true), [selectFile]);
+  const selectUnstaged = useCallback((p: string) => selectFile(p, false), [selectFile]);
 
   const defaultRepoName = rootPath ? rootPath.split("/").filter(Boolean).pop() ?? "" : "";
 
@@ -507,10 +532,13 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
     </>
   ) : null;
 
-  const diffOptions: FileDiffOptions<undefined> = {
-    ...DIFF_OPTIONS,
-    diffStyle,
-  };
+  const diffOptions: FileDiffOptions<undefined> = useMemo(
+    () => ({
+      ...DIFF_OPTIONS,
+      diffStyle,
+    }),
+    [diffStyle],
+  );
 
   if (compact) {
     return (
@@ -519,7 +547,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="flex-1 truncate text-xs font-medium">{branch || "—"}</span>
           {(loading || syncing) && (
-            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+            <Spinner className="text-muted-foreground" />
           )}
           <button
             type="button"
@@ -700,7 +728,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
               className="w-full justify-center gap-1.5"
             >
               {committing ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner />
               ) : (
                 <GitCommitHorizontal className="size-3.5" />
               )}
@@ -727,7 +755,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                   className="gap-1.5"
                 >
                   {initializing ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <Spinner />
                   ) : (
                     <Plus className="size-3.5" />
                   )}
@@ -736,22 +764,17 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
               )}
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
-              <AlertCircle className="size-5 text-muted-foreground/50" />
-              <p className="text-xs text-muted-foreground">{error}</p>
-            </div>
+            <EmptyState icon={AlertCircle} title={error} />
           ) : files.length === 0 && !loading ? (
-            <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
-              <Check className="size-5 text-emerald-400/60" />
-              <p className="text-xs text-muted-foreground">Sem mudanças pendentes.</p>
-            </div>
+            <EmptyState icon={Check} title="Sem mudanças pendentes." />
           ) : (
             <>
               <FileGroup
                 title="Staged"
                 files={staged}
                 selected={selectedStaged ? selectedPath : null}
-                onSelect={(p) => selectFile(p, true)}
+                ultraFast={ultraFast}
+                onSelect={selectStaged}
                 onStageFile={stageFile}
                 icon={<CircleMinus className="size-3" />}
                 defaultOpen
@@ -760,7 +783,8 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 title="Mudanças"
                 files={unstaged}
                 selected={!selectedStaged ? selectedPath : null}
-                onSelect={(p) => selectFile(p, false)}
+                ultraFast={ultraFast}
+                onSelect={selectUnstaged}
                 onStageFile={stageFile}
                 onDiscardFile={discardFile}
                 onStageAll={unstaged.length > 0 ? stageAll : undefined}
@@ -799,7 +823,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="flex-1 truncate text-xs font-medium">{branch || "—"}</span>
           {(loading || syncing) && (
-            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+            <Spinner className="text-muted-foreground" />
           )}
           <button
             type="button"
@@ -974,7 +998,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                   className="gap-1.5"
                 >
                   {initializing ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <Spinner />
                   ) : (
                     <Plus className="size-3.5" />
                   )}
@@ -983,22 +1007,17 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
               )}
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
-              <AlertCircle className="size-5 text-muted-foreground/50" />
-              <p className="text-xs text-muted-foreground">{error}</p>
-            </div>
+            <EmptyState icon={AlertCircle} title={error} />
           ) : files.length === 0 && !loading ? (
-            <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
-              <Check className="size-5 text-emerald-400/60" />
-              <p className="text-xs text-muted-foreground">Sem mudanças pendentes.</p>
-            </div>
+            <EmptyState icon={Check} title="Sem mudanças pendentes." />
           ) : (
             <>
               <FileGroup
                 title="Staged"
                 files={staged}
                 selected={selectedStaged ? selectedPath : null}
-                onSelect={(p) => selectFile(p, true)}
+                ultraFast={ultraFast}
+                onSelect={selectStaged}
                 onStageFile={stageFile}
                 icon={<CircleMinus className="size-3" />}
                 defaultOpen
@@ -1007,7 +1026,8 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
                 title="Mudanças"
                 files={unstaged}
                 selected={!selectedStaged ? selectedPath : null}
-                onSelect={(p) => selectFile(p, false)}
+                ultraFast={ultraFast}
+                onSelect={selectUnstaged}
                 onStageFile={stageFile}
                 onDiscardFile={discardFile}
                 onStageAll={unstaged.length > 0 ? stageAll : undefined}
@@ -1047,7 +1067,7 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
               className="w-full justify-center gap-1.5"
             >
               {committing ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner />
               ) : (
                 <GitCommitHorizontal className="size-3.5" />
               )}
@@ -1103,19 +1123,16 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
         <div className="flex-1 overflow-auto">
           {patchLoading ? (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <Spinner size="lg" className="text-muted-foreground" />
             </div>
           ) : patch ? (
             <PatchDiff patch={patch} options={diffOptions} style={{ height: "100%" }} />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-              <FileDiffIcon className="size-8 opacity-20" />
-              <p className="text-sm">
-                {selectedPath
-                  ? "Diff não disponível para este arquivo."
-                  : "Nenhum arquivo selecionado."}
-              </p>
-            </div>
+            <EmptyState
+              icon={FileDiffIcon}
+              title={selectedPath ? "Diff não disponível para este arquivo." : "Nenhum arquivo selecionado."}
+              className="h-full"
+            />
           )}
         </div>
       </div>
@@ -1136,4 +1153,4 @@ export function GitView({ compact = false, onOpenFile, rootPath }: GitViewProps 
       />
     </div>
   );
-}
+});

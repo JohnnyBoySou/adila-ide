@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, Pause, Play, RotateCcw } from "lucide-react";
+import { Activity, Pause, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -37,7 +37,11 @@ function p95Class(ns: number): string {
   return "text-muted-foreground";
 }
 
-export function BenchView() {
+type Props = {
+  onClose?: () => void;
+};
+
+export function BenchView({ onClose }: Props = {}) {
   const [ops, setOps] = useState<BenchOp[]>([]);
   const [enabled, setEnabled] = useState(true);
   const [paused, setPaused] = useState(false);
@@ -110,6 +114,17 @@ export function BenchView() {
           >
             {enabled ? "Coletando" : "Pausado"}
           </Button>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              title="Fechar"
+              aria-label="Fechar benchmarks"
+            >
+              <X className="size-3.5" />
+            </Button>
+          )}
         </div>
       </header>
 

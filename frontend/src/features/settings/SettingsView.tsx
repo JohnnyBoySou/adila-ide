@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, FileJson, Search, SearchX, SlidersHorizontal } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Dialog } from "@/components/ui/dialog";
 import { Command, type CommandItem } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/useToast";
+import { cn } from "@/lib/utils";
+import { Check, FileJson, Search, SearchX } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SettingRow } from "./components/SettingRow";
-import { filterGroups, settingsGroups, type SettingDef } from "./settingsSchema";
 import { rpc } from "./rpc";
+import { filterGroups, settingsGroups, type SettingDef } from "./settingsSchema";
 
 interface SettingCommandItem extends CommandItem {
   groupId: string;
@@ -36,6 +37,10 @@ export function SettingsView() {
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const groups = useMemo(() => filterGroups(settingsGroups, query), [query]);
+  const visibleGroups = useMemo(
+    () => (query ? groups : groups.filter((g) => g.id === activeId)),
+    [groups, query, activeId],
+  );
 
   useEffect(() => {
     return rpc.on("settings.search", (payload) => {
@@ -78,6 +83,8 @@ export function SettingsView() {
     setTimeout(() => setSaved(false), 2000);
   }
 
+  const onDirty = useCallback(() => setDirty(true), []);
+
   function openJson() {
     rpc.settings.openJson().catch((err: unknown) => {
       toast.error("Não foi possível abrir settings.json", err);
@@ -99,10 +106,7 @@ export function SettingsView() {
     <div className="flex h-full w-full">
       <aside className="w-64 shrink-0 border-r border-border/60 bg-card/40 flex flex-col">
         <div className="p-5 border-b border-border/60">
-          <div className="flex items-center gap-2 mb-4">
-            <SlidersHorizontal className="size-4 text-primary" />
-            <h1 className="text-sm font-semibold">Settings</h1>
-          </div>
+        
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
@@ -126,18 +130,15 @@ export function SettingsView() {
             <p className="text-xs text-muted-foreground px-3 py-4">Nada encontrado.</p>
           )}
           {groups.map((g) => (
-            <button
+            <Button
               key={g.id}
-              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setActiveId(g.id);
-                document.getElementById(`group-${g.id}`)?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
               }}
               className={cn(
-                "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                "w-full text-left px-3 py-2 rounded-md text-sm transition-colors justify-start",
                 activeId === g.id
                   ? "bg-accent text-accent-foreground"
                   : "hover:bg-accent/50 text-muted-foreground hover:text-foreground",
@@ -145,11 +146,11 @@ export function SettingsView() {
             >
               <div className="flex items-center justify-between gap-2">
                 <span>{g.title}</span>
-                <span className="text-[10px] tabular-nums text-muted-foreground/70">
+                <Badge variant="secondary">
                   {g.settings.length}
-                </span>
+                </Badge>
               </div>
-            </button>
+            </Button>
           ))}
         </nav>
         <div className="p-3 border-t border-border/60">
@@ -170,7 +171,7 @@ export function SettingsView() {
               description={`Nenhuma configuração corresponde a "${query}".`}
             />
           )}
-          {groups.map((g) => (
+          {visibleGroups.map((g) => (
             <section key={g.id} id={`group-${g.id}`} className="mb-10 scroll-mt-8">
               <header className="mb-4">
                 <h2 className="text-lg font-semibold">{g.title}</h2>
@@ -184,7 +185,7 @@ export function SettingsView() {
                     key={s.key}
                     def={s}
                     highlighted={highlightKey === s.key}
-                    onDirty={() => setDirty(true)}
+                    onDirty={onDirty}
                   />
                 ))}
               </div>

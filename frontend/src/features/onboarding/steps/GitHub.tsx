@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/useToast";
+import { Spinner } from "@/components/ui/spinner";
 import { call } from "@/rpc/core";
 import { rpc } from "@/features/git/rpc";
 import { GithubIcon } from "@/features/git/GithubIcon";
@@ -127,7 +128,7 @@ export function GitHub() {
           <div className="flex items-center gap-2">
             {polling && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" /> Aguardando…
+                <Spinner size="xs" /> Aguardando…
               </span>
             )}
             <button
@@ -158,7 +159,7 @@ export function GitHub() {
             )}
           >
             {starting ? (
-              <Loader2 className="size-3 animate-spin" />
+              <Spinner size="xs" />
             ) : checked ? (
               <Check className="size-3.5" />
             ) : null}

@@ -1,0 +1,12 @@
+goos: linux
+goarch: amd64
+pkg: ide
+cpu: AMD Ryzen 5 5600G with Radeon Graphics         
+BenchmarkParseStatus_Small-12     	  160926	      2138 ns/op	    4336 B/op	       7 allocs/op
+BenchmarkParseStatus_Small-12     	  149413	      2399 ns/op	    4336 B/op	       7 allocs/op
+BenchmarkParseStatus_Large-12     	    1797	    186772 ns/op	  384852 B/op	      14 allocs/op
+BenchmarkParseStatus_Large-12     	    1520	    210534 ns/op	  384849 B/op	      14 allocs/op
+BenchmarkCompileSearchRegex-12    	   46004	      7135 ns/op	    3248 B/op	      34 allocs/op
+BenchmarkCompileSearchRegex-12    	   45224	      9016 ns/op	    3248 B/op	      34 allocs/op
+PASS
+ok  	ide	2.672s

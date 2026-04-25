@@ -222,11 +222,18 @@ function buildTheme(): MonacoNs.editor.IStandaloneThemeData {
 
 let observer: MutationObserver | null = null;
 const installedFor = new WeakSet<Monaco>();
+let lastThemeJSON = "";
 
 export function installMonacoTailwindTheme(monaco: Monaco): void {
   const apply = () => {
     try {
-      monaco.editor.defineTheme(THEME_NAME, buildTheme());
+      const next = buildTheme();
+      // Só re-aplica se o tema realmente mudou. Evita repaint do highlight a
+      // cada mutação irrelevante no <html> (ex: font-size do zoom, transições).
+      const json = JSON.stringify(next);
+      if (json === lastThemeJSON) return;
+      lastThemeJSON = json;
+      monaco.editor.defineTheme(THEME_NAME, next);
       monaco.editor.setTheme(THEME_NAME);
     } catch {
       // ignore
@@ -238,10 +245,13 @@ export function installMonacoTailwindTheme(monaco: Monaco): void {
   if (!installedFor.has(monaco)) {
     installedFor.add(monaco);
     if (observer) observer.disconnect();
+    // Só observamos atributos que efetivamente trocam o tema (light/dark via
+    // class ou data-theme). `style` muda por zoom/transição e causaria flicker
+    // do syntax highlight a cada repaint.
     observer = new MutationObserver(apply);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class", "data-theme", "style"],
+      attributeFilter: ["class", "data-theme"],
     });
   }
 }

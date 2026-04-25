@@ -1,4 +1,6 @@
-import { AlertTriangle, Info, XCircle } from "lucide-react";
+import { useMemo } from "react";
+import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type EditorMarker = {
   severity: number; // 8=Error 4=Warning 2=Info 1=Hint
@@ -14,26 +16,46 @@ type Props = {
   onNavigate: (path: string, line: number, col: number) => void;
 };
 
-export function ProblemsPanel({ markers, rootPath, onNavigate }: Props) {
-  const entries = Object.entries(markers).filter(([, m]) => m.length > 0);
+type FileSection = {
+  path: string;
+  relPath: string;
+  fileMarkers: EditorMarker[];
+  errors: number;
+  warnings: number;
+};
 
-  if (entries.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        Nenhum problema detectado.
-      </div>
-    );
+export function ProblemsPanel({ markers, rootPath, onNavigate }: Props) {
+  const sections = useMemo<FileSection[]>(() => {
+    const stripped = rootPath.replace(/\/$/, "") + "/";
+    const out: FileSection[] = [];
+    for (const path in markers) {
+      const fileMarkers = markers[path];
+      if (!fileMarkers || fileMarkers.length === 0) continue;
+      let errors = 0;
+      let warnings = 0;
+      for (let i = 0; i < fileMarkers.length; i++) {
+        const sev = fileMarkers[i].severity;
+        if (sev === 8) errors++;
+        else if (sev === 4) warnings++;
+      }
+      out.push({
+        path,
+        relPath: rootPath ? path.replace(stripped, "") : path,
+        fileMarkers,
+        errors,
+        warnings,
+      });
+    }
+    return out;
+  }, [markers, rootPath]);
+
+  if (sections.length === 0) {
+    return <EmptyState icon={CheckCircle2} title="Nenhum problema detectado." className="h-full" />;
   }
 
   return (
     <div className="h-full overflow-y-auto text-xs">
-      {entries.map(([filePath, fileMarkers]) => {
-        const relPath = rootPath
-          ? filePath.replace(rootPath.replace(/\/$/, "") + "/", "")
-          : filePath;
-        const errors = fileMarkers.filter((m) => m.severity === 8).length;
-        const warnings = fileMarkers.filter((m) => m.severity === 4).length;
-
+      {sections.map(({ path: filePath, relPath, fileMarkers, errors, warnings }) => {
         return (
           <div key={filePath}>
             <div className="sticky top-0 px-3 py-1 font-medium text-[11px] text-foreground bg-muted/50 flex items-center gap-2 border-b">

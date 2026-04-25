@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GitBranch as GitBranchIcon,
-  Loader2,
   Maximize2,
   RefreshCw,
   Tag,
@@ -10,6 +9,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { rpc } from "./rpc";
 import type { GitGraphNode } from "./types";
 
@@ -238,7 +238,7 @@ export function GitGraph({ onClose }: GitGraphProps) {
         >
           {loading ? (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <Spinner size="xl" className="text-muted-foreground" />
             </div>
           ) : nodes.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

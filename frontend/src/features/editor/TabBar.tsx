@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { Globe, X } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,14 @@ type Props = {
   onReorder: (fromIndex: number, toIndex: number) => void;
 };
 
-export function TabBar({ tabs, activePath, paneId, onActivate, onClose, onReorder }: Props) {
+export const TabBar = memo(function TabBar({
+  tabs,
+  activePath,
+  paneId,
+  onActivate,
+  onClose,
+  onReorder,
+}: Props) {
   const [dragOver, setDragOver] = useState<number | null>(null);
   const dragIndexRef = useRef<number>(-1);
 
@@ -139,4 +146,4 @@ export function TabBar({ tabs, activePath, paneId, onActivate, onClose, onReorde
       })}
     </div>
   );
-}
+});

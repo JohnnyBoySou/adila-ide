@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, ExternalLink, Loader2, LogOut } from "lucide-react";
+import { Check, Copy, ExternalLink, LogOut } from "lucide-react";
 import { GithubIcon } from "./GithubIcon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/useToast";
 import { call } from "@/rpc/core";
 import { rpc } from "./rpc";
@@ -102,7 +103,7 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
               <code className="rounded bg-muted px-1 py-0.5 text-[10px]">repo</code>.
             </p>
             <Button onClick={start} disabled={starting} className="gap-2">
-              {starting ? <Loader2 className="size-4 animate-spin" /> : <GithubIcon className="size-4" />}
+              {starting ? <Spinner size="md" /> : <GithubIcon className="size-4" />}
               Iniciar autenticação
             </Button>
           </div>
@@ -157,7 +158,7 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
                 </span>
                 <span className="flex items-center gap-2">
                   Voltaremos automaticamente quando você concluir.
-                  {polling && <Loader2 className="size-3.5 animate-spin" />}
+                  {polling && <Spinner />}
                 </span>
               </li>
             </ol>
@@ -287,7 +288,7 @@ export function PublishRepoDialog({
             Cancelar
           </Button>
           <Button onClick={submit} disabled={!name.trim() || publishing} className="gap-2">
-            {publishing ? <Loader2 className="size-4 animate-spin" /> : <GithubIcon className="size-4" />}
+            {publishing ? <Spinner size="md" /> : <GithubIcon className="size-4" />}
             Publicar
           </Button>
         </div>

@@ -1,48 +1,40 @@
 import { Bell } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo } from "react";
+import { useNotificationsStore } from "@/stores/notificationsStore";
 import { rpc } from "./rpc";
 import type { LayoutMode, NotificationItem } from "./types";
-import { Center } from "./components/Center";
 import { ToastList } from "./components/Toast";
 
-// Matches the longest transition in <Center /> (panel translate) — keep in sync.
-const CENTER_EXIT_MS = 320;
-
 type Props = {
-  /** Controle externo opcional do center (ex.: clique no sino da StatusBar). */
+  /** Quando o usuário está na tela de notificações (view === "notifications"). */
   centerOpen?: boolean;
-  onCenterOpenChange?: (open: boolean) => void;
+  /** Callback para abrir a tela de notificações (clique no sino fallback). */
+  onOpenCenter?: () => void;
 };
 
-export function Notifications({ centerOpen: centerOpenProp, onCenterOpenChange }: Props = {}) {
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [centerOpenInternal, setCenterOpenInternal] = useState(false);
-  const centerOpen = centerOpenProp ?? centerOpenInternal;
-  const setCenterOpenRef = useRef((_open: boolean) => {});
-  setCenterOpenRef.current = (open: boolean) => {
-    if (onCenterOpenChange) onCenterOpenChange(open);
-    else setCenterOpenInternal(open);
-  };
-  const setCenterOpen = (open: boolean) => setCenterOpenRef.current(open);
+export const Notifications = memo(function Notifications({
+  centerOpen = false,
+  onOpenCenter,
+}: Props = {}) {
+  const items = useNotificationsStore((s) => s.items);
 
-  // Wire up workbench → react event stream once.
   useEffect(() => {
+    const store = useNotificationsStore.getState();
     const offAdd = rpc.on("notification.add", (payload) => {
       const { item } = payload as { item: NotificationItem };
-      setItems((prev) => [item, ...prev.filter((p) => p.id !== item.id)]);
+      store.add(item);
     });
     const offUpdate = rpc.on("notification.update", (payload) => {
       const { item } = payload as { item: NotificationItem };
-      setItems((prev) => prev.map((p) => (p.id === item.id ? item : p)));
+      store.update(item);
     });
     const offRemove = rpc.on("notification.remove", (payload) => {
       const { id } = payload as { id: string };
-      setItems((prev) => prev.filter((p) => p.id !== id));
+      store.remove(id);
     });
-    // Workbench-driven open/close (status-bar bell click).
     const offCenter = rpc.on("notifications.setCenterOpen", (payload) => {
       const { open } = payload as { open: boolean };
-      setCenterOpen(open);
+      if (open) onOpenCenter?.();
     });
 
     void rpc.ready();
@@ -53,36 +45,20 @@ export function Notifications({ centerOpen: centerOpenProp, onCenterOpenChange }
       offRemove();
       offCenter();
     };
-  }, []);
+  }, [onOpenCenter]);
 
-  // Visible toasts = non-silent notifications. Silent ones live in the center
-  // only (matches the original NotificationPriority.SILENT behavior).
   const toastItems = useMemo(() => items.filter((i) => !i.silent), [items]);
 
-  // Tell the workbench which surface we're showing so it can size the overlay
-  // container appropriately. Center wins over toasts; idle when neither.
-  // When the center closes, wait out the exit animation before shrinking the
-  // host container — otherwise the iframe is hidden mid-animation.
   useEffect(() => {
     const targetMode: LayoutMode = centerOpen
       ? "center"
       : toastItems.length > 0
         ? "toasts"
         : "idle";
-    if (centerOpen) {
-      void rpc.setLayout(targetMode);
-      return;
-    }
-    const t = setTimeout(() => {
-      void rpc.setLayout(targetMode);
-    }, CENTER_EXIT_MS);
-    return () => {
-      clearTimeout(t);
-    };
+    void rpc.setLayout(targetMode);
   }, [centerOpen, toastItems.length]);
 
-  // Trigger that opens the center: a small bell button in the bottom-right
-  // when there are silent-only items (so the user can still get to them).
+  // Bell de fallback: aparece quando há itens silent-only e a central está fechada.
   const showBell = !centerOpen && toastItems.length === 0 && items.length > 0;
 
   return (
@@ -93,7 +69,7 @@ export function Notifications({ centerOpen: centerOpenProp, onCenterOpenChange }
         <button
           type="button"
           onClick={() => {
-            setCenterOpen(true);
+            onOpenCenter?.();
             void rpc.setCenterVisibility(true);
           }}
           aria-label="Abrir notificações"
@@ -105,19 +81,6 @@ export function Notifications({ centerOpen: centerOpenProp, onCenterOpenChange }
           </span>
         </button>
       )}
-
-      <Center
-        items={items}
-        open={centerOpen}
-        onClose={() => {
-          setCenterOpen(false);
-          // Defer the visibility ack until after the exit animation, otherwise
-          // the host shrinks the overlay container mid-animation.
-          setTimeout(() => {
-            void rpc.setCenterVisibility(false);
-          }, CENTER_EXIT_MS);
-        }}
-      />
     </>
   );
-}
+});

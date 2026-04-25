@@ -30,15 +30,15 @@ export function ShortcutHud({ hint }: Props) {
   return (
     <div
       className={
-        "fixed inset-0 z-[100] pointer-events-none flex items-center justify-center transition-all ease-out " +
-        (visible ? "opacity-100 scale-100 duration-150" : "opacity-0 scale-95 duration-200")
+        "fixed left-0 right-0 bottom-8 z-[100] pointer-events-none flex justify-center transition-all ease-out " +
+        (visible ? "opacity-100 translate-y-0 duration-150" : "opacity-0 translate-y-2 duration-200")
       }
     >
-      <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-black/75 backdrop-blur-xl shadow-2xl border border-white/10">
+      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/75 backdrop-blur-xl shadow-2xl border border-white/10">
         {parts.map((p, i) => (
           <span key={`${mounted.id}-${i}`} className="flex items-center gap-2">
-            {i > 0 && <span className="text-white/50 text-lg">+</span>}
-            <kbd className="min-w-[2rem] px-2.5 py-1 rounded-md bg-white/10 text-white text-base font-mono font-medium text-center border border-white/20 shadow-inner">
+            {i > 0 && <span className="text-white/50 text-sm">+</span>}
+            <kbd className="min-w-[1.75rem] px-2 py-0.5 rounded-md bg-white/10 text-white text-sm font-mono font-medium text-center border border-white/20 shadow-inner">
               {p}
             </kbd>
           </span>

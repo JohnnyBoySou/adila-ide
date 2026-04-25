@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -24,6 +25,8 @@ import {
   CircleSlash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { filterCommands } from "../filterCommands";
+import { FILES_MAX_RESULTS, filterFiles } from "../filterFiles";
 import { rpc, type FileEntry } from "../rpc";
 import { useFilesStore } from "../stores/files";
 import type { Mode, PaletteItem } from "../types";
@@ -47,7 +50,6 @@ const PREFIX_DEBOUNCE_MS: Record<Mode, number> = {
   help: 0,
 };
 
-const FILES_MAX_RESULTS = 128;
 
 const MODE_LABEL: Record<Mode, string> = {
   commands: "Comandos",
@@ -80,6 +82,10 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
   const ensureFilesLoaded = useFilesStore((s) => s.ensureLoaded);
 
   const parsed = useMemo(() => parseQuery(query), [query]);
+  // Diferimos o parsed para a busca de arquivos: o input atualiza imediato,
+  // mas o fuzzy O(n) sobre 10k arquivos roda em prioridade baixa, mantendo
+  // o typing fluido mesmo em projetos grandes.
+  const deferredParsed = useDeferredValue(parsed);
 
   // Focus the input on mount and whenever we reset after an initial prefix.
   useEffect(() => {
@@ -145,11 +151,11 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
   }, [parsed]);
 
   const filesItems = useMemo(() => {
-    if (parsed.mode !== "files") {
+    if (deferredParsed.mode !== "files") {
       return [];
     }
-    return filterFiles(filesCache, filesRoots, parsed.search);
-  }, [filesCache, filesRoots, parsed]);
+    return filterFiles(filesCache, filesRoots, deferredParsed.search);
+  }, [filesCache, filesRoots, deferredParsed]);
 
   // Keep selection within bounds as the files list changes.
   useEffect(() => {
@@ -164,13 +170,10 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
     }
     // For commands mode the host returns the full enabled list; filter here.
     // Other modes already narrow on the host side.
-    if (parsed.mode !== "commands" || !parsed.search) {
+    if (parsed.mode !== "commands") {
       return items;
     }
-    const q = parsed.search.toLowerCase();
-    return items.filter((item) =>
-      `${item.title} ${item.description ?? ""}`.toLowerCase().includes(q),
-    );
+    return filterCommands(items, parsed.search);
   }, [filesItems, items, parsed]);
 
   const filesLoading = parsed.mode === "files" && filesStatus === "loading";
@@ -337,73 +340,6 @@ export function Palette({ initialQuery, onClose }: PaletteProps) {
       </div>
     </div>
   );
-}
-
-function filterFiles(files: FileEntry[], roots: FileEntry[], search: string): PaletteItem[] {
-  if (files.length === 0) {
-    return [];
-  }
-  const rootPaths = roots
-    .map((r) => {
-      // URIs for folders usually end without a trailing slash; normalize so
-      // the prefix strip below doesn't leave a leading `/`.
-      return r.path.endsWith("/") ? r.path : `${r.path}/`;
-    })
-    .sort((a, b) => b.length - a.length);
-  const toRel = (path: string): string => {
-    for (const root of rootPaths) {
-      if (path.startsWith(root)) {
-        return path.slice(root.length);
-      }
-    }
-    return path;
-  };
-  const toItem = (f: FileEntry): PaletteItem => ({
-    id: f.path,
-    title: f.name,
-    description: toRel(f.path),
-    icon: "file",
-  });
-
-  const q = search.trim().toLowerCase();
-  if (!q) {
-    return files.slice(0, FILES_MAX_RESULTS).map(toItem);
-  }
-
-  // Score: lower is better. Prefer matches in the filename, then in the
-  // relative path. Files that don't contain every character of the query
-  // (in order) are filtered out entirely.
-  const scored: Array<{ item: PaletteItem; score: number }> = [];
-  for (const f of files) {
-    const rel = toRel(f.path).toLowerCase();
-    const name = f.name.toLowerCase();
-    const nameIdx = name.indexOf(q);
-    const relIdx = rel.indexOf(q);
-    if (nameIdx < 0 && relIdx < 0) {
-      if (!subsequenceMatch(rel, q)) {
-        continue;
-      }
-      scored.push({ item: toItem(f), score: 500 });
-      continue;
-    }
-    const score = nameIdx >= 0 ? nameIdx : 100 + (relIdx >= 0 ? relIdx : 0);
-    scored.push({ item: toItem(f), score });
-  }
-  scored.sort((a, b) => a.score - b.score);
-  return scored.slice(0, FILES_MAX_RESULTS).map((s) => s.item);
-}
-
-function subsequenceMatch(haystack: string, needle: string): boolean {
-  let i = 0;
-  for (const ch of haystack) {
-    if (ch === needle[i]) {
-      i++;
-      if (i === needle.length) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 function parseQuery(raw: string): ParsedQuery {

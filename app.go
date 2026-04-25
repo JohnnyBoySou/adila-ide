@@ -286,6 +286,41 @@ func resolveExcludeFolders(cfg *Config) map[string]bool {
 //
 // Essa abordagem é eficaz em SSDs e filesystems em rede; em HDDs o ganho é
 // menor (seek penalty), mas a lista de ignorados já economiza muito I/O.
+// asciiToLower retorna o byte em minúsculo para A-Z; demais bytes inalterados.
+// Inline para o hot path do containsFold.
+func asciiToLower(b byte) byte {
+	if b >= 'A' && b <= 'Z' {
+		return b + 32
+	}
+	return b
+}
+
+// containsFoldASCII verifica se s contém substr ignorando case, sem alocar.
+// Para queries não-ASCII, faz fallback para strings.ToLower (raro em filenames).
+// substr DEVE estar pré-lowercased pelo caller.
+func containsFoldASCII(s, lowerSubstr string) bool {
+	n := len(lowerSubstr)
+	if n == 0 {
+		return true
+	}
+	if len(s) < n {
+		return false
+	}
+	for i := 0; i <= len(s)-n; i++ {
+		ok := true
+		for j := 0; j < n; j++ {
+			if asciiToLower(s[i+j]) != lowerSubstr[j] {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 	defer bench.Time("App.SearchFiles")()
 	const maxResults = 200
@@ -340,7 +375,7 @@ func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 				}
 				return nil
 			}
-			if strings.Contains(strings.ToLower(name), q) {
+			if containsFoldASCII(name, q) {
 				buf = append(buf, FileEntry{Name: name, Path: path, IsDir: d.IsDir()})
 			}
 			return nil
@@ -369,7 +404,7 @@ func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 			continue
 		}
 		// Arquivo/dir no nível raiz que já casa com a query.
-		if strings.Contains(strings.ToLower(name), q) {
+		if containsFoldASCII(name, q) {
 			results = append(results, FileEntry{Name: name, Path: filepath.Join(rootPath, name), IsDir: e.IsDir()})
 		}
 		if !e.IsDir() {

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, Download, Loader, XCircle } from "lucide-react";
+import { CheckCircle, Download, XCircle } from "lucide-react";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import { GetLSPStatus, InstallLSPServer } from "../../../wailsjs/go/main/LSP";
+import { invalidateLSPAvailabilityCache } from "./useLSP";
+import { Spinner } from "@/components/ui/spinner";
 
 type ServerStatus = {
   lang: string;
@@ -52,6 +54,9 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
             ...s,
             [lang]: { installing: false, progress: 100, error: "" },
           }));
+          // invalida o cache de disponibilidade do useLSP — abas abertas
+          // só vão reconectar ao reabrir, mas novas abas pegam o servidor.
+          invalidateLSPAvailabilityCache();
           // recarrega status após instalação
           GetLSPStatus()
             .then(setServers)
@@ -143,7 +148,7 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
                     {s.installed ? (
                       <CheckCircle className="size-3.5 text-emerald-500 shrink-0" />
                     ) : isInstalling ? (
-                      <Loader className="size-3.5 text-blue-500 shrink-0 animate-spin" />
+                      <Spinner className="text-blue-500 shrink-0" />
                     ) : (
                       <XCircle className="size-3.5 text-muted-foreground shrink-0" />
                     )}

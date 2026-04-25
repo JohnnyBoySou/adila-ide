@@ -7,7 +7,7 @@
  */
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Suspense, lazy, useRef, useState } from "react";
+import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState } from "react";
 import { Breadcrumbs } from "./Breadcrumbs";
 import type { EditorMarker } from "./ProblemsPanel";
 import { TabBar } from "./TabBar";
@@ -47,29 +47,57 @@ type PaneTreeProps = {
   emptyState: React.ReactNode;
 };
 
-export function PaneTree(props: PaneTreeProps) {
+export const PaneTree = memo(function PaneTree(props: PaneTreeProps) {
   return <PaneNodeView node={props.root} {...props} />;
-}
+});
 
 function PaneNodeView({ node, ...props }: { node: PaneNode } & PaneTreeProps) {
   if (node.kind === "leaf") {
     return <LeafView leaf={node} {...props} />;
   }
 
+  return <SplitView node={node} {...props} />;
+}
+
+function SplitView({
+  node,
+  ...props
+}: { node: Extract<PaneNode, { kind: "split" }> } & PaneTreeProps) {
   const orientation = node.direction === "horizontal" ? "horizontal" : "vertical";
   const idA = `${node.id}-a`;
   const idB = `${node.id}-b`;
+
+  // Persistência debouncada: a biblioteca já cuida do visual durante o drag via
+  // CSS interno. Só propagamos para o estado do App quando o usuário para de
+  // arrastar — assim a árvore de panes (e o Monaco) não re-renderiza por pixel.
+  const commitTimer = useRef<number | undefined>(undefined);
+  const onSplitSizeChange = props.onSplitSizeChange;
+  const handleLayoutChanged = useCallback(
+    (layout: Record<string, number>) => {
+      const aSize = layout[idA];
+      if (typeof aSize !== "number") return;
+      if (Math.round(aSize) === Math.round(node.size)) return;
+      if (commitTimer.current !== undefined) {
+        window.clearTimeout(commitTimer.current);
+      }
+      commitTimer.current = window.setTimeout(() => {
+        commitTimer.current = undefined;
+        onSplitSizeChange?.(node.id, aSize);
+      }, 150);
+    },
+    [idA, node.id, node.size, onSplitSizeChange],
+  );
+  useEffect(() => {
+    return () => {
+      if (commitTimer.current !== undefined) window.clearTimeout(commitTimer.current);
+    };
+  }, []);
 
   return (
     <ResizablePanelGroup
       orientation={orientation}
       className="flex-1 min-h-0"
-      onLayoutChanged={(layout) => {
-        const aSize = layout[idA];
-        if (typeof aSize === "number" && Math.round(aSize) !== Math.round(node.size)) {
-          props.onSplitSizeChange?.(node.id, aSize);
-        }
-      }}
+      onLayoutChanged={handleLayoutChanged}
     >
       <ResizablePanel
         id={idA}
@@ -109,7 +137,26 @@ function LeafView({
   const [dropSide, setDropSide] = useState<DropSide | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Contador de enter/leave: o navegador dispara dragleave/dragenter ao cruzar
+  // qualquer filho (TabBar, breadcrumbs, Monaco). Só limpamos o overlay quando
+  // o contador volta a zero — robusto contra relatedTarget=null no webkit.
+  const dragDepth = useRef(0);
   const isFocused = leaf.id === focusedPaneId;
+
+  useEffect(() => {
+    // Garante limpeza se o usuário soltar fora do app ou cancelar com Esc.
+    function clear() {
+      dragDepth.current = 0;
+      setDragActive(false);
+      setDropSide(null);
+    }
+    window.addEventListener("dragend", clear);
+    window.addEventListener("drop", clear);
+    return () => {
+      window.removeEventListener("dragend", clear);
+      window.removeEventListener("drop", clear);
+    };
+  }, []);
 
   const activeTab = leaf.tabs.find((t) => t.path === leaf.activePath);
 
@@ -119,18 +166,17 @@ function LeafView({
 
   function computeSide(e: React.DragEvent): DropSide {
     const el = containerRef.current;
-    if (!el) return "center";
+    if (!el) return "left";
     const rect = el.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    const EDGE = 0.25;
-    // priorize a borda mais próxima
+    // 4 zonas: split horizontal (left | right) ou vertical (top | bottom).
+    // Quem ganha é o eixo com maior distância à borda oposta.
     const distLeft = x;
     const distRight = 1 - x;
     const distTop = y;
     const distBottom = 1 - y;
     const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-    if (minDist > EDGE) return "center";
     if (minDist === distLeft) return "left";
     if (minDist === distRight) return "right";
     if (minDist === distTop) return "top";
@@ -140,7 +186,8 @@ function LeafView({
   function handleDragEnter(e: React.DragEvent) {
     if (!isFileDrag(e)) return;
     e.preventDefault();
-    setDragActive(true);
+    dragDepth.current += 1;
+    if (!dragActive) setDragActive(true);
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -151,16 +198,19 @@ function LeafView({
   }
 
   function handleDragLeave(e: React.DragEvent) {
-    // só limpa se sair de fato do container (relatedTarget fora)
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-    setDragActive(false);
-    setDropSide(null);
+    if (!isFileDrag(e)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setDragActive(false);
+      setDropSide(null);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
     if (!isFileDrag(e)) return;
     e.preventDefault();
     const raw = e.dataTransfer.getData(FILE_DRAG_MIME);
+    dragDepth.current = 0;
     setDragActive(false);
     setDropSide(null);
     if (!raw) return;
@@ -249,16 +299,6 @@ function DropOverlay({ side }: { side: DropSide | null }) {
 
   return (
     <div className="absolute inset-0 pointer-events-none z-20">
-      {/* center */}
-      <div
-        className={cls(side === "center")}
-        style={{
-          top: `${ZONE}%`,
-          left: `${ZONE}%`,
-          right: `${ZONE}%`,
-          bottom: `${ZONE}%`,
-        }}
-      />
       {/* left */}
       <div
         className={cls(side === "left")}

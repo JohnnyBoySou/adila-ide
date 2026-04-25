@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  CaseSensitive,
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Regex,
-  Replace as ReplaceIcon,
-  Search as SearchIcon,
-  WholeWord,
-} from "lucide-react";
-import { searchRpc, type SearchMatch } from "./rpc";
 import { useConfig } from "@/hooks/useConfig";
+import {
+    CaseSensitive,
+    ChevronDown,
+    ChevronRight,
+    Regex,
+    Replace as ReplaceIcon,
+    Search as SearchIcon,
+    WholeWord,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
+import { searchRpc, type SearchMatch } from "./rpc";
 
 type Props = {
   rootPath: string;
@@ -161,21 +161,11 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
             className="px-2 py-1 text-xs rounded-md border hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
             title="Substituir todos"
           >
-            {replacing ? <Loader2 className="size-3.5 animate-spin" /> : "Tudo"}
+            {replacing ? <Spinner /> : "Tudo"}
           </button>
         </div>
-        <div className="text-xs text-muted-foreground min-h-[1.25rem]">
-          {!rootPath ? (
-            "Abra uma pasta para buscar."
-          ) : loading ? (
-            "Buscando…"
-          ) : error ? (
-            <span className="text-red-400">{error}</span>
-          ) : query ? (
-            `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}`
-          ) : (
-            "Digite para buscar."
-          )}
+        <div className="text-xs text-muted-foreground min-h-5">
+          {!rootPath ? "Abra uma pasta para buscar." : loading ? "Buscando…" : error ? <span className="text-red-400">{error}</span> : query ? `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}` : ""}
           {replaceMsg && <span className="ml-2">· {replaceMsg}</span>}
         </div>
       </div>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Check, Loader2, Terminal } from "lucide-react";
+import { Check, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/useToast";
+import { Spinner } from "@/components/ui/spinner";
 import { rpc } from "../rpc";
 
 export function CLI() {
@@ -66,7 +67,7 @@ export function CLI() {
           )}
         >
           {busy ? (
-            <Loader2 className="size-3 animate-spin" />
+            <Spinner size="xs" />
           ) : checked ? (
             <Check className="size-3.5" />
           ) : null}

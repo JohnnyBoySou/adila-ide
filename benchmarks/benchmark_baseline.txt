@@ -1,0 +1,19 @@
+goos: linux
+goarch: amd64
+pkg: ide
+cpu: AMD Ryzen 5 5600G with Radeon Graphics
+BenchmarkListDir_Small-12                         121081             20525 ns/op            2638 B/op         31 allocs/op
+BenchmarkListDir_Medium-12                         45844             53524 ns/op           15409 B/op        169 allocs/op
+BenchmarkSearchFiles_Small-12                       9823            295539 ns/op           85213 B/op       1148 allocs/op
+BenchmarkSearchFiles_Medium-12                      5083            733660 ns/op          163797 B/op       1853 allocs/op
+BenchmarkListAllFiles_Small-12                      3764           1074621 ns/op          188752 B/op       1463 allocs/op
+BenchmarkListAllFiles_Medium-12                      291          11213856 ns/op         2305103 B/op      16315 allocs/op
+BenchmarkListAllFiles_Large-12                       100          27529771 ns/op         9126220 B/op      62810 allocs/op
+BenchmarkParseStatus_Small-12                    1000000              2501 ns/op            4336 B/op          7 allocs/op
+BenchmarkParseStatus_Large-12                      10000            235247 ns/op          384848 B/op         14 allocs/op
+BenchmarkSearchInFiles_Literal-12                    409           6833432 ns/op         3310585 B/op      10586 allocs/op
+BenchmarkSearchInFiles_Regex-12                      120          18536008 ns/op         2597114 B/op      12651 allocs/op
+BenchmarkSearchInFiles_CaseInsensitive-12            384          10046001 ns/op         3207531 B/op      10254 allocs/op
+BenchmarkCompileSearchRegex-12                    245617              8225 ns/op            3248 B/op         34 allocs/op
+PASS
+ok      ide     52.913s
