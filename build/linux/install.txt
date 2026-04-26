@@ -1,0 +1,36 @@
+Adila IDE — Instalação no Linux
+================================
+
+1. Extraia o arquivo:
+
+   tar xzf adila-ide-*-linux-amd64.tar.gz
+
+2. Entre na pasta extraída e rode o instalador:
+
+   ./install.sh
+
+   O script instala tudo no seu usuário (sem precisar de sudo):
+   - Binário   → ~/.local/bin/adila-ide
+   - Ícone     → ~/.local/share/icons/hicolor/512x512/apps/adila-ide.png
+   - Lançador  → ~/.local/share/applications/adila-ide.desktop
+
+3. Se ~/.local/bin não estiver no PATH, adicione ao ~/.bashrc ou ~/.profile:
+
+   export PATH="$HOME/.local/bin:$PATH"
+
+   Depois recarregue o terminal:
+
+   source ~/.bashrc
+
+4. Para abrir o Adila IDE:
+
+   adila-ide /caminho/para/seu/projeto
+
+   Ou pelo lançador de aplicativos do GNOME (pressione Super e busque "Adila").
+
+
+Desinstalação
+-------------
+   rm ~/.local/bin/adila-ide
+   rm ~/.local/share/icons/hicolor/512x512/apps/adila-ide.png
+   rm ~/.local/share/applications/adila-ide.desktop

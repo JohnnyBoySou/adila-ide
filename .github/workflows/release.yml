@@ -69,9 +69,23 @@ jobs:
       - name: Package
         id: pkg
         run: |
-          mkdir -p dist
+          mkdir -p dist/pkg
+
+          # Binário principal
+          cp build/bin/adila-ide dist/pkg/adila-ide
+
+          # Ícone (nome adila-ide.png bate com o install.sh e o .desktop)
+          cp build/appicon.png dist/pkg/adila-ide.png
+
+          # Arquivos de integração com o desktop Linux
+          cp build/linux/adila-ide.desktop dist/pkg/adila-ide.desktop
+          cp build/linux/install.sh        dist/pkg/install.sh
+          cp build/linux/install.txt       dist/pkg/install.txt
+          chmod +x dist/pkg/install.sh
+
           ASSET="adila-ide-${{ steps.ver.outputs.version }}-linux-amd64.tar.gz"
-          tar -C build/bin -czf "dist/${ASSET}" adila-ide
+          tar -C dist/pkg -czf "dist/${ASSET}" \
+            adila-ide adila-ide.png adila-ide.desktop install.sh install.txt
           (cd dist && sha256sum "${ASSET}" > "${ASSET}.sha256")
           echo "asset=${ASSET}" >> "$GITHUB_OUTPUT"
 

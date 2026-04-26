@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Adila IDE
+Comment=Adila IDE — editor de código
+Exec=adila-ide
+Icon=adila-ide
+Terminal=false
+Categories=Development;IDE;TextEditor;
+Keywords=editor;code;ide;adila;
+StartupWMClass=adila-ide
+StartupNotify=true
