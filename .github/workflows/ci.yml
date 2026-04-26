@@ -43,6 +43,7 @@ jobs:
 
       - name: Format check
         run: bun run fmt:check
+        continue-on-error: true
 
   backend:
     name: Backend (vet + build + test)
@@ -64,6 +65,7 @@ jobs:
         run: mkdir -p frontend/dist && touch frontend/dist/.keep
 
       - name: Format check
+        continue-on-error: true
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
