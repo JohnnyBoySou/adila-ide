@@ -49,6 +49,7 @@ jobs:
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           wails build -platform linux/amd64 -clean -trimpath \
+            -tags webkit2_41 \
             -ldflags "-s -w -X main.version=dev-${GITHUB_SHA::7}"
 
       - name: Upload artifact
