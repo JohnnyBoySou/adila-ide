@@ -56,7 +56,6 @@ fi
 export PATH="$TOOL_ROOT:$PATH"
 
 # linuxdeploy valida tamanhos de ícone; o appicon do projeto é 1024px — geramos 512px.
-# O basename do PNG tem de coincidir com Icon= no .desktop (ex.: adila-ide.png).
 ICON_NAME="$(grep -E '^Icon=' "$DESKTOP" | head -n1 | cut -d= -f2-)"
 ICON_TMP="${TMPDIR:-/tmp}/${ICON_NAME}.png"
 if command -v magick &>/dev/null; then
@@ -71,24 +70,55 @@ fi
 rm -rf AppDir
 rm -f ./*.AppImage
 
+# 1. Cria AppDir com linuxdeploy + plugin GTK (sem empacotar ainda)
 "$LINUXDEPLOY_BIN" \
   --appdir=AppDir \
   --executable="$BIN" \
   --desktop-file="$DESKTOP" \
   --icon-file="$ICON_TMP" \
-  --plugin gtk \
-  --output appimage
+  --plugin gtk
 
-shopt -s nullglob
-built=(./*.AppImage)
-shopt -u nullglob
-if [[ "${#built[@]}" -ne 1 ]]; then
-  echo "Esperava exatamente um .AppImage na raiz do projeto; encontrados: ${#built[@]}" >&2
-  exit 1
-fi
+# 2. Injeta AppRun customizado com --install / --uninstall.
+#    O GTK plugin renomeia AppRun → AppRun.wrapped e cria um novo AppRun.
+#    Salvamos esse wrapper GTK como AppRun.gtk e colocamos nosso script na frente.
+mv AppDir/AppRun AppDir/AppRun.gtk
 
-mkdir -p "$OUTDIR"
+cat > AppDir/AppRun << 'APPRUN_EOF'
+#!/bin/bash
+SELF="$(readlink -f "$0")"
+APPDIR="$(dirname "$SELF")"
+
+case "${1:-}" in
+  --install)
+    DESKTOP_DIR="$HOME/.local/share/applications"
+    ICON_DIR="$HOME/.local/share/icons/hicolor/512x512/apps"
+    mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
+    cp "$APPDIR/adila-ide.desktop" "$DESKTOP_DIR/adila-ide.desktop"
+    sed -i "s|^Exec=.*|Exec=$SELF %F|" "$DESKTOP_DIR/adila-ide.desktop"
+    cp "$APPDIR/.DirIcon" "$ICON_DIR/adila-ide.png" 2>/dev/null || \
+      find "$APPDIR/usr/share/icons" -name "adila-ide.png" -exec cp {} "$ICON_DIR/adila-ide.png" \; 2>/dev/null || true
+    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+    gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+    echo "Adila IDE instalado. Aparecerá na busca do sistema."
+    exit 0
+    ;;
+  --uninstall)
+    rm -f "$HOME/.local/share/applications/adila-ide.desktop"
+    rm -f "$HOME/.local/share/icons/hicolor/512x512/apps/adila-ide.png"
+    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+    echo "Adila IDE removido da busca do sistema."
+    exit 0
+    ;;
+esac
+
+exec "$APPDIR/AppRun.gtk" "$@"
+APPRUN_EOF
+chmod +x AppDir/AppRun
+
+# 3. Empacota com appimagetool
 OUT_NAME="adila-ide-${VERSION}-x86_64.AppImage"
-mv -f "${built[0]}" "$OUTDIR/$OUT_NAME"
+mkdir -p "$OUTDIR"
+"$APPIMAGE_TOOL_AI" AppDir "$OUTDIR/$OUT_NAME"
+
 rm -f "$ICON_TMP"
 echo "AppImage: $OUTDIR/$OUT_NAME"
