@@ -1,12 +1,23 @@
-build/bin
-node_modules
-frontend/dist
+# Dependências
+node_modules/
 
-# Binários compilados pelo Wails
+# Frontend (build Vite/React)
+frontend/dist/
+
+# Wails — saída do compilador
+build/bin/
+
+# Linux — AppImage (linuxdeploy + appimagetool)
+AppDir/
+.cache/linuxdeploy-tools/
+dist/
+/*.AppImage
+
+# Binários / testes (nome do output em wails.json / raiz do módulo)
 ide
 ide.test
 frontend/ide
 
-# Dados de profiling
+# Profiling
 frontend/profiling-data.*.json
 profiling-data.*.json
