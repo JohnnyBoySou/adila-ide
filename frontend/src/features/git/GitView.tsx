@@ -292,6 +292,7 @@ export const GitView = memo(function GitView({
   const [diffStyle, setDiffStyle] = useState<DiffStyle>("split");
   const [commitMsg, setCommitMsg] = useState("");
   const [committing, setCommitting] = useState(false);
+  const [justCommitted, setJustCommitted] = useState(false);
   const [branch, setBranch] = useState("");
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -439,6 +440,7 @@ export const GitView = memo(function GitView({
   );
 
   const push = useCallback(() => {
+    setJustCommitted(false);
     setSyncing(true);
     rpc.git
       .push()
@@ -507,6 +509,7 @@ export const GitView = memo(function GitView({
         setCommitMsg("");
         refresh();
         toast.success("Commit realizado");
+        setJustCommitted(true);
       })
       .catch((err: unknown) => {
         toast.error("Erro ao fazer commit", err);
@@ -799,6 +802,20 @@ export const GitView = memo(function GitView({
             >
               {committing ? <Spinner /> : <GitCommitHorizontal className="size-3.5" />}
               Commit{staged.length > 0 ? ` (${staged.length})` : ""}
+            </Button>
+          </div>
+        )}
+
+        {justCommitted && hasOrigin && (
+          <div className="border-b border-border/60 p-2">
+            <Button
+              size="sm"
+              onClick={push}
+              disabled={syncing}
+              className="w-full justify-center gap-1.5"
+            >
+              {syncing ? <Spinner /> : <ArrowUpToLine className="size-3.5" />}
+              Publicar no remoto (Push)
             </Button>
           </div>
         )}
@@ -1145,6 +1162,20 @@ export const GitView = memo(function GitView({
             >
               {committing ? <Spinner /> : <GitCommitHorizontal className="size-3.5" />}
               Commit{staged.length > 0 ? ` (${staged.length})` : ""}
+            </Button>
+          </div>
+        )}
+
+        {justCommitted && hasOrigin && (
+          <div className="border-b border-border/60 p-2">
+            <Button
+              size="sm"
+              onClick={push}
+              disabled={syncing}
+              className="w-full justify-center gap-1.5"
+            >
+              {syncing ? <Spinner /> : <ArrowUpToLine className="size-3.5" />}
+              Publicar no remoto (Push)
             </Button>
           </div>
         )}
