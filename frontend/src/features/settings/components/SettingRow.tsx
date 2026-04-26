@@ -2,37 +2,107 @@ import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useConfig } from "@/hooks/useConfig";
 import { toast } from "@/hooks/useToast";
-import { ACCENT_PRESETS, notifyAppearanceChanged } from "@/lib/appearance";
+import { notifyAppearanceChanged } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
-import { RotateCcw } from "lucide-react";
-import { memo } from "react";
+import { RotateCcw, X } from "lucide-react";
+import { memo, useState, type KeyboardEvent } from "react";
 import { EventsEmit } from "../../../../wailsjs/runtime/runtime";
 import { settingActions } from "../actions";
 import type { SettingDef } from "../settingsSchema";
 
 const FILE_TREE_KEYS = new Set(["explorer.excludeFolders"]);
 
-function parseStringList(input: string): string[] {
-  return input
-    .split(/[,\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+function toStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((s): s is string => typeof s === "string");
+  }
+  return [];
 }
 
-function stringifyList(value: unknown): string {
-  if (Array.isArray(value)) {
-    return value.filter((s): s is string => typeof s === "string").join(", ");
+interface ChipsInputProps {
+  id: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+}
+
+function ChipsInput({ id, values, onChange, placeholder }: ChipsInputProps) {
+  const [draft, setDraft] = useState("");
+
+  function addChip(raw: string) {
+    const v = raw.trim();
+    if (!v) return;
+    if (values.includes(v)) {
+      setDraft("");
+      return;
+    }
+    onChange([...values, v]);
+    setDraft("");
   }
-  return "";
+
+  function removeChip(idx: number) {
+    onChange(values.filter((_, i) => i !== idx));
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addChip(draft);
+      return;
+    }
+    if (e.key === "Backspace" && draft === "" && values.length > 0) {
+      e.preventDefault();
+      removeChip(values.length - 1);
+    }
+  }
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5 min-h-9 w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus-within:ring-1 focus-within:ring-ring"
+      onClick={() => document.getElementById(`${id}-input`)?.focus()}
+    >
+      {values.map((v, i) => (
+        <span
+          key={`${v}-${i}`}
+          className="inline-flex items-center gap-1 rounded-md bg-secondary text-secondary-foreground px-2 py-0.5 text-xs"
+        >
+          <span className="font-mono">{v}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeChip(i);
+            }}
+            className="rounded-sm hover:bg-destructive/20 hover:text-destructive p-0.5 cursor-pointer transition-colors"
+            aria-label={`Remover ${v}`}
+          >
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        id={`${id}-input`}
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => {
+          if (draft.trim()) addChip(draft);
+        }}
+        placeholder={values.length === 0 ? placeholder : ""}
+        className="flex-1 min-w-24 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+      />
+    </div>
+  );
 }
 
 interface SettingRowProps {
@@ -86,6 +156,7 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
   }
 
   const isModified = !isAction && !loading && !deepEqual(value, def.defaultValue);
+  const isWideControl = def.type === "string-list";
 
   return (
     <div
@@ -109,7 +180,7 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
           {def.key}
         </code>
       </div>
-      <div className="flex items-center gap-2 w-64 shrink-0">
+      <div className={cn("flex items-start gap-2 shrink-0", isWideControl ? "w-96" : "w-64")}>
         <div className="flex-1">
           {def.type === "boolean" && (
             <Switch id={def.key} checked={Boolean(value)} onCheckedChange={update} />
@@ -154,25 +225,18 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
               id={def.key}
               value={typeof value === "string" ? value : String(def.defaultValue)}
               onChange={update}
-              presets={ACCENT_PRESETS}
             />
           )}
           {def.type === "string-list" && (
-            <Input
+            <ChipsInput
               id={def.key}
-              value={stringifyList(value)}
-              placeholder="node_modules, dist, build"
-              onChange={(e) => update(parseStringList(e.target.value))}
+              values={toStringList(value)}
+              onChange={update}
+              placeholder="Digite e pressione Enter…"
             />
           )}
           {def.type === "action" && (
-            <Button
-              id={def.key}
-              variant="outline"
-              size="sm"
-              onClick={runAction}
-              className="w-full"
-            >
+            <Button id={def.key} variant="outline" size="sm" onClick={runAction} className="w-full">
               {def.actionLabel ?? def.title}
             </Button>
           )}

@@ -11,10 +11,8 @@ interface NotificationsState {
 
 export const useNotificationsStore = create<NotificationsState>((set) => ({
   items: [],
-  add: (item) =>
-    set((s) => ({ items: [item, ...s.items.filter((p) => p.id !== item.id)] })),
-  update: (item) =>
-    set((s) => ({ items: s.items.map((p) => (p.id === item.id ? item : p)) })),
+  add: (item) => set((s) => ({ items: [item, ...s.items.filter((p) => p.id !== item.id)] })),
+  update: (item) => set((s) => ({ items: s.items.map((p) => (p.id === item.id ? item : p)) })),
   remove: (id) => set((s) => ({ items: s.items.filter((p) => p.id !== id) })),
   clear: () => set({ items: [] }),
 }));

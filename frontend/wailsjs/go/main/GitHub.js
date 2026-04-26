@@ -6,8 +6,16 @@ export function CancelDeviceFlow() {
   return window['go']['main']['GitHub']['CancelDeviceFlow']();
 }
 
+export function CloneRepo(arg1, arg2, arg3) {
+  return window['go']['main']['GitHub']['CloneRepo'](arg1, arg2, arg3);
+}
+
 export function CreateAndPublish(arg1, arg2) {
   return window['go']['main']['GitHub']['CreateAndPublish'](arg1, arg2);
+}
+
+export function GetNotifications(arg1) {
+  return window['go']['main']['GitHub']['GetNotifications'](arg1);
 }
 
 export function GetUser() {
@@ -18,8 +26,24 @@ export function IsAuthenticated() {
   return window['go']['main']['GitHub']['IsAuthenticated']();
 }
 
+export function ListMyEvents(arg1, arg2) {
+  return window['go']['main']['GitHub']['ListMyEvents'](arg1, arg2);
+}
+
+export function ListMyRepos(arg1) {
+  return window['go']['main']['GitHub']['ListMyRepos'](arg1);
+}
+
 export function Logout() {
   return window['go']['main']['GitHub']['Logout']();
+}
+
+export function MarkAllNotificationsRead() {
+  return window['go']['main']['GitHub']['MarkAllNotificationsRead']();
+}
+
+export function MarkNotificationRead(arg1) {
+  return window['go']['main']['GitHub']['MarkNotificationRead'](arg1);
 }
 
 export function PollDeviceToken(arg1, arg2) {

@@ -4,6 +4,12 @@ import {main} from '../models';
 
 export function IsEnabled():Promise<boolean>;
 
+export function ListHistory():Promise<Array<main.BenchHistoryFile>>;
+
+export function OpenHistoryFolder():Promise<void>;
+
+export function ReadHistory(arg1:string):Promise<string>;
+
 export function Reset():Promise<void>;
 
 export function SetEnabled(arg1:boolean):Promise<void>;

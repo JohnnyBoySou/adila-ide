@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -67,7 +69,6 @@ export function KeybindingsView() {
     <div className="flex h-full w-full">
       <aside className="w-64 shrink-0 border-r border-border/60 bg-card/40 flex flex-col">
         <div className="p-5 border-b border-border/60">
-         
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
@@ -84,12 +85,13 @@ export function KeybindingsView() {
             <p className="text-xs text-muted-foreground px-3 py-4">Nada encontrado.</p>
           )}
           {groups.map((g) => (
-            <button
+            <Button
               key={g.id}
-              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveId(g.id)}
               className={cn(
-                "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                "w-full text-left px-3 py-2 rounded-md text-sm transition-colors justify-start",
                 activeId === g.id
                   ? "bg-accent text-accent-foreground"
                   : "hover:bg-accent/50 text-muted-foreground hover:text-foreground",
@@ -97,11 +99,9 @@ export function KeybindingsView() {
             >
               <div className="flex items-center justify-between gap-2">
                 <span>{g.title}</span>
-                <span className="text-[10px] tabular-nums text-muted-foreground/70">
-                  {g.bindings.length}
-                </span>
+                <Badge variant="secondary">{g.bindings.length}</Badge>
               </div>
-            </button>
+            </Button>
           ))}
         </nav>
 

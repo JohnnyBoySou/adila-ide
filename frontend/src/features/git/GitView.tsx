@@ -39,6 +39,7 @@ import { rpc } from "./rpc";
 import { GitGraph } from "./GitGraph";
 import { GitHubConnect, PublishRepoDialog } from "./GitHubConnect";
 import { GithubIcon } from "./GithubIcon";
+import { BranchPicker } from "./BranchPicker";
 import type { GitChangedFile, GitCommit, GitFileStatus, GitHubUser, GitStash } from "./types";
 
 type DiffStyle = "unified" | "split";
@@ -91,51 +92,55 @@ const FileRow = memo(function FileRow({
     <div
       onClick={() => onSelect(file.path)}
       className={cn(
-        "group flex items-center gap-1.5 px-2 py-1 text-sm cursor-pointer rounded-sm select-none",
+        "group flex items-center gap-1.5 px-2 py-0.5 text-xs font-light cursor-pointer rounded-sm select-none",
         selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
       )}
     >
       {!ultraFast && <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />}
       <span className="flex-1 truncate min-w-0">
         <span>{name}</span>
-        {dir && <span className="ml-1.5 text-xs text-muted-foreground">{dir}</span>}
+        {dir && <span className="ml-1.5 text-[10px] text-muted-foreground">{dir}</span>}
         {file.prevPath && (
-          <span className="ml-1.5 text-xs text-muted-foreground">
+          <span className="ml-1.5 text-[10px] text-muted-foreground">
             ← {file.prevPath.split("/").pop()}
           </span>
         )}
       </span>
       <div className="flex items-center gap-0.5 shrink-0 ml-auto">
         <span
-          className={cn("text-[10px] font-bold tabular-nums px-0.5", STATUS_COLOR[file.status])}
+          className={cn("text-[10px] font-light tabular-nums px-0.5", STATUS_COLOR[file.status])}
           title={file.status}
         >
           {STATUS_LABEL[file.status]}
         </span>
         {onDiscard && !file.staged && (
-          <button
+          <Button
             type="button"
+            size="icon-sm"
+            variant="ghost"
             title="Descartar mudanças"
             onClick={(e) => {
               e.stopPropagation();
               onDiscard(file.path);
             }}
-            className="rounded p-0.5 text-muted-foreground/50 hover:text-destructive"
+            className="text-muted-foreground/60 hover:text-destructive"
           >
-            <Undo2 className="size-3" />
-          </button>
+            <Undo2 className="size-4" />
+          </Button>
         )}
-        <button
+        <Button
           type="button"
+          size="icon-sm"
+          variant="ghost"
           title={file.staged ? "Remover do stage" : "Adicionar ao stage"}
           onClick={(e) => {
             e.stopPropagation();
             onStage(file);
           }}
-          className="rounded p-0.5 text-muted-foreground/50 hover:text-primary"
+          className="text-muted-foreground/60 hover:text-primary"
         >
-          {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
-        </button>
+          {file.staged ? <Minus className="size-4" /> : <Plus className="size-4" />}
+        </Button>
       </div>
     </div>
   );
@@ -172,33 +177,37 @@ const FileGroup = memo(function FileGroup({
 
   return (
     <div className="mb-1">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1.5 px-2 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-      >
-        {open ? (
-          <ChevronDown className="size-3 shrink-0" />
-        ) : (
-          <ChevronRight className="size-3 shrink-0" />
-        )}
-        {icon}
-        <span className="flex-1 text-left uppercase tracking-wide">{title}</span>
-        <span className="tabular-nums">{files.length}</span>
+      <div className="flex w-full items-center gap-1.5 px-2 py-1 text-[10px] font-light uppercase tracking-wide text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-center gap-1.5 min-w-0 cursor-pointer hover:text-foreground"
+        >
+          {open ? (
+            <ChevronDown className="size-3 shrink-0" />
+          ) : (
+            <ChevronRight className="size-3 shrink-0" />
+          )}
+          {icon}
+          <span className="flex-1 text-left truncate">{title}</span>
+          <span className="tabular-nums">{files.length}</span>
+        </button>
         {onStageAll && (
-          <button
+          <Button
             type="button"
+            size="icon-sm"
+            variant="ghost"
             title="Adicionar todos ao stage"
             onClick={(e) => {
               e.stopPropagation();
               onStageAll();
             }}
-            className="ml-1 rounded p-0.5 hover:text-primary"
+            className="ml-1 hover:text-primary"
           >
-            <Plus className="size-3" />
-          </button>
+            <Plus className="size-4" />
+          </Button>
         )}
-      </button>
+      </div>
       {open && (
         <div className="px-1">
           {files.map((f) => (
@@ -228,7 +237,7 @@ const CommitsGroup = memo(function CommitsGroup({ commits }: { commits: GitCommi
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1.5 px-2 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        className="flex w-full items-center gap-1.5 px-2 py-1 text-[10px] font-light uppercase tracking-wide text-muted-foreground hover:text-foreground cursor-pointer"
       >
         {open ? (
           <ChevronDown className="size-3 shrink-0" />
@@ -236,7 +245,7 @@ const CommitsGroup = memo(function CommitsGroup({ commits }: { commits: GitCommi
           <ChevronRight className="size-3 shrink-0" />
         )}
         <History className="size-3 shrink-0" />
-        <span className="flex-1 text-left uppercase tracking-wide">Commits</span>
+        <span className="flex-1 text-left">Commits</span>
         <span className="tabular-nums">{commits.length}</span>
       </button>
       {open && (
@@ -244,7 +253,7 @@ const CommitsGroup = memo(function CommitsGroup({ commits }: { commits: GitCommi
           {commits.map((c) => (
             <div
               key={c.hash}
-              className="flex items-start gap-1.5 px-2 py-1 text-xs select-none rounded-sm hover:bg-accent/40"
+              className="flex items-start gap-1.5 px-2 py-1 text-[11px] font-light select-none rounded-sm hover:bg-accent/40"
             >
               <span className="font-mono text-[10px] text-muted-foreground/60 shrink-0 pt-0.5 w-12">
                 {c.shortHash}
@@ -296,6 +305,7 @@ export const GitView = memo(function GitView({
   const [ghUser, setGhUser] = useState<GitHubUser | null>(null);
   const [showConnect, setShowConnect] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(() => {
@@ -401,6 +411,33 @@ export const GitView = memo(function GitView({
       .finally(() => setSyncing(false));
   }, []);
 
+  const switchBranch = useCallback(
+    (name: string) => {
+      rpc.git
+        .checkoutBranch(name)
+        .then(() => {
+          toast.success(`Branch alterada para ${name}`);
+          refresh();
+        })
+        .catch((err: unknown) => toast.error("Erro ao trocar de branch", err));
+    },
+    [refresh],
+  );
+
+  const createBranch = useCallback(
+    (name: string) => {
+      rpc.git
+        .createBranch(name)
+        .then(() => rpc.git.checkoutBranch(name))
+        .then(() => {
+          toast.success(`Branch ${name} criada`);
+          refresh();
+        })
+        .catch((err: unknown) => toast.error("Erro ao criar branch", err));
+    },
+    [refresh],
+  );
+
   const push = useCallback(() => {
     setSyncing(true);
     rpc.git
@@ -489,7 +526,7 @@ export const GitView = memo(function GitView({
   const selectStaged = useCallback((p: string) => selectFile(p, true), [selectFile]);
   const selectUnstaged = useCallback((p: string) => selectFile(p, false), [selectFile]);
 
-  const defaultRepoName = rootPath ? rootPath.split("/").filter(Boolean).pop() ?? "" : "";
+  const defaultRepoName = rootPath ? (rootPath.split("/").filter(Boolean).pop() ?? "") : "";
 
   const ghButtonTitle = ghUser
     ? hasOrigin
@@ -557,12 +594,20 @@ export const GitView = memo(function GitView({
   if (compact) {
     return (
       <div className="flex h-full flex-col overflow-hidden text-sm">
-        <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
-          <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="flex-1 truncate text-xs font-medium">{branch || "—"}</span>
-          {(loading || syncing) && (
-            <Spinner className="text-muted-foreground" />
-          )}
+        <div className="relative flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
+          <button
+            type="button"
+            title="Trocar de branch"
+            data-branch-trigger="true"
+            onClick={() => isRepo !== false && setShowBranchPicker((v) => !v)}
+            disabled={isRepo === false}
+            className="flex flex-1 items-center gap-1.5 min-w-0 rounded px-1 py-0.5 hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate text-left text-xs font-medium">{branch || "—"}</span>
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          </button>
+          {(loading || syncing) && <Spinner className="text-muted-foreground" />}
           <button
             type="button"
             title="Pull"
@@ -595,7 +640,9 @@ export const GitView = memo(function GitView({
             onClick={onGitHubClick}
             className={cn(
               "rounded p-1 hover:bg-accent",
-              ghUser ? "text-emerald-400 hover:text-emerald-300" : "text-muted-foreground hover:text-foreground",
+              ghUser
+                ? "text-emerald-400 hover:text-emerald-300"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <GithubIcon className="size-3.5" />
@@ -608,6 +655,15 @@ export const GitView = memo(function GitView({
           >
             <MoreHorizontal className="size-3.5" />
           </button>
+          {showBranchPicker && (
+            <BranchPicker
+              current={branch}
+              branches={branches}
+              onCheckout={switchBranch}
+              onCreate={createBranch}
+              onClose={() => setShowBranchPicker(false)}
+            />
+          )}
         </div>
 
         {showMenu && (
@@ -741,17 +797,13 @@ export const GitView = memo(function GitView({
               disabled={!commitMsg.trim() || staged.length === 0 || committing}
               className="w-full justify-center gap-1.5"
             >
-              {committing ? (
-                <Spinner />
-              ) : (
-                <GitCommitHorizontal className="size-3.5" />
-              )}
+              {committing ? <Spinner /> : <GitCommitHorizontal className="size-3.5" />}
               Commit{staged.length > 0 ? ` (${staged.length})` : ""}
             </Button>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto scrollbar py-1">
+        <div className="flex-1 overflow-y-auto scrollbar py-1 pr-2">
           {isRepo === false ? (
             <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
               <GitBranchIcon className="size-8 text-muted-foreground/20" />
@@ -768,11 +820,7 @@ export const GitView = memo(function GitView({
                   disabled={initializing}
                   className="gap-1.5"
                 >
-                  {initializing ? (
-                    <Spinner />
-                  ) : (
-                    <Plus className="size-3.5" />
-                  )}
+                  {initializing ? <Spinner /> : <Plus className="size-3.5" />}
                   Inicializar repositório
                 </Button>
               )}
@@ -833,12 +881,20 @@ export const GitView = memo(function GitView({
       {/* Sidebar */}
       <div className="flex w-60 shrink-0 flex-col border-r border-border/60 overflow-hidden">
         {/* Toolbar */}
-        <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
-          <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="flex-1 truncate text-xs font-medium">{branch || "—"}</span>
-          {(loading || syncing) && (
-            <Spinner className="text-muted-foreground" />
-          )}
+        <div className="relative flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
+          <button
+            type="button"
+            title="Trocar de branch"
+            data-branch-trigger="true"
+            onClick={() => isRepo !== false && setShowBranchPicker((v) => !v)}
+            disabled={isRepo === false}
+            className="flex flex-1 items-center gap-1.5 min-w-0 rounded px-1 py-0.5 hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate text-left text-xs font-medium">{branch || "—"}</span>
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          </button>
+          {(loading || syncing) && <Spinner className="text-muted-foreground" />}
           <button
             type="button"
             title="Pull"
@@ -871,7 +927,9 @@ export const GitView = memo(function GitView({
             onClick={onGitHubClick}
             className={cn(
               "rounded p-1 hover:bg-accent",
-              ghUser ? "text-emerald-400 hover:text-emerald-300" : "text-muted-foreground hover:text-foreground",
+              ghUser
+                ? "text-emerald-400 hover:text-emerald-300"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <GithubIcon className="size-3.5" />
@@ -884,6 +942,15 @@ export const GitView = memo(function GitView({
           >
             <MoreHorizontal className="size-3.5" />
           </button>
+          {showBranchPicker && (
+            <BranchPicker
+              current={branch}
+              branches={branches}
+              onCheckout={switchBranch}
+              onCreate={createBranch}
+              onClose={() => setShowBranchPicker(false)}
+            />
+          )}
         </div>
 
         {showMenu && (
@@ -994,7 +1061,7 @@ export const GitView = memo(function GitView({
         )}
 
         {/* File list */}
-        <div className="flex-1 overflow-y-auto scrollbar py-1">
+        <div className="flex-1 overflow-y-auto scrollbar py-1 pr-2">
           {isRepo === false ? (
             <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
               <GitBranchIcon className="size-8 text-muted-foreground/20" />
@@ -1011,11 +1078,7 @@ export const GitView = memo(function GitView({
                   disabled={initializing}
                   className="gap-1.5"
                 >
-                  {initializing ? (
-                    <Spinner />
-                  ) : (
-                    <Plus className="size-3.5" />
-                  )}
+                  {initializing ? <Spinner /> : <Plus className="size-3.5" />}
                   Inicializar repositório
                 </Button>
               )}
@@ -1080,11 +1143,7 @@ export const GitView = memo(function GitView({
               disabled={!commitMsg.trim() || staged.length === 0 || committing}
               className="w-full justify-center gap-1.5"
             >
-              {committing ? (
-                <Spinner />
-              ) : (
-                <GitCommitHorizontal className="size-3.5" />
-              )}
+              {committing ? <Spinner /> : <GitCommitHorizontal className="size-3.5" />}
               Commit{staged.length > 0 ? ` (${staged.length})` : ""}
             </Button>
           </div>
@@ -1144,7 +1203,11 @@ export const GitView = memo(function GitView({
           ) : (
             <EmptyState
               icon={FileDiffIcon}
-              title={selectedPath ? "Diff não disponível para este arquivo." : "Nenhum arquivo selecionado."}
+              title={
+                selectedPath
+                  ? "Diff não disponível para este arquivo."
+                  : "Nenhum arquivo selecionado."
+              }
               className="h-full"
             />
           )}

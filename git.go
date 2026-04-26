@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -379,11 +381,99 @@ func (g *Git) Init() error {
 	if g.workdir == "" {
 		return &gitError{"nenhuma pasta aberta"}
 	}
-	_, err := g.git("init")
-	if err == nil {
-		g.emitChanged()
+	if _, err := g.git("init"); err != nil {
+		return err
 	}
-	return err
+	g.ensureDefaultGitignore()
+	g.emitChanged()
+	return nil
+}
+
+// ensureDefaultGitignore cria um .gitignore com seções relevantes ao stack
+// detectado (Node, Go, Rust, Python) na primeira inicialização. Não toca em
+// arquivo existente — preserva o que o usuário já tem.
+func (g *Git) ensureDefaultGitignore() {
+	path := filepath.Join(g.workdir, ".gitignore")
+	if _, err := os.Stat(path); err == nil {
+		return
+	}
+	content := buildDefaultGitignore(g.workdir)
+	_ = os.WriteFile(path, []byte(content), 0o644)
+}
+
+func buildDefaultGitignore(root string) string {
+	var b strings.Builder
+	b.WriteString("# Adila IDE\n")
+	b.WriteString(".adila/\n\n")
+
+	b.WriteString("# Sistema operacional\n")
+	b.WriteString(".DS_Store\n")
+	b.WriteString("Thumbs.db\n")
+	b.WriteString("desktop.ini\n\n")
+
+	b.WriteString("# Editores\n")
+	b.WriteString(".vscode/\n")
+	b.WriteString(".idea/\n")
+	b.WriteString("*.swp\n")
+	b.WriteString("*.swo\n\n")
+
+	b.WriteString("# Logs e temporários\n")
+	b.WriteString("*.log\n")
+	b.WriteString("logs/\n")
+	b.WriteString("tmp/\n")
+	b.WriteString(".cache/\n\n")
+
+	if fileExists(filepath.Join(root, "package.json")) {
+		b.WriteString("# Node\n")
+		b.WriteString("node_modules/\n")
+		b.WriteString("dist/\n")
+		b.WriteString("build/\n")
+		b.WriteString(".next/\n")
+		b.WriteString(".nuxt/\n")
+		b.WriteString(".turbo/\n")
+		b.WriteString("coverage/\n")
+		b.WriteString(".env\n")
+		b.WriteString(".env.local\n")
+		b.WriteString(".env.*.local\n")
+		b.WriteString("npm-debug.log*\n")
+		b.WriteString("yarn-debug.log*\n")
+		b.WriteString("yarn-error.log*\n\n")
+	}
+
+	if fileExists(filepath.Join(root, "go.mod")) {
+		b.WriteString("# Go\n")
+		b.WriteString("bin/\n")
+		b.WriteString("vendor/\n")
+		b.WriteString("*.test\n")
+		b.WriteString("*.out\n")
+		b.WriteString("coverage.txt\n\n")
+	}
+
+	if fileExists(filepath.Join(root, "Cargo.toml")) {
+		b.WriteString("# Rust\n")
+		b.WriteString("target/\n")
+		b.WriteString("**/*.rs.bk\n\n")
+	}
+
+	if fileExists(filepath.Join(root, "pyproject.toml")) ||
+		fileExists(filepath.Join(root, "requirements.txt")) ||
+		fileExists(filepath.Join(root, "setup.py")) {
+		b.WriteString("# Python\n")
+		b.WriteString("__pycache__/\n")
+		b.WriteString("*.py[cod]\n")
+		b.WriteString("*.egg-info/\n")
+		b.WriteString(".venv/\n")
+		b.WriteString("venv/\n")
+		b.WriteString(".pytest_cache/\n")
+		b.WriteString(".mypy_cache/\n\n")
+	}
+
+	return b.String()
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // GetBranch retorna o nome da branch atual.

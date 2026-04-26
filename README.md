@@ -3,7 +3,8 @@
 > O editor de código forjado para fullstack.
 > Performance nativa, latência mínima e DX impecável — construído em Go para devs que escrevem stack inteira, do banco ao pixel.
 
-**Beta público** · macOS · Linux · Windows · ARM e x86_64
+**Beta público** · **disponível apenas para Linux nesta versão** (x86_64 / ARM)
+> Suporte a macOS e Windows está planejado, mas ainda **não está incluído nesta release**.
 
 ---
 
@@ -55,14 +56,13 @@ bun run fmt
 
 ## Build
 
+> ⚠️ Esta versão é distribuída **somente para Linux**. Os scripts cross-platform existem para uso futuro, mas builds para macOS/Windows não são suportados oficialmente nesta release.
+
 ```bash
-# plataforma atual
+# plataforma atual (Linux)
 bun run build
 
-# todas as plataformas
-bun run build:all
-
-# linux apenas
+# linux explicitamente
 bun run build:linux
 ```
 

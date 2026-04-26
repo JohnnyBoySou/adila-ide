@@ -45,6 +45,12 @@ var strategies = map[string]installStrategy{
 		install:    installRustAnalyzer,
 		hint:       "Requer Rust instalado: https://rustup.rs/",
 	},
+	"typescript-language-server": {
+		name:       "TypeScript (typescript-language-server)",
+		binaryName: "typescript-language-server",
+		install:    installTypescriptLanguageServer,
+		hint:       "Requer Node.js (npm) ou Bun instalado",
+	},
 }
 
 // lspInstallDir retorna ~/.config/adila/lsp-servers, criando se necessário.
@@ -58,18 +64,23 @@ func lspInstallDir() (string, error) {
 }
 
 // managedBinPath devolve o caminho do binário gerenciado, se instalado.
+//
+// No Windows tenta .exe e .cmd nessa ordem — alguns servidores (ex: o wrapper
+// do typescript-language-server) são .cmd em vez de .exe nativo.
 func managedBinPath(binaryName string) string {
 	dir, err := lspInstallDir()
 	if err != nil {
 		return ""
 	}
-	name := binaryName
+	candidates := []string{binaryName}
 	if runtime.GOOS == "windows" {
-		name += ".exe"
+		candidates = []string{binaryName + ".exe", binaryName + ".cmd"}
 	}
-	p := filepath.Join(dir, name)
-	if _, err := os.Stat(p); err == nil {
-		return p
+	for _, name := range candidates {
+		p := filepath.Join(dir, name)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
 	}
 	return ""
 }
@@ -312,4 +323,79 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 		}
 	}
 	return n, err
+}
+
+// --- typescript-language-server: npm install --prefix <dir> ---
+//
+// O typescript-language-server requer também o pacote `typescript` (tsserver)
+// como dependência runtime. Instalamos os dois localmente em
+// ~/.config/adila/lsp-servers/node_modules e criamos um wrapper executável
+// em <dir>/typescript-language-server pra integrar com managedBinPath.
+
+func installTypescriptLanguageServer(l *LSP) error {
+	dir, err := lspInstallDir()
+	if err != nil {
+		return err
+	}
+
+	npm, npmErr := exec.LookPath("npm")
+	bun, bunErr := exec.LookPath("bun")
+	if npmErr != nil && bunErr != nil {
+		return fmt.Errorf("nem npm nem bun encontrados no PATH — instale Node.js ou Bun")
+	}
+
+	l.emitProgress("typescript-language-server", 5)
+
+	// package.json mínimo evita warnings do npm/bun em diretório vazio.
+	pkgPath := filepath.Join(dir, "package.json")
+	if _, statErr := os.Stat(pkgPath); os.IsNotExist(statErr) {
+		_ = os.WriteFile(pkgPath, []byte(`{"name":"adila-lsp","private":true}`), 0o644)
+	}
+
+	l.emitProgress("typescript-language-server", 15)
+
+	var cmd *exec.Cmd
+	if npmErr == nil {
+		cmd = exec.Command(npm, "install", "--prefix", dir,
+			"typescript-language-server", "typescript")
+	} else {
+		cmd = exec.Command(bun, "add", "--cwd", dir,
+			"typescript-language-server", "typescript")
+	}
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(), "NPM_CONFIG_FUND=false", "NPM_CONFIG_AUDIT=false")
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("instalação falhou: %s",
+			strings.TrimSpace(stderr.String()))
+	}
+
+	l.emitProgress("typescript-language-server", 80)
+
+	// Cria wrapper executável em <dir>/typescript-language-server que invoca
+	// node_modules/.bin/typescript-language-server. managedBinPath espera o
+	// arquivo nesse caminho exato.
+	if err := writeTSWrapper(dir); err != nil {
+		return fmt.Errorf("criar wrapper: %w", err)
+	}
+
+	l.emitProgress("typescript-language-server", 100)
+	return nil
+}
+
+func writeTSWrapper(dir string) error {
+	target := filepath.Join(dir, "node_modules", ".bin", "typescript-language-server")
+	wrapper := filepath.Join(dir, "typescript-language-server")
+
+	if runtime.GOOS == "windows" {
+		target += ".cmd"
+		wrapper += ".cmd"
+		script := fmt.Sprintf("@echo off\r\n\"%s\" %%*\r\n", target)
+		return os.WriteFile(wrapper, []byte(script), 0o644)
+	}
+
+	script := fmt.Sprintf("#!/bin/sh\nexec %q \"$@\"\n", target)
+	return os.WriteFile(wrapper, []byte(script), 0o755)
 }

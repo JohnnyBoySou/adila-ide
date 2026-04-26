@@ -11,7 +11,7 @@ function makeFiles(n: number): FileEntry[] {
   const exts = [".ts", ".tsx", ".js", ".css", ".md", ".json"];
   for (let i = 0; i < n; i++) {
     const d1 = dirs[i % dirs.length];
-    const d2 = dirs[(i / 7) | 0 % dirs.length];
+    const d2 = dirs[(i / 7) | (0 % dirs.length)];
     const ext = exts[i % exts.length];
     const name = `file_${i.toString(36)}_${d1.slice(0, 2)}${ext}`;
     out.push({

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useMarkersStore } from "@/stores/markersStore";
 
 export type EditorMarker = {
   severity: number; // 8=Error 4=Warning 2=Info 1=Hint
@@ -11,7 +12,6 @@ export type EditorMarker = {
 };
 
 type Props = {
-  markers: Record<string, EditorMarker[]>;
   rootPath: string;
   onNavigate: (path: string, line: number, col: number) => void;
 };
@@ -24,7 +24,8 @@ type FileSection = {
   warnings: number;
 };
 
-export function ProblemsPanel({ markers, rootPath, onNavigate }: Props) {
+export const ProblemsPanel = memo(function ProblemsPanel({ rootPath, onNavigate }: Props) {
+  const markers = useMarkersStore((s) => s.items);
   const sections = useMemo<FileSection[]>(() => {
     const stripped = rootPath.replace(/\/$/, "") + "/";
     const out: FileSection[] = [];
@@ -95,4 +96,4 @@ export function ProblemsPanel({ markers, rootPath, onNavigate }: Props) {
       })}
     </div>
   );
-}
+});

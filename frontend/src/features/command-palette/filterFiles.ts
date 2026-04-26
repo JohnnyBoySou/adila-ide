@@ -3,11 +3,7 @@ import type { PaletteItem } from "./types";
 
 export const FILES_MAX_RESULTS = 128;
 
-export function filterFiles(
-  files: FileEntry[],
-  roots: FileEntry[],
-  search: string,
-): PaletteItem[] {
+export function filterFiles(files: FileEntry[], roots: FileEntry[], search: string): PaletteItem[] {
   if (files.length === 0) {
     return [];
   }

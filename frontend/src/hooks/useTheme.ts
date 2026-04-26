@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useConfig } from "./useConfig";
+import { useCallback, useEffect } from "react";
+import { useConfigs } from "./useConfigs";
 import {
   CUSTOM_THEME_ID,
   CUSTOM_THEME_VAR_KEYS,
@@ -49,13 +49,18 @@ function applyTheme(colorTheme: string, custom?: CustomThemeConfig | null) {
 }
 
 export function useTheme() {
-  const { value: colorTheme, set: setColorTheme } = useConfig<string>(
-    "workbench.colorTheme",
-    DEFAULT_THEME_ID,
-  );
-  const { value: customTheme, set: setCustomTheme } = useConfig<CustomThemeConfig>(
-    "workbench.customTheme",
-    { mode: "dark", vars: {} },
+  // Bulk: 1 round-trip IPC para as 2 chaves (em vez de 2 useConfig paralelos).
+  const { values, set } = useConfigs({
+    "workbench.colorTheme": DEFAULT_THEME_ID,
+    "workbench.customTheme": { mode: "dark", vars: {} } as CustomThemeConfig,
+  });
+  const colorTheme = values["workbench.colorTheme"];
+  const customTheme = values["workbench.customTheme"];
+
+  const setColorTheme = useCallback((v: string) => set("workbench.colorTheme", v), [set]);
+  const setCustomTheme = useCallback(
+    (v: CustomThemeConfig) => set("workbench.customTheme", v),
+    [set],
   );
 
   useEffect(() => {

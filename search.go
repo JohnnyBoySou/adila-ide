@@ -15,31 +15,83 @@ import (
 	"unicode"
 )
 
-// readFileBounded abre, faz stat e lê em uma única passagem (3 syscalls vs 4 do
-// os.Stat + os.ReadFile). Retorna nil sem erro se o arquivo for diretório ou
-// exceder o limite — caller deve tratar nil como "skip".
-func readFileBounded(path string, maxBytes int64) ([]byte, error) {
+// Tiers do pool de buffers usado por readFileBoundedPooled. As capacidades
+// foram escolhidas pra cobrir ~95% dos arquivos de código (a maioria cabe em
+// 4KB ou 64KB; 1MB acomoda lockfiles e generated bundles). Acima disso, faz
+// alloc direto — pôr 5MB no pool segura memória demais por buffer ocioso.
+const (
+	bufPoolTier1 = 4 * 1024
+	bufPoolTier2 = 64 * 1024
+	bufPoolTier3 = 1024 * 1024
+)
+
+var (
+	bufPool1 = sync.Pool{New: func() any { b := make([]byte, bufPoolTier1); return &b }}
+	bufPool2 = sync.Pool{New: func() any { b := make([]byte, bufPoolTier2); return &b }}
+	bufPool3 = sync.Pool{New: func() any { b := make([]byte, bufPoolTier3); return &b }}
+)
+
+// pooledBuf carrega o buffer emprestado e o pool de origem. Mantido como struct
+// value (não closure) para que o release seja stack-allocated — closures
+// capturando pool+ptr escapavam pra heap, somando ~1 alloc por arquivo lido.
+type pooledBuf struct {
+	pool *sync.Pool
+	buf  *[]byte
+}
+
+func (p pooledBuf) release() {
+	if p.pool != nil {
+		p.pool.Put(p.buf)
+	}
+}
+
+// readFileBoundedPooled é como readFileBounded mas empresta o buffer de leitura
+// de um sync.Pool tiered. O caller precisa chamar release() quando terminar de
+// usar `data`. Conteúdo do buffer só é válido entre Get e Put — não retenha
+// slices de `data` após release.
+//
+// Retorna pooledBuf{} quando data == nil ou tem tamanho 0, então é seguro
+// chamar `defer p.release()` incondicionalmente.
+func readFileBoundedPooled(path string, maxBytes int64) ([]byte, pooledBuf, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, pooledBuf{}, err
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		return nil, err
+		return nil, pooledBuf{}, err
 	}
 	if info.IsDir() || info.Size() > maxBytes {
-		return nil, nil
+		return nil, pooledBuf{}, nil
 	}
 	size := info.Size()
 	if size == 0 {
-		return []byte{}, nil
+		return []byte{}, pooledBuf{}, nil
 	}
-	data := make([]byte, size)
+	var pool *sync.Pool
+	switch {
+	case size <= bufPoolTier1:
+		pool = &bufPool1
+	case size <= bufPoolTier2:
+		pool = &bufPool2
+	case size <= bufPoolTier3:
+		pool = &bufPool3
+	}
+	var data []byte
+	var pb pooledBuf
+	if pool != nil {
+		bufPtr := pool.Get().(*[]byte)
+		data = (*bufPtr)[:size]
+		pb = pooledBuf{pool: pool, buf: bufPtr}
+	} else {
+		data = make([]byte, size)
+	}
 	if _, err := io.ReadFull(f, data); err != nil {
-		return nil, err
+		pb.release()
+		return nil, pooledBuf{}, err
 	}
-	return data, nil
+	return data, pb, nil
 }
 
 type SearchOptions struct {
@@ -96,6 +148,8 @@ func (m *literalMatcher) findAll(data []byte) [][2]int {
 	if n == 0 || len(data) < n {
 		return nil
 	}
+	// Lazy alloc: só cria o slice no primeiro hit (com cap pra evitar reallocs
+	// nas primeiras 8 ocorrências, caso comum em código).
 	var out [][2]int
 	base := 0
 	for base <= len(data)-n {
@@ -104,19 +158,32 @@ func (m *literalMatcher) findAll(data []byte) [][2]int {
 			break
 		}
 		abs := base + idx
+		if out == nil {
+			out = make([][2]int, 0, 8)
+		}
 		out = append(out, [2]int{abs, abs + n})
 		base = abs + n
 	}
 	return out
 }
 
-type literalCIMatcher struct{ lowerNeedle []byte }
+type literalCIMatcher struct {
+	lowerNeedle []byte
+	// asciiNeedle indica que lowerNeedle é puro ASCII e podemos fazer fold
+	// in-place via bytes.IndexByte(lower) + bytes.IndexByte(upper) no primeiro
+	// byte, evitando a cópia inteira do arquivo via bytes.ToLower.
+	asciiNeedle bool
+}
 
 func (m *literalCIMatcher) findAll(data []byte) [][2]int {
 	n := len(m.lowerNeedle)
 	if n == 0 || len(data) < n {
 		return nil
 	}
+	if m.asciiNeedle {
+		return m.findAllASCII(data)
+	}
+	// Fallback Unicode: copia ToLower e busca normal.
 	lower := bytes.ToLower(data)
 	var out [][2]int
 	base := 0
@@ -126,10 +193,89 @@ func (m *literalCIMatcher) findAll(data []byte) [][2]int {
 			break
 		}
 		abs := base + idx
+		if out == nil {
+			out = make([][2]int, 0, 8)
+		}
 		out = append(out, [2]int{abs, abs + n})
 		base = abs + n
 	}
 	return out
+}
+
+// findAllASCII usa o needle ASCII direto contra data sem alocar uma cópia
+// lowercase. O primeiro byte é varrido via bytes.IndexByte (SIMD) para lower
+// e upper case; a verificação do resto faz fold byte-a-byte.
+func (m *literalCIMatcher) findAllASCII(data []byte) [][2]int {
+	n := len(m.lowerNeedle)
+	n0 := m.lowerNeedle[0]
+	var n0u byte
+	if n0 >= 'a' && n0 <= 'z' {
+		n0u = n0 - 32
+	}
+	var out [][2]int
+	base := 0
+	limit := len(data) - n
+	for base <= limit {
+		rem := data[base:]
+		ix := bytes.IndexByte(rem, n0)
+		var i int
+		if n0u != 0 {
+			iu := bytes.IndexByte(rem, n0u)
+			switch {
+			case ix < 0 && iu < 0:
+				return out
+			case ix < 0:
+				i = iu
+			case iu < 0:
+				i = ix
+			case ix < iu:
+				i = ix
+			default:
+				i = iu
+			}
+		} else {
+			if ix < 0 {
+				return out
+			}
+			i = ix
+		}
+		abs := base + i
+		if abs > limit {
+			return out
+		}
+		if equalFoldASCII(data[abs:abs+n], m.lowerNeedle) {
+			if out == nil {
+				out = make([][2]int, 0, 8)
+			}
+			out = append(out, [2]int{abs, abs + n})
+			base = abs + n
+		} else {
+			base = abs + 1
+		}
+	}
+	return out
+}
+
+func equalFoldASCII(s, lowerNeedle []byte) bool {
+	for i := 0; i < len(lowerNeedle); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 32
+		}
+		if c != lowerNeedle[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func isASCIIBytes(b []byte) bool {
+	for _, c := range b {
+		if c >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 type regexMatcher struct{ re *regexp.Regexp }
@@ -155,7 +301,11 @@ func buildMatcher(opts SearchOptions) (matcher, error) {
 		if opts.CaseSensitive {
 			return &literalMatcher{needle: needle}, nil
 		}
-		return &literalCIMatcher{lowerNeedle: bytes.ToLower(needle)}, nil
+		lower := bytes.ToLower(needle)
+		return &literalCIMatcher{
+			lowerNeedle: lower,
+			asciiNeedle: isASCIIBytes(lower),
+		}, nil
 	}
 	re, err := compileSearchRegex(opts)
 	if err != nil {
@@ -169,7 +319,8 @@ func looksBinary(b []byte) bool {
 }
 
 func searchFile(path string, m matcher, max int, out *[]SearchMatch) error {
-	data, err := readFileBounded(path, searchMaxFileBytes)
+	data, pb, err := readFileBoundedPooled(path, searchMaxFileBytes)
+	defer pb.release()
 	if err != nil || data == nil {
 		return nil
 	}
@@ -208,13 +359,24 @@ func searchFile(path string, m matcher, max int, out *[]SearchMatch) error {
 		}
 
 		line := data[lineStart:lineEnd]
+		// Preview compartilhado quando a linha cabe inteira: uma única
+		// alocação reusada por todos os matches da linha.
+		var sharedPreview string
+		shortLine := len(line) <= searchPreviewMax
+		if shortLine {
+			sharedPreview = string(line)
+		}
+		// Cursor cumulativo p/ utf8ColumnAt: avança byte→col entre matches
+		// da mesma linha em vez de re-varrer do índice 0 a cada match.
+		colCursor := 1
+		byteCursor := 0
 		for mi < len(matches) && matches[mi][0] < lineEnd {
 			mStart := matches[mi][0] - lineStart
 			mEnd := matches[mi][1] - lineStart
 
 			var preview string
-			if len(line) <= searchPreviewMax {
-				preview = string(line)
+			if shortLine {
+				preview = sharedPreview
 			} else {
 				previewStart := mStart - 40
 				if previewStart < 0 {
@@ -227,10 +389,23 @@ func searchFile(path string, m matcher, max int, out *[]SearchMatch) error {
 				preview = string(line[previewStart:previewEnd])
 			}
 
+			if mStart < byteCursor {
+				colCursor = 1
+				byteCursor = 0
+			}
+			for byteCursor < mStart {
+				_, size := decodeRune(line[byteCursor:])
+				if size == 0 {
+					break
+				}
+				byteCursor += size
+				colCursor++
+			}
+
 			*out = append(*out, SearchMatch{
 				Path:    path,
 				Line:    lineNum,
-				Column:  utf8ColumnAt(line, mStart),
+				Column:  colCursor,
 				Length:  mEnd - mStart,
 				Preview: preview,
 			})
@@ -323,7 +498,9 @@ func (a *App) SearchInFiles(rootPath string, opts SearchOptions) ([]SearchMatch,
 		}
 		defer func() { <-sem }()
 
-		var local []SearchMatch
+		// Pre-aloca local: poucos hits por subárvore no caso comum (find in files
+		// com query específica). 16 evita as primeiras 4 reallocs.
+		local := make([]SearchMatch, 0, 16)
 		_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
 			select {
 			case <-ctx.Done():

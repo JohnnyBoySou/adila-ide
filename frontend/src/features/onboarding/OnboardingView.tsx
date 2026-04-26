@@ -8,6 +8,7 @@ import { rpc } from "./rpc";
 import { CLI } from "./steps/CLI";
 import { GitHub } from "./steps/GitHub";
 import { OpenFolder } from "./steps/OpenFolder";
+import { Spotify } from "./steps/Spotify";
 import { Theme } from "./steps/Theme";
 import { Welcome } from "./steps/Welcome";
 
@@ -16,6 +17,7 @@ const steps = [
   { id: "theme", label: "Tema", Component: Theme },
   { id: "cli", label: "CLI", Component: CLI },
   { id: "github", label: "GitHub", Component: GitHub },
+  { id: "spotify", label: "Spotify", Component: Spotify },
   { id: "folder", label: "Pasta", Component: OpenFolder },
 ];
 

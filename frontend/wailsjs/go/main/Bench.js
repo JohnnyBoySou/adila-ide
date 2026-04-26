@@ -6,6 +6,18 @@ export function IsEnabled() {
   return window['go']['main']['Bench']['IsEnabled']();
 }
 
+export function ListHistory() {
+  return window['go']['main']['Bench']['ListHistory']();
+}
+
+export function OpenHistoryFolder() {
+  return window['go']['main']['Bench']['OpenHistoryFolder']();
+}
+
+export function ReadHistory(arg1) {
+  return window['go']['main']['Bench']['ReadHistory'](arg1);
+}
+
 export function Reset() {
   return window['go']['main']['Bench']['Reset']();
 }

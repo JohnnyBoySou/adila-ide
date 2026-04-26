@@ -106,7 +106,6 @@ export function SettingsView() {
     <div className="flex h-full w-full">
       <aside className="w-64 shrink-0 border-r border-border/60 bg-card/40 flex flex-col">
         <div className="p-5 border-b border-border/60">
-        
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
@@ -146,9 +145,7 @@ export function SettingsView() {
             >
               <div className="flex items-center justify-between gap-2">
                 <span>{g.title}</span>
-                <Badge variant="secondary">
-                  {g.settings.length}
-                </Badge>
+                <Badge variant="secondary">{g.settings.length}</Badge>
               </div>
             </Button>
           ))}

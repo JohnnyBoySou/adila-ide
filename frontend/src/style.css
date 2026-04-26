@@ -332,6 +332,41 @@
   --sidebar-ring: oklch(0.74 0.13 240);
 }
 
+/* Atom One Dark — akamud/vscode-theme-onedark */
+.theme-atom-one-dark {
+  --background: #282c34;
+  --foreground: #dcdfe4;
+  --card: #21252b;
+  --card-foreground: #dcdfe4;
+  --popover: #21252b;
+  --popover-foreground: #dcdfe4;
+  --primary: #61afef;
+  --primary-foreground: #282c34;
+  --secondary: #3e4451;
+  --secondary-foreground: #dcdfe4;
+  --muted: #2c313c;
+  --muted-foreground: #9da5b4;
+  --accent: #528bff;
+  --accent-foreground: #ffffff;
+  --destructive: #e06c75;
+  --border: #3e4451;
+  --input: #3e4451;
+  --ring: #528bff;
+  --sidebar: #21252b;
+  --sidebar-foreground: #dcdfe4;
+  --sidebar-primary: #61afef;
+  --sidebar-primary-foreground: #282c34;
+  --sidebar-accent: #2c313c;
+  --sidebar-accent-foreground: #dcdfe4;
+  --sidebar-border: #181a1f;
+  --sidebar-ring: #528bff;
+  --chart-1: #c678dd;
+  --chart-2: #98c379;
+  --chart-3: #d19a66;
+  --chart-4: #e5c07b;
+  --chart-5: #61afef;
+}
+
 /* Nord */
 .theme-nord {
   --background: oklch(0.31 0.018 260);
@@ -572,6 +607,96 @@
   --sidebar-ring: oklch(0.71 0.16 50);
 }
 
+/* Rosé Pine */
+.theme-rose-pine {
+  --background: oklch(0.21 0.025 295);
+  --foreground: oklch(0.91 0.015 290);
+  --card: oklch(0.24 0.025 295);
+  --card-foreground: oklch(0.91 0.015 290);
+  --popover: oklch(0.24 0.025 295);
+  --popover-foreground: oklch(0.91 0.015 290);
+  --primary: oklch(0.7 0.13 0);
+  --primary-foreground: oklch(0.18 0.02 295);
+  --secondary: oklch(0.3 0.03 295);
+  --secondary-foreground: oklch(0.91 0.015 290);
+  --muted: oklch(0.3 0.03 295);
+  --muted-foreground: oklch(0.7 0.025 290);
+  --accent: oklch(0.78 0.1 200);
+  --accent-foreground: oklch(0.18 0.02 295);
+  --destructive: oklch(0.65 0.21 25);
+  --border: oklch(0.3 0.03 295);
+  --input: oklch(0.3 0.03 295);
+  --ring: oklch(0.7 0.13 0);
+  --sidebar: oklch(0.18 0.022 295);
+  --sidebar-foreground: oklch(0.91 0.015 290);
+  --sidebar-primary: oklch(0.7 0.13 0);
+  --sidebar-primary-foreground: oklch(0.18 0.02 295);
+  --sidebar-accent: oklch(0.3 0.03 295);
+  --sidebar-accent-foreground: oklch(0.91 0.015 290);
+  --sidebar-border: oklch(0.3 0.03 295);
+  --sidebar-ring: oklch(0.7 0.13 0);
+}
+
+/* Ayu Mirage */
+.theme-ayu-mirage {
+  --background: oklch(0.27 0.025 260);
+  --foreground: oklch(0.84 0.01 95);
+  --card: oklch(0.3 0.025 260);
+  --card-foreground: oklch(0.84 0.01 95);
+  --popover: oklch(0.3 0.025 260);
+  --popover-foreground: oklch(0.84 0.01 95);
+  --primary: oklch(0.83 0.16 80);
+  --primary-foreground: oklch(0.22 0.02 260);
+  --secondary: oklch(0.36 0.03 260);
+  --secondary-foreground: oklch(0.88 0.01 95);
+  --muted: oklch(0.36 0.03 260);
+  --muted-foreground: oklch(0.66 0.02 95);
+  --accent: oklch(0.78 0.13 200);
+  --accent-foreground: oklch(0.22 0.02 260);
+  --destructive: oklch(0.65 0.21 25);
+  --border: oklch(0.36 0.03 260);
+  --input: oklch(0.36 0.03 260);
+  --ring: oklch(0.83 0.16 80);
+  --sidebar: oklch(0.24 0.025 260);
+  --sidebar-foreground: oklch(0.84 0.01 95);
+  --sidebar-primary: oklch(0.83 0.16 80);
+  --sidebar-primary-foreground: oklch(0.22 0.02 260);
+  --sidebar-accent: oklch(0.36 0.03 260);
+  --sidebar-accent-foreground: oklch(0.88 0.01 95);
+  --sidebar-border: oklch(0.36 0.03 260);
+  --sidebar-ring: oklch(0.83 0.16 80);
+}
+
+/* Material Ocean */
+.theme-material-ocean {
+  --background: oklch(0.18 0.018 270);
+  --foreground: oklch(0.76 0.04 280);
+  --card: oklch(0.22 0.02 270);
+  --card-foreground: oklch(0.76 0.04 280);
+  --popover: oklch(0.22 0.02 270);
+  --popover-foreground: oklch(0.76 0.04 280);
+  --primary: oklch(0.83 0.1 180);
+  --primary-foreground: oklch(0.16 0.018 270);
+  --secondary: oklch(0.28 0.022 270);
+  --secondary-foreground: oklch(0.86 0.04 280);
+  --muted: oklch(0.28 0.022 270);
+  --muted-foreground: oklch(0.62 0.04 280);
+  --accent: oklch(0.78 0.16 280);
+  --accent-foreground: oklch(0.16 0.018 270);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(0.28 0.022 270);
+  --input: oklch(0.28 0.022 270);
+  --ring: oklch(0.83 0.1 180);
+  --sidebar: oklch(0.16 0.016 270);
+  --sidebar-foreground: oklch(0.76 0.04 280);
+  --sidebar-primary: oklch(0.83 0.1 180);
+  --sidebar-primary-foreground: oklch(0.16 0.018 270);
+  --sidebar-accent: oklch(0.28 0.022 270);
+  --sidebar-accent-foreground: oklch(0.86 0.04 280);
+  --sidebar-border: oklch(0.28 0.022 270);
+  --sidebar-ring: oklch(0.83 0.1 180);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -587,6 +712,41 @@
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
   }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Modo translúcido: ativado quando <html> recebe a classe .translucent.   */
+/* Requer Linux.WindowIsTranslucent + BackgroundColour.A=0 no Wails.       */
+/* ----------------------------------------------------------------------- */
+html.translucent,
+html.translucent body,
+html.translucent #root {
+  background: transparent !important;
+}
+
+/* Sobrescreve as cores de superfície dos temas para versões com alpha,
+   permitindo que o wallpaper apareça através da UI inteira.
+   oklch(from ...) é CSS Color Level 5 — suportado no WebKitGTK recente. */
+@supports (background: oklch(from white l c h / 0.5)) {
+  html.translucent {
+    --background: oklch(from var(--background) l c h / var(--app-bg-alpha, 0.85));
+    --sidebar: oklch(from var(--sidebar) l c h / var(--app-bg-alpha, 0.85));
+    --card: oklch(from var(--card) l c h / var(--app-bg-alpha, 0.85));
+    --muted: oklch(from var(--muted) l c h / var(--app-bg-alpha, 0.85));
+    /* popovers/menus mais opacos para legibilidade */
+    --popover: oklch(from var(--popover) l c h / 0.96);
+  }
+}
+
+/* Camada de blur de fundo — pseudo-elemento fixo atrás do conteúdo. */
+html.translucent body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--app-blur, 24px)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--app-blur, 24px)) saturate(140%);
 }
 
 /* Firefox */
@@ -699,3 +859,15 @@
   border-top: 4px solid oklch(0.65 0.22 25);
   background: transparent;
 }
+
+@keyframes spotify-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(60);
+    opacity: 0;
+  }
+}
+

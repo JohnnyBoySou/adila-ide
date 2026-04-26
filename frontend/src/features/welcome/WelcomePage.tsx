@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { GitHubProfileCard } from "@/features/git/GitHubProfileCard";
+import { LinearProfileCard } from "@/features/linear/LinearProfileCard";
+import { SpotifyProfileCard } from "@/features/spotify/SpotifyProfileCard";
 import { ChevronRight, Clock, FolderOpen, Keyboard, Settings, X } from "lucide-react";
 import { motion } from "motion/react";
-import { GitHubProfileCard } from "@/features/git/GitHubProfileCard";
+import React from "react";
 
 type ActionRowProps = {
   icon: React.ReactNode;
@@ -29,30 +32,13 @@ function ActionRow({ icon, label, shortcut, onClick }: ActionRowProps) {
   );
 }
 
-type TipRowProps = {
-  label: string;
-  keys: string[];
-};
-
-function TipRow({ label, keys }: TipRowProps) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <KbdGroup>
-        {keys.map((k) => (
-          <Kbd key={k}>{k}</Kbd>
-        ))}
-      </KbdGroup>
-    </div>
-  );
-}
-
 type Props = {
   onOpenFolder: () => void;
   onOpenSettings: () => void;
   onOpenKeybindings: () => void;
   onOpenGit: () => void;
   onOpenOnboarding: () => void;
+  onOpenSpotify: () => void;
   recentFolders?: string[];
   onOpenRecentFolder?: (path: string) => void;
   onRemoveRecentFolder?: (path: string) => void;
@@ -62,8 +48,8 @@ export function WelcomePage({
   onOpenFolder,
   onOpenSettings,
   onOpenKeybindings,
-  onOpenGit,
   onOpenOnboarding,
+  onOpenSpotify,
   recentFolders = [],
   onOpenRecentFolder,
   onRemoveRecentFolder,
@@ -107,7 +93,13 @@ export function WelcomePage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.16 }}
           >
-            <GitHubProfileCard />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <GitHubProfileCard />
+              <SpotifyProfileCard onOpen={onOpenSpotify} />
+            </div>
+            <div className="mt-3">
+              <LinearProfileCard />
+            </div>
           </motion.div>
           <div className="grid grid-cols-2 gap-10">
             {/* Iniciar */}
@@ -207,12 +199,8 @@ export function WelcomePage({
           </div>
           <div className="w-full flex justify-between items-center border border-border h-36 relative rounded-lg overflow-hidden mt-12">
             <div className="p-8 flex flex-col">
-              <h2 className="text-xl font-semibold text-white ">
-                Tour de boas-vindas
-              </h2>
-              <p className="text-lg text-muted-foreground ">
-                Vamos começar a usar o Adila IDE
-              </p>
+              <h2 className="text-xl font-semibold text-white ">Tour de boas-vindas</h2>
+              <p className="text-lg text-muted-foreground ">Vamos começar a usar o Adila IDE</p>
             </div>
             <img
               src="/welcome.jpg"
@@ -228,8 +216,11 @@ export function WelcomePage({
               <ChevronRight className="size-4" />
             </Button>
           </div>
+ 
         </div>
       </div>
     </div>
   );
 }
+
+

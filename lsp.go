@@ -143,6 +143,16 @@ func (l *LSP) resolveBin(lang string, candidates []string) string {
 		if len(parts) == 0 {
 			continue
 		}
+		// Binário gerenciado (instalado via UI em ~/.config/adila/lsp-servers)
+		// tem precedência sobre o PATH — garante versão consistente entre máquinas.
+		if managed := managedBinPath(parts[0]); managed != "" {
+			full := managed
+			if len(parts) > 1 {
+				full = strings.Join(append([]string{managed}, parts[1:]...), " ")
+			}
+			l.available[lang] = full
+			return full
+		}
 		if bin, err := exec.LookPath(parts[0]); err == nil {
 			full := bin
 			if len(parts) > 1 {

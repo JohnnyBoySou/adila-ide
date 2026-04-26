@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, Pause, Play, RotateCcw, X } from "lucide-react";
+import { Activity, FolderArchive, Pause, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { HistoryPanel } from "./HistoryPanel";
 import { rpc, type BenchOp } from "./rpc";
 
 const REFRESH_MS = 1000;
@@ -41,10 +42,13 @@ type Props = {
   onClose?: () => void;
 };
 
+type Tab = "live" | "history";
+
 export function BenchView({ onClose }: Props = {}) {
   const [ops, setOps] = useState<BenchOp[]>([]);
   const [enabled, setEnabled] = useState(true);
   const [paused, setPaused] = useState(false);
+  const [tab, setTab] = useState<Tab>("live");
 
   const refresh = useCallback(async () => {
     try {
@@ -86,49 +90,83 @@ export function BenchView({ onClose }: Props = {}) {
       <header className="flex items-center gap-3 border-b border-border/60 px-6 py-4">
         <Activity className="size-5 text-primary" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-semibold">Benchmarks de runtime</h1>
+          <h1 className="text-sm font-semibold">Benchmarks</h1>
           <p className="text-xs text-muted-foreground">
-            Latência por chamada RPC instrumentada · {fmtCount(grandCount)} chamadas ·{" "}
-            {fmtTotal(grandTotal)} acumulado
+            {tab === "live"
+              ? `Latência por chamada RPC · ${fmtCount(grandCount)} chamadas · ${fmtTotal(grandTotal)} acumulado`
+              : "Relatórios salvos em benchmarks/ — go test, vitest e baseline"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPaused((p) => !p)}
-            title={paused ? "Retomar refresh" : "Pausar refresh"}
+        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => setTab("live")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer",
+              tab === "live"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-            {paused ? "Retomar" : "Pausar"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={onReset} title="Zerar contadores">
-            <RotateCcw className="size-3.5" />
-            Reset
-          </Button>
-          <Button
-            variant={enabled ? "default" : "outline"}
-            size="sm"
-            onClick={onToggleEnabled}
-            title="Habilitar/desabilitar coleta"
+            <Activity className="size-3.5" />
+            Ao vivo
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("history")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer",
+              tab === "history"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            {enabled ? "Coletando" : "Pausado"}
-          </Button>
-          {onClose && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              title="Fechar"
-              aria-label="Fechar benchmarks"
-            >
-              <X className="size-3.5" />
-            </Button>
-          )}
+            <FolderArchive className="size-3.5" />
+            Histórico
+          </button>
         </div>
+        {tab === "live" && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPaused((p) => !p)}
+              title={paused ? "Retomar refresh" : "Pausar refresh"}
+            >
+              {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+              {paused ? "Retomar" : "Pausar"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onReset} title="Zerar contadores">
+              <RotateCcw className="size-3.5" />
+              Reset
+            </Button>
+            <Button
+              variant={enabled ? "default" : "outline"}
+              size="sm"
+              onClick={onToggleEnabled}
+              title="Habilitar/desabilitar coleta"
+            >
+              {enabled ? "Coletando" : "Pausado"}
+            </Button>
+          </div>
+        )}
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            title="Fechar"
+            aria-label="Fechar benchmarks"
+          >
+            <X className="size-3.5" />
+          </Button>
+        )}
       </header>
 
-      <div className="flex-1 overflow-auto scrollbar">
+      {tab === "history" ? (
+        <HistoryPanel />
+      ) : (
+        <div className="flex-1 overflow-auto scrollbar">
         {ops.length === 0 ? (
           <EmptyState
             title="Nenhuma operação registrada ainda"
@@ -166,18 +204,15 @@ export function BenchView({ onClose }: Props = {}) {
                     {fmtNs(o.p95Ns)}
                   </td>
                   <td className="px-3 py-2 text-right">{fmtNs(o.p99Ns)}</td>
-                  <td className="px-3 py-2 text-right text-muted-foreground">
-                    {fmtNs(o.maxNs)}
-                  </td>
-                  <td className="px-6 py-2 text-right text-muted-foreground">
-                    {fmtNs(o.lastNs)}
-                  </td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">{fmtNs(o.maxNs)}</td>
+                  <td className="px-6 py-2 text-right text-muted-foreground">{fmtNs(o.lastNs)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

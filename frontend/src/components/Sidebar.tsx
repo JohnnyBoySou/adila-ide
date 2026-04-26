@@ -1,5 +1,5 @@
-import { lazy, memo, Suspense, useState } from "react";
-import { Bot, Files, GitBranch, Search } from "lucide-react";
+import { lazy, memo, Suspense, useCallback, useState } from "react";
+import { Bot, Files, GitBranch, ListChecks, Search } from "lucide-react";
 import { DevProfiler } from "@/components/DevProfiler";
 import {
   FileExplorer,
@@ -12,25 +12,49 @@ const GitView = lazy(() => import("@/features/git/GitView").then((m) => ({ defau
 const ChatPanel = lazy(() =>
   import("@/features/ai/ChatPanel").then((m) => ({ default: m.ChatPanel })),
 );
+const TasksView = lazy(() =>
+  import("@/features/tasks/TasksView").then((m) => ({ default: m.TasksView })),
+);
 
-type Tab = "files" | "search" | "git" | "ai";
+type Tab = "files" | "search" | "git" | "tasks" | "ai";
 
 type Props = {
   rootPath: string;
   files: FileExplorerProps;
   onOpenFile: (entry: FileEntry) => void;
   onGotoLine?: (path: string, line: number, column: number) => void;
+  onShowTerminal?: () => void;
 };
 
 const TABS: { id: Tab; label: string; Icon: typeof Files }[] = [
   { id: "files", label: "Arquivos", Icon: Files },
   { id: "search", label: "Buscar", Icon: Search },
   { id: "git", label: "Source Control", Icon: GitBranch },
+  { id: "tasks", label: "Tasks", Icon: ListChecks },
   { id: "ai", label: "Adila AI", Icon: Bot },
 ];
 
-export const Sidebar = memo(function Sidebar({ rootPath, files, onOpenFile, onGotoLine }: Props) {
+export const Sidebar = memo(function Sidebar({
+  rootPath,
+  files,
+  onOpenFile,
+  onGotoLine,
+  onShowTerminal,
+}: Props) {
   const [tab, setTab] = useState<Tab>("files");
+
+  const onOpenMatch = useCallback(
+    (path: string, line: number, column: number) => {
+      onOpenFile({ name: path.split("/").pop() ?? path, path, isDir: false });
+      onGotoLine?.(path, line, column);
+    },
+    [onOpenFile, onGotoLine],
+  );
+
+  const onOpenGitFile = useCallback(
+    (path: string) => onOpenFile({ name: path.split("/").pop() ?? path, path, isDir: false }),
+    [onOpenFile],
+  );
 
   return (
     <div className="h-full flex flex-col">
@@ -62,32 +86,15 @@ export const Sidebar = memo(function Sidebar({ rootPath, files, onOpenFile, onGo
             <FileExplorer {...files} />
           </DevProfiler>
         )}
-        {tab === "search" && (
-          <SearchView
-            rootPath={rootPath}
-            onOpenMatch={(path, line, column) => {
-              onOpenFile({
-                name: path.split("/").pop() ?? path,
-                path,
-                isDir: false,
-              });
-              onGotoLine?.(path, line, column);
-            }}
-          />
-        )}
+        {tab === "search" && <SearchView rootPath={rootPath} onOpenMatch={onOpenMatch} />}
         {tab === "git" && (
           <Suspense fallback={<SidebarFallback />}>
-            <GitView
-              compact
-              rootPath={rootPath}
-              onOpenFile={(path) =>
-                onOpenFile({
-                  name: path.split("/").pop() ?? path,
-                  path,
-                  isDir: false,
-                })
-              }
-            />
+            <GitView compact rootPath={rootPath} onOpenFile={onOpenGitFile} />
+          </Suspense>
+        )}
+        {tab === "tasks" && (
+          <Suspense fallback={<SidebarFallback />}>
+            <TasksView rootPath={rootPath} onShowTerminal={onShowTerminal} />
           </Suspense>
         )}
         {tab === "ai" && (

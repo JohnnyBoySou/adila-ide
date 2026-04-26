@@ -30,7 +30,7 @@ function makeCommands(n: number): PaletteItem[] {
   const out: PaletteItem[] = [];
   for (let i = 0; i < n; i++) {
     const verb = verbs[i % verbs.length];
-    const noun = nouns[(i / verbs.length) | 0 % nouns.length];
+    const noun = nouns[(i / verbs.length) | (0 % nouns.length)];
     out.push({
       id: `cmd.${i}`,
       title: `${verb} ${noun} #${i}`,

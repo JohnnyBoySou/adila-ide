@@ -3,6 +3,7 @@ package main
 import (
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,15 +42,21 @@ type opStat struct {
 type Bench struct {
 	mu      sync.Mutex
 	stats   map[string]*opStat
-	enabled bool
+	enabled atomic.Bool
 }
+
+// noopTime é o resultado de Time quando coleta está desabilitada — alocá-lo
+// uma vez evita a alocação do closure no hot path.
+var noopTime = func() {}
 
 // bench é o singleton usado pelos handlers para instrumentação. É mantido como
 // global para evitar passar dependência por todos os construtores.
 var bench = NewBench()
 
 func NewBench() *Bench {
-	return &Bench{stats: make(map[string]*opStat), enabled: true}
+	b := &Bench{stats: make(map[string]*opStat)}
+	b.enabled.Store(true)
+	return b
 }
 
 // Time inicia um timer e retorna uma função para ser deferred. Quando a
@@ -58,15 +65,12 @@ func NewBench() *Bench {
 // Uso típico:
 //
 //	defer bench.Time("App.ListDir")()
+//
+// Lê `enabled` via atomic (sem mutex) — chamado em quase todo handler, então
+// o custo do lock dominava em handlers de ~1µs (Config.GetMany etc).
 func (b *Bench) Time(op string) func() {
-	if b == nil {
-		return func() {}
-	}
-	b.mu.Lock()
-	enabled := b.enabled
-	b.mu.Unlock()
-	if !enabled {
-		return func() {}
+	if b == nil || !b.enabled.Load() {
+		return noopTime
 	}
 	start := time.Now()
 	return func() {
@@ -156,14 +160,10 @@ func (b *Bench) Reset() {
 
 // SetEnabled liga/desliga a coleta. Quando desligado, Time vira no-op.
 func (b *Bench) SetEnabled(enabled bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.enabled = enabled
+	b.enabled.Store(enabled)
 }
 
 // IsEnabled retorna o estado atual.
 func (b *Bench) IsEnabled() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.enabled
+	return b.enabled.Load()
 }

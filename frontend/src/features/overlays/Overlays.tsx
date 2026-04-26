@@ -57,7 +57,9 @@ const PaletteOverlay = memo(function PaletteOverlay() {
 
 const ThemePickerOverlay = memo(function ThemePickerOverlay({
   onOpenEditor,
-}: { onOpenEditor: () => void }) {
+}: {
+  onOpenEditor: () => void;
+}) {
   const open = useUiStore((s) => s.themePickerOpen);
   return (
     <ThemePicker
@@ -71,7 +73,10 @@ const ThemePickerOverlay = memo(function ThemePickerOverlay({
 const QuickOpenOverlay = memo(function QuickOpenOverlay({
   rootPath,
   onOpenFile,
-}: { rootPath: string; onOpenFile: (path: string) => void }) {
+}: {
+  rootPath: string;
+  onOpenFile: (path: string) => void;
+}) {
   const open = useUiStore((s) => s.quickOpenOpen);
   return (
     <QuickOpen
@@ -89,6 +94,9 @@ const QuickOpenOverlay = memo(function QuickOpenOverlay({
 const NotificationsOverlay = memo(function NotificationsOverlay({
   open,
   onOpen,
-}: { open: boolean; onOpen: () => void }) {
+}: {
+  open: boolean;
+  onOpen: () => void;
+}) {
   return <Notifications centerOpen={open} onOpenCenter={onOpen} />;
 });

@@ -1,5 +1,27 @@
 export namespace main {
 	
+	export class BenchHistoryFile {
+	    name: string;
+	    kind: string;
+	    format: string;
+	    size: number;
+	    modUnix: number;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BenchHistoryFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.format = source["format"];
+	        this.size = source["size"];
+	        this.modUnix = source["modUnix"];
+	        this.path = source["path"];
+	    }
+	}
 	export class BenchOp {
 	    name: string;
 	    count: number;
@@ -48,6 +70,20 @@ export namespace main {
 	        this.path = source["path"];
 	        this.isDirectory = source["isDirectory"];
 	        this.mtime = source["mtime"];
+	    }
+	}
+	export class ConfigQuery {
+	    key: string;
+	    defaultValue: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigQuery(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.defaultValue = source["defaultValue"];
 	    }
 	}
 	export class DeviceFlowStart {
@@ -164,6 +200,68 @@ export namespace main {
 	        this.ts = source["ts"];
 	    }
 	}
+	export class GitHubEvent {
+	    id: string;
+	    type: string;
+	    repoName: string;
+	    repoUrl: string;
+	    createdAt: string;
+	    action: string;
+	    ref: string;
+	    title: string;
+	    number: number;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitHubEvent(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.type = source["type"];
+	        this.repoName = source["repoName"];
+	        this.repoUrl = source["repoUrl"];
+	        this.createdAt = source["createdAt"];
+	        this.action = source["action"];
+	        this.ref = source["ref"];
+	        this.title = source["title"];
+	        this.number = source["number"];
+	        this.url = source["url"];
+	    }
+	}
+	export class GitHubNotification {
+	    id: string;
+	    reason: string;
+	    unread: boolean;
+	    updatedAt: string;
+	    title: string;
+	    type: string;
+	    url: string;
+	    htmlUrl: string;
+	    repoName: string;
+	    repoFull: string;
+	    repoAvatar: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitHubNotification(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.reason = source["reason"];
+	        this.unread = source["unread"];
+	        this.updatedAt = source["updatedAt"];
+	        this.title = source["title"];
+	        this.type = source["type"];
+	        this.url = source["url"];
+	        this.htmlUrl = source["htmlUrl"];
+	        this.repoName = source["repoName"];
+	        this.repoFull = source["repoFull"];
+	        this.repoAvatar = source["repoAvatar"];
+	    }
+	}
 	export class GitHubRepo {
 	    name: string;
 	    cloneUrl: string;
@@ -218,6 +316,42 @@ export namespace main {
 	        this.createdAt = source["createdAt"];
 	    }
 	}
+	export class GitHubUserRepo {
+	    name: string;
+	    fullName: string;
+	    description: string;
+	    htmlUrl: string;
+	    cloneUrl: string;
+	    language: string;
+	    stars: number;
+	    forks: number;
+	    watchers: number;
+	    updatedAt: string;
+	    private: boolean;
+	    fork: boolean;
+	    archived: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitHubUserRepo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.fullName = source["fullName"];
+	        this.description = source["description"];
+	        this.htmlUrl = source["htmlUrl"];
+	        this.cloneUrl = source["cloneUrl"];
+	        this.language = source["language"];
+	        this.stars = source["stars"];
+	        this.forks = source["forks"];
+	        this.watchers = source["watchers"];
+	        this.updatedAt = source["updatedAt"];
+	        this.private = source["private"];
+	        this.fork = source["fork"];
+	        this.archived = source["archived"];
+	    }
+	}
 	export class GitRemote {
 	    name: string;
 	    url: string;
@@ -266,6 +400,129 @@ export namespace main {
 	        this.installed = source["installed"];
 	        this.path = source["path"];
 	        this.installHint = source["installHint"];
+	    }
+	}
+	export class LinearProject {
+	    id: string;
+	    name: string;
+	    color: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinearProject(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.color = source["color"];
+	    }
+	}
+	export class LinearTeam {
+	    id: string;
+	    name: string;
+	    key: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinearTeam(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.key = source["key"];
+	    }
+	}
+	export class LinearState {
+	    id: string;
+	    name: string;
+	    color: string;
+	    type: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinearState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.color = source["color"];
+	        this.type = source["type"];
+	    }
+	}
+	export class LinearIssue {
+	    id: string;
+	    identifier: string;
+	    title: string;
+	    priority: number;
+	    url: string;
+	    createdAt: string;
+	    updatedAt: string;
+	    dueDate: string;
+	    state: LinearState;
+	    team: LinearTeam;
+	    project?: LinearProject;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinearIssue(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.identifier = source["identifier"];
+	        this.title = source["title"];
+	        this.priority = source["priority"];
+	        this.url = source["url"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	        this.dueDate = source["dueDate"];
+	        this.state = this.convertValues(source["state"], LinearState);
+	        this.team = this.convertValues(source["team"], LinearTeam);
+	        this.project = this.convertValues(source["project"], LinearProject);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	
+	export class LinearUser {
+	    id: string;
+	    name: string;
+	    email: string;
+	    avatarUrl: string;
+	    displayName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinearUser(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.email = source["email"];
+	        this.avatarUrl = source["avatarUrl"];
+	        this.displayName = source["displayName"];
 	    }
 	}
 	export class PaletteItem {
@@ -400,6 +657,22 @@ export namespace main {
 	        this.avail = source["avail"];
 	    }
 	}
+	export class SpotifyAuthStatus {
+	    connected: boolean;
+	    expired: boolean;
+	    expiresAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SpotifyAuthStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connected = source["connected"];
+	        this.expired = source["expired"];
+	        this.expiresAt = source["expiresAt"];
+	    }
+	}
 	export class StartOptions {
 	    cwd: string;
 	    shell: string;
@@ -420,6 +693,42 @@ export namespace main {
 	        this.env = source["env"];
 	        this.cols = source["cols"];
 	        this.rows = source["rows"];
+	    }
+	}
+	export class TaskDef {
+	    id: string;
+	    kind: string;
+	    label: string;
+	    detail: string;
+	    command: string;
+	    cwd: string;
+	    source: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TaskDef(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.kind = source["kind"];
+	        this.label = source["label"];
+	        this.detail = source["detail"];
+	        this.command = source["command"];
+	        this.cwd = source["cwd"];
+	        this.source = source["source"];
+	    }
+	}
+	export class WorkspaceConfig {
+	
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkspaceConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	
 	    }
 	}
 

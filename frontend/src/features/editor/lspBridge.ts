@@ -195,12 +195,7 @@ class LSPClient {
    */
   private installProviders() {
     const monaco = this.monaco;
-    const triggers = this.serverCaps.completionProvider?.triggerCharacters ?? [
-      ".",
-      ":",
-      "/",
-      "@",
-    ];
+    const triggers = this.serverCaps.completionProvider?.triggerCharacters ?? [".", ":", "/", "@"];
 
     if (this.serverCaps.completionProvider) {
       const d = monaco.languages.registerCompletionItemProvider(this.lang, {
@@ -268,9 +263,7 @@ class LSPClient {
     this.connection.onNotification(
       "textDocument/publishDiagnostics",
       (params: proto.PublishDiagnosticsParams) => {
-        const model = this.monaco.editor
-          .getModels()
-          .find((m) => m.uri.toString() === params.uri);
+        const model = this.monaco.editor.getModels().find((m) => m.uri.toString() === params.uri);
         if (!model) return;
         const markers = params.diagnostics.map((d) => toMonacoMarker(this.monaco, d));
         this.monaco.editor.setModelMarkers(model, `lsp:${this.lang}`, markers);

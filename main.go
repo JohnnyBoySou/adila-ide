@@ -5,15 +5,20 @@ import (
 	"embed"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed build/appicon.png
+var embeddedAppIcon []byte
 
 func main() {
 	cfg := NewConfig()
@@ -27,15 +32,26 @@ func main() {
 	lsp := NewLSP()
 	cmd := NewCommandCenter(git, cfg)
 	gh := NewGitHub(cfg, git)
+	sp := NewSpotify(cfg)
+	linear := NewLinear(cfg)
+	tasks := NewTasks(term)
+	wcfg := NewWorkspaceConfig()
+	cfg.AttachWorkspace(wcfg)
 
 	err := wails.Run(&options.App{
-		Title:  "Adila IDE",
-		Width:  1280,
-		Height: 800,
+		Title:     "Adila IDE",
+		Width:     1280,
+		Height:    800,
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
+		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 0},
+		Linux: &linux.Options{
+			Icon:                embeddedAppIcon,
+			ProgramName:         "adila",
+			WindowIsTranslucent: true,
+		},
 		OnStartup: func(ctx context.Context) {
 			app.startup(ctx)
 			term.startup(ctx)
@@ -45,11 +61,16 @@ func main() {
 			lsp.startup(ctx)
 			cmd.startup(ctx)
 			gh.startup(ctx)
+			sp.startup(ctx)
+			linear.startup(ctx)
+			tasks.startup(ctx)
+			wcfg.startup(ctx)
 		},
 		OnShutdown: func(ctx context.Context) {
 			term.shutdown(ctx)
 			cfg.shutdown(ctx)
 			lsp.shutdown(ctx)
+			wcfg.shutdown(ctx)
 		},
 		OnBeforeClose: func(ctx context.Context) bool {
 			confirm, _ := cfg.Get("window.confirmClose", false).(bool)
@@ -67,7 +88,11 @@ func main() {
 			if err != nil {
 				return false
 			}
-			return result != "Sair"
+			// MessageDialog no Linux/GTK pode devolver o label com whitespace,
+			// case diferente ou prefixo de mnemonic ("_Sair"). Comparamos só
+			// pelo botão de cancelar — qualquer outra coisa libera o close.
+			normalized := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(result, "_", "")))
+			return normalized == "cancelar"
 		},
 		Bind: []interface{}{
 			app,
@@ -78,6 +103,10 @@ func main() {
 			lsp,
 			cmd,
 			gh,
+			sp,
+			linear,
+			tasks,
+			wcfg,
 			bench,
 		},
 	})

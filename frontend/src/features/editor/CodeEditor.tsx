@@ -168,6 +168,32 @@ export function CodeEditor({
         value={content}
         theme={cfg.theme === "tailwind" ? TAILWIND_MONACO_THEME : cfg.theme}
         path={path}
+        beforeMount={(monaco) => {
+          // Monaco roda um TS/JS service embutido sem acesso ao node_modules,
+          // então qualquer import externo vira "Cannot find module". Desliga a
+          // validação semântica nativa — diagnósticos reais vêm do LSP via
+          // lspBridge. Mantém syntax para erros de parser locais.
+          const tsDefaults = monaco.languages.typescript.typescriptDefaults;
+          const jsDefaults = monaco.languages.typescript.javascriptDefaults;
+          const diagnostics = {
+            noSemanticValidation: true,
+            noSyntaxValidation: false,
+            noSuggestionDiagnostics: true,
+          };
+          tsDefaults.setDiagnosticsOptions(diagnostics);
+          jsDefaults.setDiagnosticsOptions(diagnostics);
+          const compilerOptions = {
+            target: monaco.languages.typescript.ScriptTarget.ESNext,
+            module: monaco.languages.typescript.ModuleKind.ESNext,
+            moduleResolution: monaco.languages.typescript.ModuleResolutionKind.Bundler,
+            jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+            allowSyntheticDefaultImports: true,
+            esModuleInterop: true,
+            allowJs: true,
+          };
+          tsDefaults.setCompilerOptions(compilerOptions);
+          jsDefaults.setCompilerOptions(compilerOptions);
+        }}
         onMount={(ed) => {
           editorRef.current = ed;
           setEditorInstance(ed);

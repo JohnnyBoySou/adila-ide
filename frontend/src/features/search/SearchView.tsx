@@ -1,14 +1,14 @@
 import { useConfig } from "@/hooks/useConfig";
 import {
-    CaseSensitive,
-    ChevronDown,
-    ChevronRight,
-    Regex,
-    Replace as ReplaceIcon,
-    Search as SearchIcon,
-    WholeWord,
+  CaseSensitive,
+  ChevronDown,
+  ChevronRight,
+  Regex,
+  Replace as ReplaceIcon,
+  Search as SearchIcon,
+  WholeWord,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { searchRpc, type SearchMatch } from "./rpc";
 
@@ -28,6 +28,82 @@ function groupByFile(matches: SearchMatch[]): Grouped {
   }
   return out;
 }
+
+const MatchRow = memo(function MatchRow({
+  match,
+  onOpen,
+}: {
+  match: SearchMatch;
+  onOpen: (path: string, line: number, col: number) => void;
+}) {
+  return (
+    <li>
+      <button
+        onClick={() => onOpen(match.path, match.line, match.column)}
+        className="w-full flex gap-2 px-6 py-1 text-xs hover:bg-accent text-left font-mono"
+      >
+        <span className="text-muted-foreground shrink-0 w-8 text-right">{match.line}</span>
+        <span className="truncate">{match.preview}</span>
+      </button>
+    </li>
+  );
+});
+
+const FileGroup = memo(function FileGroup({
+  path,
+  fileMatches,
+  collapsed,
+  rootPath,
+  onToggle,
+  onOpenMatch,
+}: {
+  path: string;
+  fileMatches: SearchMatch[];
+  collapsed: boolean;
+  rootPath: string;
+  onToggle: (path: string) => void;
+  onOpenMatch: (path: string, line: number, col: number) => void;
+}) {
+  const name = path.split("/").pop() ?? path;
+  const dir = path.slice(0, path.length - name.length).replace(rootPath + "/", "");
+  return (
+    <div className="border-b last:border-b-0">
+      <div
+        role="button"
+        tabIndex={0}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = "copy";
+          e.dataTransfer.setData("application/x-adila-file", JSON.stringify({ path, name }));
+        }}
+        onClick={() => onToggle(path)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle(path);
+          }
+        }}
+        className="w-full flex items-center gap-1 px-2 py-1 hover:bg-accent text-left cursor-pointer select-none"
+      >
+        {collapsed ? (
+          <ChevronRight className="size-3 shrink-0" />
+        ) : (
+          <ChevronDown className="size-3 shrink-0" />
+        )}
+        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-xs text-muted-foreground">{dir}</span>
+        <span className="ml-auto text-xs text-muted-foreground shrink-0">{fileMatches.length}</span>
+      </div>
+      {!collapsed && (
+        <ul>
+          {fileMatches.map((m, i) => (
+            <MatchRow key={`${m.line}-${m.column}-${i}`} match={m} onOpen={onOpenMatch} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+});
 
 export function SearchView({ rootPath, onOpenMatch }: Props) {
   const [query, setQuery] = useState("");
@@ -85,14 +161,14 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
   const totalFiles = grouped.size;
   const totalMatches = matches.length;
 
-  const toggleFile = (path: string) => {
+  const toggleFile = useCallback((path: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
     });
-  };
+  }, []);
 
   const replaceAll = async () => {
     if (!rootPath || !query || replacing) return;
@@ -165,69 +241,33 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
           </button>
         </div>
         <div className="text-xs text-muted-foreground min-h-5">
-          {!rootPath ? "Abra uma pasta para buscar." : loading ? "Buscando…" : error ? <span className="text-red-400">{error}</span> : query ? `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}` : ""}
+          {!rootPath ? (
+            "Abra uma pasta para buscar."
+          ) : loading ? (
+            "Buscando…"
+          ) : error ? (
+            <span className="text-red-400">{error}</span>
+          ) : query ? (
+            `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}`
+          ) : (
+            ""
+          )}
           {replaceMsg && <span className="ml-2">· {replaceMsg}</span>}
         </div>
       </div>
 
       <div className="flex-1 overflow-auto">
-        {Array.from(grouped.entries()).map(([path, fileMatches]) => {
-          const isCollapsed = collapsed.has(path);
-          const name = path.split("/").pop() ?? path;
-          const dir = path.slice(0, path.length - name.length).replace(rootPath + "/", "");
-          return (
-            <div key={path} className="border-b last:border-b-0">
-              <div
-                role="button"
-                tabIndex={0}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "copy";
-                  e.dataTransfer.setData(
-                    "application/x-adila-file",
-                    JSON.stringify({ path, name }),
-                  );
-                }}
-                onClick={() => toggleFile(path)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggleFile(path);
-                  }
-                }}
-                className="w-full flex items-center gap-1 px-2 py-1 hover:bg-accent text-left cursor-pointer select-none"
-              >
-                {isCollapsed ? (
-                  <ChevronRight className="size-3 shrink-0" />
-                ) : (
-                  <ChevronDown className="size-3 shrink-0" />
-                )}
-                <span className="truncate font-medium">{name}</span>
-                <span className="truncate text-xs text-muted-foreground">{dir}</span>
-                <span className="ml-auto text-xs text-muted-foreground shrink-0">
-                  {fileMatches.length}
-                </span>
-              </div>
-              {!isCollapsed && (
-                <ul>
-                  {fileMatches.map((m, i) => (
-                    <li key={`${m.line}-${m.column}-${i}`}>
-                      <button
-                        onClick={() => onOpenMatch(m.path, m.line, m.column)}
-                        className="w-full flex gap-2 px-6 py-1 text-xs hover:bg-accent text-left font-mono"
-                      >
-                        <span className="text-muted-foreground shrink-0 w-8 text-right">
-                          {m.line}
-                        </span>
-                        <span className="truncate">{m.preview}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+        {Array.from(grouped.entries()).map(([path, fileMatches]) => (
+          <FileGroup
+            key={path}
+            path={path}
+            fileMatches={fileMatches}
+            collapsed={collapsed.has(path)}
+            rootPath={rootPath}
+            onToggle={toggleFile}
+            onOpenMatch={onOpenMatch}
+          />
+        ))}
       </div>
     </div>
   );

@@ -81,12 +81,23 @@ function makeOnRender(threshold: number): ProfilerOnRenderCallback {
 export function downloadProfile() {
   if (sessionLog.length === 0) {
     // eslint-disable-next-line no-console
-    console.warn("[Profiler] Nenhum dado capturado. Habilite o profiler e interaja com a UI primeiro.");
+    console.warn(
+      "[Profiler] Nenhum dado capturado. Habilite o profiler e interaja com a UI primeiro.",
+    );
     return;
   }
-  const aggregates = new Map<string, { renders: number; totalMs: number; maxMs: number; mountCount: number; updateCount: number }>();
+  const aggregates = new Map<
+    string,
+    { renders: number; totalMs: number; maxMs: number; mountCount: number; updateCount: number }
+  >();
   for (const e of sessionLog) {
-    const a = aggregates.get(e.id) ?? { renders: 0, totalMs: 0, maxMs: 0, mountCount: 0, updateCount: 0 };
+    const a = aggregates.get(e.id) ?? {
+      renders: 0,
+      totalMs: 0,
+      maxMs: 0,
+      mountCount: 0,
+      updateCount: 0,
+    };
     a.renders += 1;
     a.totalMs += e.actualDuration;
     if (e.actualDuration > a.maxMs) a.maxMs = e.actualDuration;

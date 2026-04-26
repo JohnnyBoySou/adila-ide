@@ -1,7 +1,9 @@
 import { AlertTriangle, Bell, BellDot, GitBranch, XCircle } from "lucide-react";
 import { memo } from "react";
 import { cn } from "@/lib/utils";
+import { FpsMeter } from "@/components/FpsMeter";
 import { LSPStatus } from "@/features/editor/LSPStatus";
+import { useMarkersStore } from "@/stores/markersStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useNotificationCount } from "./useNotificationCount";
 
@@ -9,8 +11,7 @@ type Props = {
   activeTab?: { path: string; dirty: boolean };
   activeLang: string;
   rootPath: string;
-  errorCount?: number;
-  warningCount?: number;
+  showFps?: boolean;
   onOpenGit: () => void;
   onOpenProblems?: () => void;
   onOpenNotifications: () => void;
@@ -69,12 +70,37 @@ const CursorItem = memo(function CursorItem() {
   );
 });
 
+// Lê só counts de markers — re-renderiza isolado quando LSP atualiza diagnósticos.
+const ProblemsItem = memo(function ProblemsItem({ onOpen }: { onOpen?: () => void }) {
+  const errorCount = useMarkersStore((s) => s.errorCount);
+  const warningCount = useMarkersStore((s) => s.warningCount);
+  if (errorCount === 0 && warningCount === 0) return null;
+  return (
+    <>
+      <Item onClick={onOpen} className="gap-2">
+        {errorCount > 0 && (
+          <span className="flex items-center gap-0.5 text-destructive">
+            <XCircle className="size-3" />
+            {errorCount}
+          </span>
+        )}
+        {warningCount > 0 && (
+          <span className="flex items-center gap-0.5 text-amber-500">
+            <AlertTriangle className="size-3" />
+            {warningCount}
+          </span>
+        )}
+      </Item>
+      <Divider />
+    </>
+  );
+});
+
 export const StatusBar = memo(function StatusBar({
   activeTab,
   activeLang,
   rootPath,
-  errorCount = 0,
-  warningCount = 0,
+  showFps,
   onOpenGit,
   onOpenProblems,
   onOpenNotifications,
@@ -109,25 +135,7 @@ export const StatusBar = memo(function StatusBar({
 
       {/* Right */}
       <div className="flex items-center h-full">
-        {(errorCount > 0 || warningCount > 0) && (
-          <>
-            <Item onClick={onOpenProblems} className="gap-2">
-              {errorCount > 0 && (
-                <span className="flex items-center gap-0.5 text-destructive">
-                  <XCircle className="size-3" />
-                  {errorCount}
-                </span>
-              )}
-              {warningCount > 0 && (
-                <span className="flex items-center gap-0.5 text-amber-500">
-                  <AlertTriangle className="size-3" />
-                  {warningCount}
-                </span>
-              )}
-            </Item>
-            <Divider />
-          </>
-        )}
+        <ProblemsItem onOpen={onOpenProblems} />
         <LSPStatus activeLang={activeLang} />
 
         {activeLang && activeLang !== "plaintext" && (
@@ -141,6 +149,13 @@ export const StatusBar = memo(function StatusBar({
           <>
             <Divider />
             <CursorItem />
+          </>
+        )}
+
+        {showFps && (
+          <>
+            <Divider />
+            <FpsMeter />
           </>
         )}
 

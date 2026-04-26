@@ -1,7 +1,7 @@
 import { SymbolIcon } from "@/components/SymbolIcon";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { useConfig } from "@/hooks/useConfig";
+import { useConfigs } from "@/hooks/useConfigs";
 import { sortEntries } from "./sortEntries";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -225,9 +225,7 @@ const FileRow = memo(function FileRow({
       {isBookmarked && !ctx.ultraFast && (
         <Star className="size-3 shrink-0 text-amber-400/70 opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
-      {loadingChildren && (
-        <Spinner size="xs" className="shrink-0 text-muted-foreground" />
-      )}
+      {loadingChildren && <Spinner size="xs" className="shrink-0 text-muted-foreground" />}
     </div>
   );
 });
@@ -277,7 +275,10 @@ function flattenTree(
 const SearchResultRow = memo(function SearchResultRow({
   entry,
   rootPath,
-}: { entry: FileEntry; rootPath: string }) {
+}: {
+  entry: FileEntry;
+  rootPath: string;
+}) {
   const ctx = useExplorer();
   const rel = entry.path.startsWith(rootPath + "/")
     ? entry.path.slice(rootPath.length + 1)
@@ -463,9 +464,18 @@ export function FileExplorer({
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const { value: sort, set: setSort } = useConfig<SortMode>("explorer.sortOrder", "name-asc");
-  const { value: confirmDelete } = useConfig<boolean>("explorer.confirmDelete", true);
-  const { value: ultraFast } = useConfig<boolean>("performance.ultraFast", false);
+  const { values: explorerCfg, set: setExplorerCfg } = useConfigs({
+    "explorer.sortOrder": "name-asc" as SortMode,
+    "explorer.confirmDelete": true,
+    "performance.ultraFast": false,
+  });
+  const sort = explorerCfg["explorer.sortOrder"];
+  const confirmDelete = explorerCfg["explorer.confirmDelete"];
+  const ultraFast = explorerCfg["performance.ultraFast"];
+  const setSort = useCallback(
+    (v: SortMode) => setExplorerCfg("explorer.sortOrder", v),
+    [setExplorerCfg],
+  );
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() =>
     JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? "[]"),
   );

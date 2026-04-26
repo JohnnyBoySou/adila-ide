@@ -4,13 +4,25 @@ import {main} from '../models';
 
 export function CancelDeviceFlow():Promise<void>;
 
+export function CloneRepo(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function CreateAndPublish(arg1:string,arg2:boolean):Promise<main.GitHubRepo>;
+
+export function GetNotifications(arg1:boolean):Promise<Array<main.GitHubNotification>>;
 
 export function GetUser():Promise<main.GitHubUser>;
 
 export function IsAuthenticated():Promise<boolean>;
 
+export function ListMyEvents(arg1:string,arg2:number):Promise<Array<main.GitHubEvent>>;
+
+export function ListMyRepos(arg1:number):Promise<Array<main.GitHubUserRepo>>;
+
 export function Logout():Promise<void>;
+
+export function MarkAllNotificationsRead():Promise<void>;
+
+export function MarkNotificationRead(arg1:string):Promise<void>;
 
 export function PollDeviceToken(arg1:string,arg2:number):Promise<void>;
 

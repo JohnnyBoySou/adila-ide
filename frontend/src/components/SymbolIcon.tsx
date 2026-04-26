@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getIconResolver } from "@/lib/symbolIcons";
+import { getIconResolver, type IconResolution } from "@/lib/iconThemes";
+import { useIconThemeStore } from "@/stores/iconThemeStore";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -9,31 +10,36 @@ type Props = {
 };
 
 export function SymbolIcon({ name, isDir, className }: Props) {
-  const [src, setSrc] = useState<string | null>(null);
+  const themeId = useIconThemeStore((s) => s.themeId);
+  const [res, setRes] = useState<IconResolution | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getIconResolver()
+    getIconResolver(themeId)
       .then((r) => {
         if (cancelled) return;
-        setSrc(isDir ? r.folder(name) : r.file(name));
+        setRes(isDir ? r.folder(name) : r.file(name));
       })
       .catch(() => {
-        if (!cancelled) setSrc(null);
+        if (!cancelled) setRes(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [name, isDir]);
+  }, [name, isDir, themeId]);
 
-  if (!src) {
-    // placeholder neutro mantém o layout enquanto o tema carrega
+  if (!res) {
     return <span className={cn("inline-block", className)} aria-hidden />;
+  }
+
+  if (res.kind === "lucide") {
+    const Icon = res.icon;
+    return <Icon className={cn("inline-block shrink-0", res.color, className)} aria-hidden />;
   }
 
   return (
     <img
-      src={src}
+      src={res.url}
       alt=""
       aria-hidden
       draggable={false}

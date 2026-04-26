@@ -60,9 +60,7 @@ export function registerPathCompletion(monaco: typeof monacoTypes, currentFilePa
               ? monaco.languages.CompletionItemKind.Folder
               : monaco.languages.CompletionItemKind.File,
             insertText: e.isDirectory ? `${e.name}/` : e.name,
-            command: e.isDirectory
-              ? { id: "editor.action.triggerSuggest", title: "" }
-              : undefined,
+            command: e.isDirectory ? { id: "editor.action.triggerSuggest", title: "" } : undefined,
             detail: e.isDirectory ? "directory" : "file",
             range,
           }));

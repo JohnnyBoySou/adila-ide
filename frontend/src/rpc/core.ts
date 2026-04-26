@@ -10,6 +10,7 @@
 
 import * as App from "../../wailsjs/go/main/App";
 import * as Config from "../../wailsjs/go/main/Config";
+import * as WorkspaceConfig from "../../wailsjs/go/main/WorkspaceConfig";
 import * as About from "../../wailsjs/go/main/About";
 import * as CommandCenter from "../../wailsjs/go/main/CommandCenter";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
@@ -21,12 +22,24 @@ type P = Record<string, unknown> | undefined;
 // (já deserializados do JSON pelo Wails) e retorna uma Promise.
 const routes: Record<string, (p: P) => Promise<unknown>> = {
   // ── Config ──────────────────────────────────────────────────────────────────
-  "config.get": (p) => Config.Get((p?.key as string) ?? "", p?.defaultValue ?? null),
-  "config.set": (p) => Config.Set((p?.key as string) ?? "", p?.value ?? null),
+  "config.get": (p) => Config.Get((p?.key as string) ?? "", p?.defaultValue ?? ""),
+  "config.getMany": (p) =>
+    Config.GetMany((p?.queries as { key: string; defaultValue: unknown }[]) ?? []),
+  "config.set": (p) => Config.Set((p?.key as string) ?? "", p?.value ?? ""),
   "config.reset": (p) => Config.Reset((p?.key as string) ?? ""),
 
   // ── Settings ─────────────────────────────────────────────────────────────────
   "settings.openJson": () => Config.OpenSettingsJson(),
+
+  // ── Workspace Config (.adila/settings.json) ─────────────────────────────────
+  "workspaceConfig.get": (p) =>
+    WorkspaceConfig.Get((p?.key as string) ?? "", p?.defaultValue ?? ""),
+  "workspaceConfig.getMany": (p) =>
+    WorkspaceConfig.GetMany((p?.queries as { key: string; defaultValue: unknown }[]) ?? []),
+  "workspaceConfig.set": (p) =>
+    WorkspaceConfig.Set((p?.key as string) ?? "", p?.value ?? ""),
+  "workspaceConfig.reset": (p) => WorkspaceConfig.Reset((p?.key as string) ?? ""),
+  "workspaceConfig.openJson": () => WorkspaceConfig.OpenSettingsJson(),
 
   // ── About ────────────────────────────────────────────────────────────────────
   "product.info": () => About.GetProductInfo(),

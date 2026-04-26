@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { EventsEmit } from "../../../wailsjs/runtime/runtime";
 import { GitHubConnect } from "./GitHubConnect";
 import { GithubIcon } from "./GithubIcon";
@@ -59,7 +59,7 @@ export function GitHubProfileCard() {
   if (!user) {
     return (
       <>
-        <Card className="flex flex-row items-center gap-3 p-4">
+        <Card className="flex  bg-transparent flex-row items-center gap-3 p-4">
           <Avatar size="lg">
             <AvatarFallback>
               <GithubIcon className="size-5 text-muted-foreground" />
@@ -96,7 +96,7 @@ export function GitHubProfileCard() {
           openProfile();
         }
       }}
-      className="group flex flex-row items-center gap-3 p-4 transition-colors cursor-pointer hover:bg-accent/40"
+      className="group flex flex-row items-center bg-transparent  gap-3 p-4 transition-colors cursor-pointer hover:bg-accent/40"
     >
       <Avatar size="lg">
         {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.login} />}

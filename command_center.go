@@ -93,7 +93,7 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			batch := make([]CmdFileEntry, 0, 32)
+			batch := make([]CmdFileEntry, 0, 128)
 			_ = filepath.WalkDir(p, func(fp string, d fs.DirEntry, walkErr error) error {
 				if walkErr != nil {
 					return nil
@@ -104,12 +104,7 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 					}
 					return nil
 				}
-				info, _ := d.Info()
-				var mtime int64
-				if info != nil {
-					mtime = info.ModTime().Unix()
-				}
-				batch = append(batch, CmdFileEntry{Name: d.Name(), Path: fp, Mtime: mtime})
+				batch = append(batch, CmdFileEntry{Name: d.Name(), Path: fp})
 				return nil
 			})
 			batchCh <- batch
@@ -121,7 +116,7 @@ func (c *CommandCenter) ListAllFiles() []CmdFileEntry {
 		close(batchCh)
 	}()
 
-	files := make([]CmdFileEntry, 0, 1024)
+	files := make([]CmdFileEntry, 0, 4096)
 	for batch := range batchCh {
 		files = append(files, batch...)
 		if len(files) >= maxIndexFiles {
@@ -153,6 +148,7 @@ var builtinCommands = []PaletteItem{
 	{ID: "openWebview", Title: "Webview: Abrir URL como aba", Icon: "globe", Hint: "Ctrl+Shift+U"},
 	{ID: "openThemeEditor", Title: "Tema: Abrir editor de tema personalizado", Icon: "symbol-color"},
 	{ID: "openGitHubProfile", Title: "GitHub: Abrir perfil", Icon: "github"},
+	{ID: "openLinear", Title: "Linear: Abrir issues", Icon: "issues"},
 	{ID: "git.stageAll", Title: "Git: Adicionar todos os arquivos", Icon: "diff-added"},
 	{ID: "git.push", Title: "Git: Enviar (push)", Icon: "cloud-upload"},
 	{ID: "reloadWindow", Title: "Recarregar janela", Icon: "refresh"},

@@ -13,10 +13,13 @@ export type TermSession = {
 
 type CreateOpts = { cwd?: string; shell?: string };
 
+type AttachOpts = { id: string; cwd?: string; shell?: string; title?: string };
+
 type TermStore = {
   sessions: TermSession[];
   activeId: string;
   create: (opts?: CreateOpts) => Promise<string>;
+  attach: (opts: AttachOpts) => void;
   close: (id: string) => void;
   focus: (id: string) => void;
   updateSession: (id: string, patch: Partial<TermSession>) => void;
@@ -54,6 +57,26 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     return id;
   }, []);
 
+  const attach = useCallback(({ id, cwd = "", shell = "", title }: AttachOpts) => {
+    setSessions((prev) => {
+      if (prev.some((s) => s.id === id)) return prev;
+      const n = counterRef.current++;
+      const shortShell = shell ? (shell.split("/").pop() ?? shell) : "task";
+      return [
+        ...prev,
+        {
+          id,
+          title: title ?? `${shortShell} ${n}`,
+          cwd,
+          shell,
+          running: true,
+          exitCode: 0,
+        },
+      ];
+    });
+    setActiveId(id);
+  }, []);
+
   const close = useCallback((id: string) => {
     ClosePty(id).catch(() => {});
     setSessions((prev) => {
@@ -76,8 +99,8 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ sessions, activeId, create, close, focus, updateSession }),
-    [sessions, activeId, create, close, focus, updateSession],
+    () => ({ sessions, activeId, create, attach, close, focus, updateSession }),
+    [sessions, activeId, create, attach, close, focus, updateSession],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

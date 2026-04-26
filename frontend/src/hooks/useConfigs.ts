@@ -16,20 +16,18 @@ export function useConfigs<T extends Record<string, unknown>>(defaults: T) {
   useEffect(() => {
     let cancelled = false;
     const keys = Object.keys(defaultsRef.current) as (keyof T)[];
-    Promise.all(
-      keys.map((k) =>
-        call<unknown>("config.get", {
-          key: k as string,
-          defaultValue: defaultsRef.current[k],
-        }).then((v) => [k, v ?? defaultsRef.current[k]] as const),
-      ),
-    )
-      .then((entries) => {
+    const queries = keys.map((k) => ({
+      key: k as string,
+      defaultValue: defaultsRef.current[k],
+    }));
+    call<unknown[]>("config.getMany", { queries })
+      .then((results) => {
         if (cancelled) return;
         const next = { ...defaultsRef.current };
-        for (const [k, v] of entries) {
-          (next as Record<string, unknown>)[k as string] = v;
-        }
+        keys.forEach((k, i) => {
+          const v = results[i];
+          (next as Record<string, unknown>)[k as string] = v ?? defaultsRef.current[k];
+        });
         setValues(next as T);
       })
       .finally(() => {

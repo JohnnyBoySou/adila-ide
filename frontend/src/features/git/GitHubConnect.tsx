@@ -98,8 +98,8 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
         {!device ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
-              Vamos abrir o GitHub no seu navegador e pedir um código de autorização.
-              O Adila IDE não vê sua senha — apenas recebe um token com permissão{" "}
+              Vamos abrir o GitHub no seu navegador e pedir um código de autorização. O Adila IDE
+              não vê sua senha — apenas recebe um token com permissão{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-[10px]">repo</code>.
             </p>
             <Button onClick={start} disabled={starting} className="gap-2">
@@ -123,7 +123,11 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
                   title="Copiar código"
                   className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
-                  {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                  {copied ? (
+                    <Check className="size-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
                 </button>
               </div>
             </div>

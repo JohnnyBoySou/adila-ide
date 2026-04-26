@@ -1,3 +1,4 @@
+import { THEMES } from "@/lib/themes";
 import type { SettingActionId } from "./actions";
 
 export type SettingType =
@@ -33,28 +34,34 @@ export const settingsGroups: SettingsGroupDef[] = [
     id: "appearance-react",
     title: "Aparência",
     description:
-      "Tema, accent, tipografia e densidade dos painéis React (notificações, configurações, command center).",
+      "Tema, tipografia e densidade. O tema afeta toda a interface, incluindo o editor Monaco.",
     settings: [
       {
-        key: "adila.appearance.theme",
+        key: "workbench.colorTheme",
         title: "Tema",
-        description: "Modo claro, escuro ou seguir o sistema.",
+        description:
+          "Tema completo do sistema. Atualiza painéis React, sidebar, status bar e o editor Monaco.",
         type: "enum",
-        defaultValue: "dark",
-        options: [
-          { value: "auto", label: "Automático (sistema)" },
-          { value: "light", label: "Claro" },
-          { value: "dark", label: "Escuro" },
+        defaultValue: "Default Dark Modern",
+        options: THEMES.filter((t) => t.id !== "Custom").map((t) => ({
+          value: t.id,
+          label: t.label,
+        })),
+        keywords: [
+          "tema",
+          "theme",
+          "cores",
+          "dark",
+          "light",
+          "dracula",
+          "nord",
+          "tokyo",
+          "catppuccin",
+          "monokai",
+          "gruvbox",
+          "github",
+          "solarized",
         ],
-        keywords: ["dark", "light", "tema", "cores"],
-      },
-      {
-        key: "adila.appearance.accent",
-        title: "Cor de destaque",
-        description: "Aplicada a botões primários, links e foco.",
-        type: "color",
-        defaultValue: "#f0a23c",
-        keywords: ["accent", "primary", "destaque", "cor"],
       },
       {
         key: "adila.appearance.fontUi",
@@ -123,6 +130,31 @@ export const settingsGroups: SettingsGroupDef[] = [
         ],
         keywords: ["spacing", "tamanho", "compact"],
       },
+      {
+        key: "adila.appearance.transparency",
+        title: "Janela translúcida",
+        description:
+          "Ativa fundo translúcido com efeito blur, deixando o wallpaper visível através da UI. Requer suporte a transparência no compositor (Mutter, KWin, Picom etc.).",
+        type: "boolean",
+        defaultValue: false,
+        keywords: ["transparency", "blur", "vidro", "translucent", "acrylic", "wallpaper"],
+      },
+      {
+        key: "adila.appearance.transparencyOpacity",
+        title: "Opacidade do fundo",
+        description: "Quanto menor, mais transparente. Entre 0.2 e 1.0.",
+        type: "number",
+        defaultValue: 0.85,
+        keywords: ["transparency", "opacity", "alpha"],
+      },
+      {
+        key: "adila.appearance.transparencyBlur",
+        title: "Intensidade do blur",
+        description: "Em pixels. 0 desativa o blur. Valores típicos: 16–32.",
+        type: "number",
+        defaultValue: 24,
+        keywords: ["blur", "transparency", "vidro"],
+      },
     ],
   },
   {
@@ -131,18 +163,16 @@ export const settingsGroups: SettingsGroupDef[] = [
     description: "Layout geral e painéis.",
     settings: [
       {
-        key: "workbench.colorTheme",
-        title: "Tema de cores do workbench",
-        description: "Tema principal do editor.",
-        type: "string",
-        defaultValue: "Default Dark Modern",
-      },
-      {
         key: "workbench.iconTheme",
         title: "Tema de ícones",
-        description: "Conjunto de ícones da sidebar.",
-        type: "string",
-        defaultValue: "vs-seti",
+        description: "Conjunto de ícones de arquivos e pastas no explorer/abas/git.",
+        type: "enum",
+        defaultValue: "symbols",
+        options: [
+          { value: "symbols", label: "Symbols (Miguel Solorio)" },
+          { value: "minimal", label: "Minimal (Lucide)" },
+        ],
+        keywords: ["icones", "tema", "arquivos", "explorer", "lucide", "symbols"],
       },
       {
         key: "editor.fontFamily",
@@ -689,6 +719,23 @@ export const settingsGroups: SettingsGroupDef[] = [
     ],
   },
   {
+    id: "spotify",
+    title: "Spotify",
+    description:
+      "Mini-player integrado para escutar música enquanto programa. Requer conta Premium.",
+    settings: [
+      {
+        key: "adila.spotify.enabled",
+        title: "Ativar mini-player",
+        description:
+          "Mostra um mini-player flutuante no canto inferior direito. A primeira vez abre o navegador para autenticar.",
+        type: "boolean",
+        defaultValue: false,
+        keywords: ["spotify", "music", "musica", "player", "premium"],
+      },
+    ],
+  },
+  {
     id: "git",
     title: "Git",
     description: "Sincronização e integração com repositórios git.",
@@ -769,7 +816,8 @@ export const settingsGroups: SettingsGroupDef[] = [
   {
     id: "performance",
     title: "Desempenho",
-    description: "Ajustes para acelerar a renderização em máquinas modestas ou repositórios grandes.",
+    description:
+      "Ajustes para acelerar a renderização em máquinas modestas ou repositórios grandes.",
     settings: [
       {
         key: "performance.ultraFast",
@@ -801,7 +849,8 @@ function haystackFor(s: SettingDef): string {
   let h = searchHaystacks.get(s);
   if (h === undefined) {
     const kws = s.keywords;
-    h = `${s.title} ${s.description ?? ""} ${s.key}${kws && kws.length > 0 ? ` ${kws.join(" ")}` : ""}`.toLowerCase();
+    h =
+      `${s.title} ${s.description ?? ""} ${s.key}${kws && kws.length > 0 ? ` ${kws.join(" ")}` : ""}`.toLowerCase();
     searchHaystacks.set(s, h);
   }
   return h;

@@ -66,11 +66,7 @@ export function CLI() {
             checked && "border-primary bg-primary text-primary-foreground",
           )}
         >
-          {busy ? (
-            <Spinner size="xs" />
-          ) : checked ? (
-            <Check className="size-3.5" />
-          ) : null}
+          {busy ? <Spinner size="xs" /> : checked ? <Check className="size-3.5" /> : null}
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-medium">

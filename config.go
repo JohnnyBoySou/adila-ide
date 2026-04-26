@@ -20,6 +20,7 @@ type Config struct {
 	data   map[string]any
 	path   string
 	saveCh chan struct{}
+	wcfg   *WorkspaceConfig
 }
 
 func NewConfig() *Config {
@@ -27,6 +28,13 @@ func NewConfig() *Config {
 		data:   make(map[string]any),
 		saveCh: make(chan struct{}, 1),
 	}
+}
+
+// AttachWorkspace habilita resolução em camadas: Get/GetMany conferem o
+// workspace antes do global. Mantemos a referência aqui (e não no startup)
+// pra deixar o ciclo de criação no main.go explícito.
+func (c *Config) AttachWorkspace(w *WorkspaceConfig) {
+	c.wcfg = w
 }
 
 func (c *Config) startup(ctx context.Context) {
@@ -109,8 +117,17 @@ func (c *Config) scheduleSave() {
 // ── API pública (exposta ao Wails) ────────────────────────────────────────────
 
 // Get retorna o valor armazenado para key, ou defaultValue se a chave não existir.
+//
+// Resolução em camadas: workspace (.adila/settings.json) > global (~/.config) >
+// defaultValue. Permite que projetos sobrescrevam configs globais sem que o
+// usuário precise saber em qual camada cada chave vive.
 func (c *Config) Get(key string, defaultValue any) any {
 	defer bench.Time("Config.Get")()
+	if c.wcfg != nil {
+		if v, ok := c.wcfg.Lookup(key); ok {
+			return v
+		}
+	}
 	c.mu.RLock()
 	v, ok := c.data[key]
 	c.mu.RUnlock()
@@ -118,6 +135,43 @@ func (c *Config) Get(key string, defaultValue any) any {
 		return defaultValue
 	}
 	return v
+}
+
+// ConfigQuery representa uma chave + valor padrão para GetMany.
+type ConfigQuery struct {
+	Key          string `json:"key"`
+	DefaultValue any    `json:"defaultValue"`
+}
+
+// GetMany retorna os valores de várias chaves em uma só chamada IPC.
+// Mantém a ordem dos queries no slice de retorno; chaves ausentes recebem
+// o defaultValue correspondente.
+//
+// Resolução em camadas com 1 RLock por camada (workspace, depois global) —
+// evita N acquisições no workspace para queries grandes (useEditorConfig
+// lê 30+ chaves).
+func (c *Config) GetMany(queries []ConfigQuery) []any {
+	defer bench.Time("Config.GetMany")()
+	out := make([]any, len(queries))
+	resolved := make([]bool, len(queries))
+
+	if c.wcfg != nil {
+		c.wcfg.fillMany(queries, out, resolved)
+	}
+
+	c.mu.RLock()
+	for i, q := range queries {
+		if resolved[i] {
+			continue
+		}
+		if v, ok := c.data[q.Key]; ok {
+			out[i] = v
+		} else {
+			out[i] = q.DefaultValue
+		}
+	}
+	c.mu.RUnlock()
+	return out
 }
 
 // Set armazena value para key e emite o evento "config.changed" no frontend.

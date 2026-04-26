@@ -50,7 +50,6 @@ const PREFIX_DEBOUNCE_MS: Record<Mode, number> = {
   help: 0,
 };
 
-
 const MODE_LABEL: Record<Mode, string> = {
   commands: "Comandos",
   files: "Arquivos",

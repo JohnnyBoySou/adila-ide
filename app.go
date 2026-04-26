@@ -28,6 +28,81 @@ func NewApp(cfg *Config) *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if runtime.GOOS == "linux" {
+		// Roda em goroutine: faz mkdir + escreve .desktop/.png em ~/.local/share.
+		// É puro housekeeping pra integração com GNOME/KDE — não pode atrasar
+		// o paint da primeira janela.
+		go func() {
+			_ = installDesktopEntry()
+		}()
+	}
+}
+
+// installDesktopEntry escreve um .desktop e o appicon.png em ~/.local/share
+// para que GNOME/KDE associem o WM_CLASS "adila" ao ícone correto na dock.
+// Silencioso em caso de falha — o app continua funcionando.
+func installDesktopEntry() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	binary, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if resolved, err := filepath.EvalSymlinks(binary); err == nil {
+		binary = resolved
+	}
+
+	iconDir := filepath.Join(home, ".local", "share", "icons", "hicolor", "512x512", "apps")
+	if err := os.MkdirAll(iconDir, 0o755); err != nil {
+		return err
+	}
+	iconPath := filepath.Join(iconDir, "adila.png")
+	if needsWrite(iconPath, embeddedAppIcon) {
+		if err := os.WriteFile(iconPath, embeddedAppIcon, 0o644); err != nil {
+			return err
+		}
+	}
+
+	appsDir := filepath.Join(home, ".local", "share", "applications")
+	if err := os.MkdirAll(appsDir, 0o755); err != nil {
+		return err
+	}
+	desktopPath := filepath.Join(appsDir, "adila.desktop")
+	desktop := fmt.Sprintf(`[Desktop Entry]
+Type=Application
+Name=Adila IDE
+GenericName=Code Editor
+Comment=O editor de código forjado para fullstack
+Exec=%s %%F
+Icon=adila
+Terminal=false
+Categories=Development;IDE;TextEditor;
+StartupNotify=true
+StartupWMClass=adila
+MimeType=text/plain;inode/directory;
+`, binary)
+	if needsWrite(desktopPath, []byte(desktop)) {
+		return os.WriteFile(desktopPath, []byte(desktop), 0o644)
+	}
+	return nil
+}
+
+func needsWrite(path string, content []byte) bool {
+	cur, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	if len(cur) != len(content) {
+		return true
+	}
+	for i := range cur {
+		if cur[i] != content[i] {
+			return true
+		}
+	}
+	return false
 }
 
 // SetInitialPath define a pasta a ser aberta no startup (vinda da CLI).
@@ -357,7 +432,9 @@ func (a *App) SearchFiles(rootPath, query string) ([]FileEntry, error) {
 		}
 		defer func() { <-sem }()
 
-		var buf batch
+		// Pre-aloca buf para evitar resize logarítmico (1, 2, 4, 8, 16...).
+		// 16 cobre o caso comum (queries específicas: poucos hits por subárvore).
+		buf := make(batch, 0, 16)
 		_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
 			// Checa cancelamento a cada entrada, sem custo relevante.
 			select {

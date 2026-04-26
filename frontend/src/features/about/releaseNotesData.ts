@@ -7,7 +7,8 @@ import releasesMarkdown from "../../../../RELEASES.md?raw";
 //
 // Aceitamos tanto "—" (em-dash) quanto "-" (hífen) como separador para tolerar
 // edição manual sem se preocupar com o caractere correto.
-const RELEASE_HEADER = /^##\s+v(\d+\.\d+\.\d+(?:[\w.-]*)?)\s+[—–-]\s+(\d{4}-\d{2}-\d{2})(\s*\(current\))?\s*$/im;
+const RELEASE_HEADER =
+  /^##\s+v(\d+\.\d+\.\d+(?:[\w.-]*)?)\s+[—–-]\s+(\d{4}-\d{2}-\d{2})(\s*\(current\))?\s*$/im;
 
 interface ParsedRelease {
   version: string;

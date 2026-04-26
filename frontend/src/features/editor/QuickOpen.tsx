@@ -89,15 +89,11 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
           placeholder="Abrir arquivo…"
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
-        <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-          Esc
-        </kbd>
+        <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Esc</kbd>
       </div>
 
       <div ref={listRef} className="max-h-80 overflow-y-auto py-1">
-        {results.length === 0 && query.trim() && (
-          <EmptyState title="Nenhum arquivo encontrado" />
-        )}
+        {results.length === 0 && query.trim() && <EmptyState title="Nenhum arquivo encontrado" />}
         {results.length === 0 && !query.trim() && (
           <EmptyState title="Digite para buscar arquivos" />
         )}
@@ -119,9 +115,7 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
               <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />
               <span className="flex-1 min-w-0">
                 <span className="text-sm block truncate">{name}</span>
-                {dir && (
-                  <span className="text-xs text-muted-foreground truncate block">{dir}</span>
-                )}
+                {dir && <span className="text-xs text-muted-foreground truncate block">{dir}</span>}
               </span>
             </button>
           );

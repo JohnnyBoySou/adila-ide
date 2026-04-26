@@ -6,7 +6,7 @@
  * right, top, bottom) — estilo Ubuntu window-tile.
  */
 
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState } from "react";
 import { Breadcrumbs } from "./Breadcrumbs";
 import type { EditorMarker } from "./ProblemsPanel";
@@ -67,25 +67,30 @@ function SplitView({
   const idA = `${node.id}-a`;
   const idB = `${node.id}-b`;
 
-  // Persistência debouncada: a biblioteca já cuida do visual durante o drag via
-  // CSS interno. Só propagamos para o estado do App quando o usuário para de
-  // arrastar — assim a árvore de panes (e o Monaco) não re-renderiza por pixel.
+  // Persistência debouncada: allotment já cuida do visual durante o drag via
+  // manipulação direta do DOM. Só propagamos para o estado do App quando o
+  // usuário para de arrastar — assim Monaco não re-renderiza por pixel.
   const commitTimer = useRef<number | undefined>(undefined);
   const onSplitSizeChange = props.onSplitSizeChange;
+  const containerSizeRef = useRef<number>(0);
   const handleLayoutChanged = useCallback(
-    (layout: Record<string, number>) => {
-      const aSize = layout[idA];
-      if (typeof aSize !== "number") return;
-      if (Math.round(aSize) === Math.round(node.size)) return;
+    (sizes: number[]) => {
+      const aPx = sizes[0];
+      if (typeof aPx !== "number") return;
+      const total = sizes.reduce((acc, n) => acc + n, 0);
+      if (total <= 0) return;
+      containerSizeRef.current = total;
+      const aPct = (aPx / total) * 100;
+      if (Math.round(aPct) === Math.round(node.size)) return;
       if (commitTimer.current !== undefined) {
         window.clearTimeout(commitTimer.current);
       }
       commitTimer.current = window.setTimeout(() => {
         commitTimer.current = undefined;
-        onSplitSizeChange?.(node.id, aSize);
+        onSplitSizeChange?.(node.id, aPct);
       }, 150);
     },
-    [idA, node.id, node.size, onSplitSizeChange],
+    [node.id, node.size, onSplitSizeChange],
   );
   useEffect(() => {
     return () => {
@@ -99,20 +104,15 @@ function SplitView({
       className="flex-1 min-h-0"
       onLayoutChanged={handleLayoutChanged}
     >
-      <ResizablePanel
-        id={idA}
-        defaultSize={`${node.size}%`}
-        className="flex flex-col overflow-hidden"
-      >
-        <PaneNodeView node={node.a} {...props} />
+      <ResizablePanel key={idA} preferredSize={`${node.size}%`} minSize={120}>
+        <div className="flex flex-col overflow-hidden h-full">
+          <PaneNodeView node={node.a} {...props} />
+        </div>
       </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel
-        id={idB}
-        defaultSize={`${100 - node.size}%`}
-        className="flex flex-col overflow-hidden"
-      >
-        <PaneNodeView node={node.b} {...props} />
+      <ResizablePanel key={idB} preferredSize={`${100 - node.size}%`} minSize={120}>
+        <div className="flex flex-col overflow-hidden h-full">
+          <PaneNodeView node={node.b} {...props} />
+        </div>
       </ResizablePanel>
     </ResizablePanelGroup>
   );

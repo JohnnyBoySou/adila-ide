@@ -31,7 +31,9 @@ export function ShortcutHud({ hint }: Props) {
     <div
       className={
         "fixed left-0 right-0 bottom-8 z-[100] pointer-events-none flex justify-center transition-all ease-out " +
-        (visible ? "opacity-100 translate-y-0 duration-150" : "opacity-0 translate-y-2 duration-200")
+        (visible
+          ? "opacity-100 translate-y-0 duration-150"
+          : "opacity-0 translate-y-2 duration-200")
       }
     >
       <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/75 backdrop-blur-xl shadow-2xl border border-white/10">

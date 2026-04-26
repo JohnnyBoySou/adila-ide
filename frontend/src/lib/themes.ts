@@ -88,6 +88,14 @@ export const THEMES: Theme[] = [
     preview: { bg: "#282c34", text: "#abb2bf", border: "#3e4451", accent: "#61afef" },
   },
   {
+    id: "Atom One Dark",
+    label: "Atom One Dark",
+    mode: "dark",
+    cssClass: "theme-atom-one-dark",
+    monaco: "vs-dark",
+    preview: { bg: "#282c34", text: "#abb2bf", border: "#3e4451", accent: "#528bff" },
+  },
+  {
     id: "Nord",
     label: "Nord",
     mode: "dark",
@@ -150,6 +158,30 @@ export const THEMES: Theme[] = [
     cssClass: "theme-gruvbox-dark",
     monaco: "vs-dark",
     preview: { bg: "#282828", text: "#ebdbb2", border: "#504945", accent: "#fe8019" },
+  },
+  {
+    id: "Rose Pine",
+    label: "Rosé Pine",
+    mode: "dark",
+    cssClass: "theme-rose-pine",
+    monaco: "vs-dark",
+    preview: { bg: "#191724", text: "#e0def4", border: "#26233a", accent: "#eb6f92" },
+  },
+  {
+    id: "Ayu Mirage",
+    label: "Ayu Mirage",
+    mode: "dark",
+    cssClass: "theme-ayu-mirage",
+    monaco: "vs-dark",
+    preview: { bg: "#1f2430", text: "#cbccc6", border: "#33415e", accent: "#ffcc66" },
+  },
+  {
+    id: "Material Ocean",
+    label: "Material Ocean",
+    mode: "dark",
+    cssClass: "theme-material-ocean",
+    monaco: "vs-dark",
+    preview: { bg: "#0f111a", text: "#a6accd", border: "#1f2233", accent: "#80cbc4" },
   },
 ];
 

@@ -158,11 +158,7 @@ export function GitHub() {
               checked && "border-primary bg-primary text-primary-foreground",
             )}
           >
-            {starting ? (
-              <Spinner size="xs" />
-            ) : checked ? (
-              <Check className="size-3.5" />
-            ) : null}
+            {starting ? <Spinner size="xs" /> : checked ? <Check className="size-3.5" /> : null}
           </div>
           <div className="flex flex-col flex-1 min-w-0">
             <span className="text-sm font-medium">
