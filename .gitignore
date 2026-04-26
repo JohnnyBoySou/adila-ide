@@ -1,3 +1,12 @@
 build/bin
 node_modules
 frontend/dist
+
+# Binários compilados pelo Wails
+ide
+ide.test
+frontend/ide
+
+# Dados de profiling
+frontend/profiling-data.*.json
+profiling-data.*.json
