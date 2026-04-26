@@ -194,50 +194,49 @@ func (g *Git) Status() ([]GitChangedFile, error) {
 }
 
 func parseStatus(raw string) []GitChangedFile {
-	// --porcelain=v1 -z: entradas separadas por NUL, cada entrada tem 2 chars de status + espaço + path
-	// renomes: XY path NUL origPath NUL
-	// Estimativa: ~50 chars por entrada — pré-dimensiona p/ evitar growth.
-	files := make([]GitChangedFile, 0, len(raw)/50+8)
-	nextEntry := func(s string) (entry, rest string, ok bool) {
-		idx := strings.IndexByte(s, 0)
-		if idx < 0 {
-			if s == "" {
-				return "", "", false
-			}
-			return s, "", true
-		}
-		return s[:idx], s[idx+1:], true
-	}
+	// --porcelain=v1 -z: entradas separadas por NUL. Cada entrada: 2 chars de
+	// status + espaço + path. Renames usam 2 entries seguidas (path NUL origPath
+	// NUL). Pre-size baseado em ~30 chars/entrada típica + folga p/ Y staging
+	// secundário.
+	files := make([]GitChangedFile, 0, len(raw)/30+8)
 	rest := raw
-	for {
-		e, r, ok := nextEntry(rest)
-		rest = r
-		if !ok {
-			break
+	for len(rest) > 0 {
+		idx := strings.IndexByte(rest, 0)
+		var entry string
+		if idx < 0 {
+			entry = rest
+			rest = ""
+		} else {
+			entry = rest[:idx]
+			rest = rest[idx+1:]
 		}
-		if len(e) < 4 {
+		if len(entry) < 4 {
 			continue
 		}
-		x := rune(e[0]) // staged
-		y := rune(e[1]) // unstaged
-		path := e[3:]
+		x := entry[0] // staged
+		y := entry[1] // unstaged
+		path := entry[3:]
 
 		if x != ' ' && x != '?' {
-			f := GitChangedFile{Path: path, Staged: true, Status: xyToStatus(x)}
+			f := GitChangedFile{Path: path, Staged: true, Status: xyToStatus(rune(x))}
 			if x == 'R' || x == 'C' {
-				// próxima entrada é o path original
-				orig, r2, ok2 := nextEntry(rest)
-				if ok2 {
-					f.PrevPath = orig
-					rest = r2
+				// Próxima entry é o path original.
+				oidx := strings.IndexByte(rest, 0)
+				if oidx < 0 {
+					if rest != "" {
+						f.PrevPath = rest
+						rest = ""
+					}
+				} else {
+					f.PrevPath = rest[:oidx]
+					rest = rest[oidx+1:]
 				}
 			}
 			files = append(files, f)
 		}
 		if y != ' ' && y != '?' && !(x == '?' && y == '?') {
-			files = append(files, GitChangedFile{Path: path, Staged: false, Status: xyToStatus(y)})
+			files = append(files, GitChangedFile{Path: path, Staged: false, Status: xyToStatus(rune(y))})
 		}
-		// untracked: ambos '?'
 		if x == '?' && y == '?' {
 			files = append(files, GitChangedFile{Path: path, Staged: false, Status: "untracked"})
 		}

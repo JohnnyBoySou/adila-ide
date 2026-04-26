@@ -319,35 +319,47 @@ var defaultExcludeFolders = []string{
 // partir do Config; se a chave não existir ou estiver vazia, retorna o
 // default. Aceita tanto []any (vindo do JSON) quanto []string.
 func resolveExcludeFolders(cfg *Config) map[string]bool {
-	build := func(items []string) map[string]bool {
-		m := make(map[string]bool, len(items))
-		for _, s := range items {
-			if s = strings.TrimSpace(s); s != "" {
-				m[s] = true
-			}
-		}
-		return m
-	}
 	if cfg != nil {
 		raw := cfg.Get("explorer.excludeFolders", nil)
 		switch v := raw.(type) {
 		case []any:
-			items := make([]string, 0, len(v))
-			for _, x := range v {
-				if s, ok := x.(string); ok {
-					items = append(items, s)
-				}
-			}
-			if len(items) > 0 {
-				return build(items)
+			if m := buildExcludeMapFromAny(v); m != nil {
+				return m
 			}
 		case []string:
 			if len(v) > 0 {
-				return build(v)
+				return buildExcludeMapFromStrings(v)
 			}
 		}
 	}
-	return build(defaultExcludeFolders)
+	return buildExcludeMapFromStrings(defaultExcludeFolders)
+}
+
+func buildExcludeMapFromAny(items []any) map[string]bool {
+	m := make(map[string]bool, len(items))
+	for _, x := range items {
+		s, ok := x.(string)
+		if !ok {
+			continue
+		}
+		if s = strings.TrimSpace(s); s != "" {
+			m[s] = true
+		}
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
+}
+
+func buildExcludeMapFromStrings(items []string) map[string]bool {
+	m := make(map[string]bool, len(items))
+	for _, s := range items {
+		if s = strings.TrimSpace(s); s != "" {
+			m[s] = true
+		}
+	}
+	return m
 }
 
 // SearchFiles busca arquivos cujo nome contenha query sob rootPath.
