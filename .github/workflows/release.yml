@@ -127,3 +127,87 @@ jobs:
             dist/${{ steps.pkg.outputs.asset }}.sha256
             dist/${{ steps.appimage.outputs.asset }}
             dist/${{ steps.appimage.outputs.asset }}.sha256
+
+  release-windows:
+    name: Release (Windows x64)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache Wails CLI
+        id: cache-wails
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/wails.exe
+          key: wails-${{ env.WAILS_VERSION }}-${{ runner.os }}
+
+      - name: Install Wails CLI
+        if: steps.cache-wails.outputs.cache-hit != 'true'
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+
+      - name: Frontend deps
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Wails build (binary + NSIS installer)
+        shell: bash
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          wails build -platform windows/amd64 -clean -trimpath -nsis \
+            -ldflags "-s -w -X main.version=${{ steps.ver.outputs.version }}"
+
+      - name: Package
+        id: pkg
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          $zip = "adila-ide-$env:VERSION-windows-amd64.zip"
+          Compress-Archive -Path build/bin/adila-ide.exe -DestinationPath "dist/$zip" -Force
+          $zipHash = (Get-FileHash "dist/$zip" -Algorithm SHA256).Hash.ToLower()
+          "$zipHash  $zip" | Out-File -FilePath "dist/$zip.sha256" -Encoding ascii -NoNewline
+
+          $installerSrc = "build/bin/adila-ide-amd64-installer.exe"
+          $installer = "adila-ide-$env:VERSION-windows-amd64-installer.exe"
+          Copy-Item -Path $installerSrc -Destination "dist/$installer"
+          $instHash = (Get-FileHash "dist/$installer" -Algorithm SHA256).Hash.ToLower()
+          "$instHash  $installer" | Out-File -FilePath "dist/$installer.sha256" -Encoding ascii -NoNewline
+
+          "zip=$zip"             | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding ascii
+          "installer=$installer" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding ascii
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/${{ steps.pkg.outputs.zip }}
+            dist/${{ steps.pkg.outputs.zip }}.sha256
+            dist/${{ steps.pkg.outputs.installer }}
+            dist/${{ steps.pkg.outputs.installer }}.sha256
