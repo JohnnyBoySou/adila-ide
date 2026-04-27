@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // stripFileScheme converte um URI "file:///abs/path" no caminho local "/abs/path".
@@ -87,7 +86,7 @@ func (l *LSP) startup(ctx context.Context) {
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		wruntime.LogErrorf(ctx, "LSP: não foi possível abrir porta: %v", err)
+		logErrorf("LSP: não foi possível abrir porta: %v", err)
 		return
 	}
 	l.port = ln.Addr().(*net.TCPAddr).Port
@@ -100,11 +99,11 @@ func (l *LSP) startup(ctx context.Context) {
 
 	go func() {
 		if err := l.server.Serve(ln); err != nil && err != http.ErrServerClosed {
-			wruntime.LogErrorf(ctx, "LSP server: %v", err)
+			logErrorf("LSP server: %v", err)
 		}
 	}()
 
-	wruntime.LogInfof(ctx, "LSP proxy rodando em 127.0.0.1:%d", l.port)
+	logInfof("LSP proxy rodando em 127.0.0.1:%d", l.port)
 }
 
 func (l *LSP) shutdown(_ context.Context) {
@@ -286,7 +285,7 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 		line := string(lw.buf[:idx])
 		lw.buf = lw.buf[idx+1:]
 		if strings.TrimSpace(line) != "" {
-			wruntime.LogDebugf(lw.ctx, "[%s] %s", lw.prefix, line)
+			logDebugf("[%s] %s", lw.prefix, line)
 		}
 	}
 	return len(p), nil

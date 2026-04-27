@@ -1,0 +1,59 @@
+version: '3'
+
+tasks:
+  go:mod:tidy:
+    summary: Runs `go mod tidy`
+    internal: true
+    cmds:
+      - go mod tidy
+
+  install:frontend:deps:
+    summary: Install frontend dependencies
+    dir: frontend
+    sources:
+      - package.json
+      - bun.lock
+    generates:
+      - node_modules/.package-lock.json
+    preconditions:
+      - sh: bun --version
+        msg: "bun não encontrado. Instale via https://bun.sh"
+    cmds:
+      - bun install --frozen-lockfile
+
+  build:frontend:
+    label: build:frontend
+    summary: Build the frontend project (sempre produção; em dev mode o Vite HMR
+      serve assets via proxy e o dist embedded só satisfaz o go:embed).
+    dir: frontend
+    sources:
+      - "**/*"
+      - exclude: node_modules/**/*
+    generates:
+      - dist/**/*
+    deps:
+      - task: install:frontend:deps
+      - task: generate:bindings
+    cmds:
+      - bun run build
+
+  generate:bindings:
+    summary: Gera bindings TS para frontend/bindings/ide
+    deps:
+      - task: go:mod:tidy
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - frontend/bindings/**/*
+    cmds:
+      - wails3 generate bindings -ts -clean
+
+  dev:frontend:
+    summary: Roda Vite em dev (porta {{.VITE_PORT}})
+    dir: frontend
+    deps:
+      - task: install:frontend:deps
+    cmds:
+      - bun run dev -- --port {{.VITE_PORT}} --strictPort

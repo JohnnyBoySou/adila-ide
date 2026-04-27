@@ -8,9 +8,17 @@ interface DialogProps {
   children: ReactNode;
   className?: string;
   ariaLabel?: string;
+  align?: "top" | "center";
 }
 
-export function Dialog({ open, onOpenChange, children, className, ariaLabel }: DialogProps) {
+export function Dialog({
+  open,
+  onOpenChange,
+  children,
+  className,
+  ariaLabel,
+  align = "top",
+}: DialogProps) {
   useEffect(() => {
     if (!open) {
       return;
@@ -34,7 +42,10 @@ export function Dialog({ open, onOpenChange, children, className, ariaLabel }: D
           role="dialog"
           aria-modal="true"
           aria-label={ariaLabel}
-          className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
+          className={cn(
+            "fixed inset-0 z-50 flex justify-center",
+            align === "center" ? "items-center" : "items-start pt-[12vh]",
+          )}
           onClick={() => onOpenChange(false)}
         >
           <motion.div

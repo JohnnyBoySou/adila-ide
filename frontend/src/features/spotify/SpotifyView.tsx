@@ -25,6 +25,7 @@ import {
   type SpotifyPlaylist,
   type SpotifyTrackInfo,
 } from "./api";
+import { SpotifyConnect } from "./SpotifyConnect";
 import { useSpotifyAuth } from "./useSpotifyAuth";
 import { useSpotifyPlayer } from "./useSpotifyPlayer";
 
@@ -71,6 +72,7 @@ export function SpotifyView({ overlayOpen, onClose }: Props) {
   const [likePending, setLikePending] = useState(false);
   const [me, setMe] = useState<SpotifyMe | null>(null);
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [connectOpen, setConnectOpen] = useState(false);
   const prevBtnRef = useRef<HTMLButtonElement | null>(null);
   const nextBtnRef = useRef<HTMLButtonElement | null>(null);
 
@@ -378,7 +380,7 @@ export function SpotifyView({ overlayOpen, onClose }: Props) {
             </div>
             <button
               type="button"
-              onClick={() => void connect()}
+              onClick={() => setConnectOpen(true)}
               disabled={connecting}
               className="rounded-full bg-green-600 hover:bg-green-500 disabled:opacity-50 px-6 py-2 text-sm font-medium text-white cursor-pointer transition-all duration-150 active:scale-95 hover:scale-105"
             >
@@ -647,6 +649,8 @@ export function SpotifyView({ overlayOpen, onClose }: Props) {
           </aside>
         </div>
       )}
+
+      <SpotifyConnect open={connectOpen} onOpenChange={setConnectOpen} />
     </div>
   );
 }

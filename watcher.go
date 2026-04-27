@@ -5,8 +5,6 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // fileWatcher observa um diretório e emite "fileTree.changed" com debounce de 400ms.
@@ -66,7 +64,7 @@ func (w *fileWatcher) emit() {
 	w.timer = time.AfterFunc(400*time.Millisecond, func() {
 		defer bench.Time("Watcher.fileTreeChanged")()
 		if ctx != nil {
-			wruntime.EventsEmit(ctx, "fileTree.changed")
+			emit("fileTree.changed")
 		}
 	})
 }

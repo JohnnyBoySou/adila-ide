@@ -1,5 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useConfigs } from "@/hooks/useConfigs";
+
+export const FONT_SIZE_MIN = 8;
+export const FONT_SIZE_MAX = 40;
+export const FONT_SIZE_DEFAULT = 13;
+
+function clampFontSize(n: number): number {
+  if (!Number.isFinite(n)) return FONT_SIZE_DEFAULT;
+  return Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, Math.round(n)));
+}
 
 type WordWrap = "off" | "on" | "wordWrapColumn" | "bounded";
 type CursorBlinking = "blink" | "smooth" | "phase" | "expand" | "solid";
@@ -45,10 +54,18 @@ export type EditorConfig = {
   userSnippets: string;
 };
 
-export function useEditorConfig(): EditorConfig {
-  const { values } = useConfigs({
+export interface EditorConfigWithControls {
+  config: EditorConfig;
+  setFontSize: (n: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
+}
+
+export function useEditorConfig(): EditorConfigWithControls {
+  const { values, set } = useConfigs({
     "monaco.theme": "tailwind",
-    "editor.fontSize": 13,
+    "editor.fontSize": FONT_SIZE_DEFAULT,
     "editor.fontFamily": "'Google Sans Mono', 'Fira Code', monospace",
     "editor.tabSize": 2,
     "editor.wordWrap": "off" as WordWrap,
@@ -81,7 +98,7 @@ export function useEditorConfig(): EditorConfig {
     "editor.userSnippets": "[]",
   });
 
-  return useMemo<EditorConfig>(
+  const config = useMemo<EditorConfig>(
     () => ({
       theme: values["monaco.theme"],
       fontSize: values["editor.fontSize"],
@@ -118,4 +135,25 @@ export function useEditorConfig(): EditorConfig {
     }),
     [values],
   );
+
+  const setFontSize = useCallback(
+    (n: number) => {
+      void set("editor.fontSize", clampFontSize(n));
+    },
+    [set],
+  );
+
+  const zoomIn = useCallback(() => {
+    setFontSize(config.fontSize + 1);
+  }, [config.fontSize, setFontSize]);
+
+  const zoomOut = useCallback(() => {
+    setFontSize(config.fontSize - 1);
+  }, [config.fontSize, setFontSize]);
+
+  const resetZoom = useCallback(() => {
+    setFontSize(FONT_SIZE_DEFAULT);
+  }, [setFontSize]);
+
+  return { config, setFontSize, zoomIn, zoomOut, resetZoom };
 }

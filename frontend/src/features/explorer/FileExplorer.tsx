@@ -8,6 +8,7 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   ChevronRight,
+  ClipboardPaste,
   Clock,
   FilePlus2,
   FolderPlus,
@@ -37,6 +38,8 @@ import {
   RenameEntry,
   SearchFiles,
 } from "../../../wailsjs/go/main/App";
+import { toast } from "@/hooks/useToast";
+import { dropIntoDir, pasteClipboardIntoDir } from "./pasteFromClipboard";
 
 export interface FileEntry {
   name: string;
@@ -77,6 +80,8 @@ interface ExplorerCtx {
   onOpenFile: (entry: FileEntry) => void;
   onRefresh: () => void;
   onToggleExpand: (entry: FileEntry) => void;
+  onExternalDragOver: (entry: FileEntry, e: React.DragEvent) => void;
+  onExternalDrop: (entry: FileEntry, e: React.DragEvent) => void;
   ultraFast: boolean;
 }
 
@@ -137,6 +142,7 @@ interface FileRowProps {
   isBookmarked: boolean;
   expanded: boolean;
   loadingChildren: boolean;
+  isDropTarget: boolean;
 }
 
 const FileRow = memo(function FileRow({
@@ -147,6 +153,7 @@ const FileRow = memo(function FileRow({
   isBookmarked,
   expanded,
   loadingChildren,
+  isDropTarget,
 }: FileRowProps) {
   const ctx = useExplorer();
   const renameRef = useRef<HTMLInputElement>(null);
@@ -172,6 +179,7 @@ const FileRow = memo(function FileRow({
       className={cn(
         "group flex items-center gap-2 hover:bg-accent/60 text-sm py-1.5 cursor-pointer rounded select-none transition-colors h-full",
         isRenaming && "bg-accent",
+        isDropTarget && "bg-primary/10 ring-1 ring-inset ring-primary/40",
       )}
       style={{ paddingLeft: `${depth * 14 + 4}px` }}
       draggable={!entry.isDir && !isRenaming}
@@ -183,6 +191,8 @@ const FileRow = memo(function FileRow({
           JSON.stringify({ path: entry.path, name: entry.name }),
         );
       }}
+      onDragOver={(e) => ctx.onExternalDragOver(entry, e)}
+      onDrop={(e) => ctx.onExternalDrop(entry, e)}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -387,10 +397,14 @@ interface ContextMenuPopupProps {
   isBookmarked: boolean;
   onNewFile?: () => void;
   onNewFolder?: () => void;
+  onPaste?: () => void;
 }
 
 const ContextMenuPopup = forwardRef<HTMLDivElement, ContextMenuPopupProps>(
-  ({ state, onRename, onDelete, onBookmark, isBookmarked, onNewFile, onNewFolder }, ref) => {
+  (
+    { state, onRename, onDelete, onBookmark, isBookmarked, onNewFile, onNewFolder, onPaste },
+    ref,
+  ) => {
     const item =
       "flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent text-left rounded-sm";
 
@@ -400,7 +414,7 @@ const ContextMenuPopup = forwardRef<HTMLDivElement, ContextMenuPopupProps>(
         style={{ position: "fixed", top: state.y, left: state.x, zIndex: 9999 }}
         className="min-w-44 rounded-md border border-border/60 bg-popover shadow-lg py-1 text-foreground"
       >
-        {(onNewFile || onNewFolder) && (
+        {(onNewFile || onNewFolder || onPaste) && (
           <>
             {onNewFile && (
               <button type="button" className={item} onClick={onNewFile}>
@@ -412,6 +426,12 @@ const ContextMenuPopup = forwardRef<HTMLDivElement, ContextMenuPopupProps>(
               <button type="button" className={item} onClick={onNewFolder}>
                 <FolderPlus className="size-3.5 shrink-0" />
                 Nova pasta aqui
+              </button>
+            )}
+            {onPaste && (
+              <button type="button" className={item} onClick={onPaste}>
+                <ClipboardPaste className="size-3.5 shrink-0" />
+                Colar do clipboard
               </button>
             )}
             <div className="my-1 border-t border-border/40" />
@@ -488,6 +508,7 @@ export function FileExplorer({
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
   const [childrenByPath, setChildrenByPath] = useState<Map<string, FileEntry[]>>(() => new Map());
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(() => new Set());
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ctxMenuRef = useRef<HTMLDivElement>(null);
   const treeScrollRef = useRef<HTMLDivElement>(null);
@@ -686,6 +707,117 @@ export function FileExplorer({
     [onRefresh, confirmDelete],
   );
 
+  const targetDirFor = useCallback((entry: FileEntry): string => {
+    if (entry.isDir) return entry.path;
+    const sep = Math.max(entry.path.lastIndexOf("/"), entry.path.lastIndexOf("\\"));
+    return sep > 0 ? entry.path.slice(0, sep) : rootPath;
+  }, [rootPath]);
+
+  const onPaste = useCallback(
+    async (entry: FileEntry) => {
+      setContextMenu(null);
+      const targetDir = targetDirFor(entry);
+      if (!targetDir) {
+        toast.error("Pasta de destino inválida");
+        return;
+      }
+      const result = await pasteClipboardIntoDir(targetDir);
+      if (result.kind === "ok") {
+        const n = result.written.length;
+        toast.success(
+          n === 1
+            ? `Arquivo colado: ${result.written[0].path.split("/").pop()}`
+            : `${n} arquivos colados em ${targetDir}`,
+        );
+        onRefresh();
+      } else if (result.kind === "empty") {
+        toast.show("Nenhum arquivo para colar no clipboard.");
+      } else {
+        toast.error("Não foi possível colar", result.message);
+      }
+    },
+    [onRefresh, targetDirFor],
+  );
+
+  const isExternalDrag = useCallback((e: React.DragEvent): boolean => {
+    const types = Array.from(e.dataTransfer.types ?? []);
+    if (types.includes("application/x-adila-file")) return false;
+    return (
+      types.includes("Files") ||
+      types.includes("text/uri-list") ||
+      types.includes("text/plain")
+    );
+  }, []);
+
+  const onExternalDragOver = useCallback(
+    (entry: FileEntry, e: React.DragEvent) => {
+      if (!isExternalDrag(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      const target = targetDirFor(entry);
+      if (target !== dropTargetPath) setDropTargetPath(target);
+    },
+    [isExternalDrag, targetDirFor, dropTargetPath],
+  );
+
+  const onExternalDrop = useCallback(
+    async (entry: FileEntry, e: React.DragEvent) => {
+      if (!isExternalDrag(e)) return;
+      e.preventDefault();
+      setDropTargetPath(null);
+      const targetDir = targetDirFor(entry);
+      const result = await dropIntoDir(e.dataTransfer, targetDir);
+      if (result.kind === "ok") {
+        const n = result.written.length;
+        toast.success(
+          n === 1
+            ? `Arquivo salvo: ${result.written[0].path.split("/").pop()}`
+            : `${n} arquivos salvos em ${targetDir}`,
+        );
+        onRefresh();
+      } else if (result.kind === "error") {
+        toast.error("Não foi possível salvar", result.message);
+      }
+    },
+    [isExternalDrag, targetDirFor, onRefresh],
+  );
+
+  const onRootDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!isExternalDrag(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      if (dropTargetPath !== rootPath) setDropTargetPath(rootPath);
+    },
+    [isExternalDrag, dropTargetPath, rootPath],
+  );
+
+  const onRootDragLeave = useCallback((e: React.DragEvent) => {
+    // Só limpa se realmente saiu da área (não só passou para um filho).
+    if (e.currentTarget === e.target) setDropTargetPath(null);
+  }, []);
+
+  const onRootDrop = useCallback(
+    async (e: React.DragEvent) => {
+      if (!isExternalDrag(e)) return;
+      e.preventDefault();
+      setDropTargetPath(null);
+      const result = await dropIntoDir(e.dataTransfer, rootPath);
+      if (result.kind === "ok") {
+        const n = result.written.length;
+        toast.success(
+          n === 1
+            ? `Arquivo salvo: ${result.written[0].path.split("/").pop()}`
+            : `${n} arquivos salvos em ${rootPath}`,
+        );
+        onRefresh();
+      } else if (result.kind === "error") {
+        toast.error("Não foi possível salvar", result.message);
+      }
+    },
+    [isExternalDrag, rootPath, onRefresh],
+  );
+
   const cycleSortMode = () => {
     const next: SortMode =
       sort === "name-asc" ? "name-desc" : sort === "name-desc" ? "recent" : "name-asc";
@@ -750,6 +882,8 @@ export function FileExplorer({
       onOpenFile,
       onRefresh,
       onToggleExpand,
+      onExternalDragOver,
+      onExternalDrop,
       ultraFast,
     }),
     [
@@ -764,6 +898,8 @@ export function FileExplorer({
       onOpenFile,
       onRefresh,
       onToggleExpand,
+      onExternalDragOver,
+      onExternalDrop,
       ultraFast,
     ],
   );
@@ -866,7 +1002,16 @@ export function FileExplorer({
             )}
           </div>
         ) : (
-          <div ref={treeScrollRef} className="flex-1 overflow-y-auto scrollbar py-1">
+          <div
+            ref={treeScrollRef}
+            onDragOver={onRootDragOver}
+            onDragLeave={onRootDragLeave}
+            onDrop={onRootDrop}
+            className={cn(
+              "flex-1 overflow-y-auto scrollbar py-1 transition-colors",
+              dropTargetPath === rootPath && "bg-primary/5 ring-1 ring-inset ring-primary/30",
+            )}
+          >
             <BookmarksSection />
 
             <div
@@ -905,6 +1050,12 @@ export function FileExplorer({
                         isBookmarked={bookmarksSet.has(row.entry.path)}
                         expanded={row.entry.isDir && expandedPaths.has(row.entry.path)}
                         loadingChildren={loadingPaths.has(row.entry.path)}
+                        isDropTarget={
+                          dropTargetPath !== null &&
+                          (row.entry.isDir
+                            ? dropTargetPath === row.entry.path
+                            : dropTargetPath === targetDirFor(row.entry))
+                        }
                       />
                     )}
                   </div>
@@ -931,6 +1082,7 @@ export function FileExplorer({
           onNewFolder={
             contextMenu.entry.isDir ? () => startCreate("dir", contextMenu.entry.path) : undefined
           }
+          onPaste={() => void onPaste(contextMenu.entry)}
         />
       )}
     </ExplorerContext.Provider>

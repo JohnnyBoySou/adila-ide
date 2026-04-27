@@ -1,0 +1,35 @@
+version: '3'
+
+info:
+  companyName: "300f"
+  productName: "Adila IDE"
+  productIdentifier: "co.adila.ide"
+  description: "O editor de código forjado para fullstack"
+  copyright: "(c) 2026, 300f"
+  comments: ""
+  version: "0.1.0"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - build/bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: wails3 task build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    - cmd: ./build/bin/adila-ide
+      type: primary

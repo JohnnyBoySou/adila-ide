@@ -27,6 +27,8 @@ interface UiState {
   quickOpenOpen: boolean;
   markdownPreviewOpen: boolean;
   themePickerOpen: boolean;
+  livePreviewOpen: boolean;
+  livePreviewUrl: string;
 
   setCursor: (line: number, col: number) => void;
   resetCursor: () => void;
@@ -39,6 +41,19 @@ interface UiState {
   setQuickOpenOpen: (v: boolean) => void;
   setMarkdownPreviewOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   setThemePickerOpen: (v: boolean) => void;
+  setLivePreviewOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setLivePreviewUrl: (url: string) => void;
+}
+
+const LIVE_PREVIEW_URL_KEY = "adila:livePreviewUrl";
+const LIVE_PREVIEW_DEFAULT = "http://localhost:5173";
+
+function readLivePreviewUrl(): string {
+  try {
+    return localStorage.getItem(LIVE_PREVIEW_URL_KEY) || LIVE_PREVIEW_DEFAULT;
+  } catch {
+    return LIVE_PREVIEW_DEFAULT;
+  }
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -51,6 +66,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   quickOpenOpen: false,
   markdownPreviewOpen: false,
   themePickerOpen: false,
+  livePreviewOpen: false,
+  livePreviewUrl: readLivePreviewUrl(),
 
   setCursor: (cursorLine, cursorCol) => set({ cursorLine, cursorCol }),
   resetCursor: () => set({ cursorLine: 1, cursorCol: 1 }),
@@ -65,4 +82,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   setMarkdownPreviewOpen: (v) =>
     set({ markdownPreviewOpen: typeof v === "function" ? v(get().markdownPreviewOpen) : v }),
   setThemePickerOpen: (themePickerOpen) => set({ themePickerOpen }),
+  setLivePreviewOpen: (v) =>
+    set({ livePreviewOpen: typeof v === "function" ? v(get().livePreviewOpen) : v }),
+  setLivePreviewUrl: (livePreviewUrl) => {
+    try {
+      localStorage.setItem(LIVE_PREVIEW_URL_KEY, livePreviewUrl);
+    } catch {
+      /* ignore */
+    }
+    set({ livePreviewUrl });
+  },
 }));

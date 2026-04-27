@@ -42,7 +42,7 @@ import { useUiStore } from "@/stores/uiStore";
 
 bootstrapIconTheme();
 import "@/index.css";
-import { BookOpen, X } from "lucide-react";
+import { X } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GetInitialPath,
@@ -54,6 +54,7 @@ import {
 } from "../wailsjs/go/main/App";
 import { SetWorkdir as cmdSetWorkdir } from "../wailsjs/go/main/CommandCenter";
 import { SetWorkdir as wcfgSetWorkdir } from "../wailsjs/go/main/WorkspaceConfig";
+import { SetWorkdir as indexerSetWorkdir } from "../wailsjs/go/main/Indexer";
 import { tasksRpc } from "@/features/tasks/rpc";
 import { EventsEmit, EventsOn } from "../wailsjs/runtime/runtime";
 
@@ -92,6 +93,9 @@ const NotificationsView = lazy(() =>
 );
 const MarkdownPreview = lazy(() =>
   import("@/features/editor/MarkdownPreview").then((m) => ({ default: m.MarkdownPreview })),
+);
+const LivePreview = lazy(() =>
+  import("@/features/editor/LivePreview").then((m) => ({ default: m.LivePreview })),
 );
 const PatchDiff = lazy(() => import("@pierre/diffs/react").then((m) => ({ default: m.PatchDiff })));
 
@@ -222,6 +226,7 @@ function App() {
   // são renderizados isolados em <Overlays />, cada um assinando o próprio
   // flag. App só precisa de markdownPreviewOpen pra layout do editor.
   const markdownPreviewOpen = useUiStore((s) => s.markdownPreviewOpen);
+  const livePreviewOpen = useUiStore((s) => s.livePreviewOpen);
   const [view, setView] = useState<View>("editor");
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
   // cursorPos, branch e markers vivem em stores — alta frequência de update +
@@ -392,6 +397,7 @@ function App() {
       void cmdSetWorkdir(path);
       void tasksRpc.setWorkdir(path);
       void wcfgSetWorkdir(path);
+      void indexerSetWorkdir(path);
       const entries = await ListDir(path);
       setRootEntries(entries || []);
       void pushRecentFolder(path);
@@ -1059,10 +1065,29 @@ function App() {
     </DevProfiler>
   );
 
-  // Quando markdown preview está aberto, abre painel à direita com o preview do tab focado
+  // Layout do editor:
+  // - Live preview tem precedência (é independente do tipo de arquivo).
+  // - Markdown preview entra quando o tab ativo é markdown e o toggle está ligado.
+  // - Caso contrário, só a árvore de panes.
+  const showLivePreview = livePreviewOpen;
+  const showMarkdownPreview = !showLivePreview && activeTab && isMarkdown && markdownPreviewOpen;
+
   const editorArea = (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-      {activeTab && isMarkdown && markdownPreviewOpen ? (
+      {showLivePreview ? (
+        <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
+          <ResizablePanel key="editor-area">
+            <div className="flex flex-col overflow-hidden h-full">{paneTreeEl}</div>
+          </ResizablePanel>
+          <ResizablePanel key="live-preview">
+            <div className="overflow-hidden h-full">
+              <Suspense fallback={<ViewFallback />}>
+                <LivePreview />
+              </Suspense>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : showMarkdownPreview ? (
         <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
           <ResizablePanel key="editor-area">
             <div className="flex flex-col overflow-hidden h-full">{paneTreeEl}</div>
@@ -1070,7 +1095,7 @@ function App() {
           <ResizablePanel key="md-preview">
             <div className="overflow-hidden h-full">
               <Suspense fallback={<ViewFallback />}>
-                <MarkdownPreview content={activeTab.content} />
+                <MarkdownPreview content={activeTab!.content} />
               </Suspense>
             </div>
           </ResizablePanel>
@@ -1116,23 +1141,10 @@ function App() {
         <div style={{ height: "100%", overflow: "hidden" }}>
           <ResizablePanelGroup orientation="vertical">
             <ResizablePanel key="editor">
-              <div className="flex flex-col overflow-hidden h-full">
-                {/* Toolbar do editor: apenas botão de markdown preview */}
-                {activeTab && isMarkdown && (
-                  <div className="flex items-center justify-end border-b shrink-0">
-                    <button
-                      onClick={() => useUiStore.getState().setMarkdownPreviewOpen((v) => !v)}
-                      className={`shrink-0 px-2 h-8 transition-colors ${
-                        markdownPreviewOpen
-                          ? "text-foreground bg-accent"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      }`}
-                      title="Preview Markdown"
-                    >
-                      <BookOpen className="size-3.5" />
-                    </button>
-                  </div>
-                )}
+              <div className="relative flex flex-col overflow-hidden h-full">
+                {/* Live Preview e Markdown Preview agora são controlados via
+                    menu Extensões da TopBar — os botões flutuantes que
+                    ficavam aqui foram movidos pra centralizar a UX. */}
                 {editorArea}
               </div>
             </ResizablePanel>
@@ -1183,6 +1195,7 @@ function App() {
           zenMode={zenMode as boolean}
           spotifyEnabled={view === "spotify"}
           sidebarVisible={sidebarVisible}
+          isMarkdownActive={!!activeTab && isMarkdown}
           onOpenFolder={openFolder}
           onSave={saveActive}
           onCloseTab={onCloseFocusedTab}

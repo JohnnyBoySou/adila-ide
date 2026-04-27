@@ -1,0 +1,33 @@
+version: '3'
+
+includes:
+  common: ./build/Taskfile.yml
+
+vars:
+  APP_NAME: "adila-ide"
+  BIN_DIR: "build/bin"
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  EXTRA_TAGS: 'webkit2_41'
+
+tasks:
+  build:
+    summary: Builds the application (DEV=true para build com sourcemaps/sem strip).
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go build {{if eq .DEV "true"}}-tags webkit2_41 -gcflags=all="-l"{{else}}-tags production,webkit2_41 -trimpath -ldflags "-w -s -X main.version={{.VERSION | default "dev"}}"{{end}} -o {{.BIN_DIR}}/{{.APP_NAME}}{{exeExt}}
+
+  run:
+    summary: Roda o binário compilado.
+    cmds:
+      - ./{{.BIN_DIR}}/{{.APP_NAME}}{{exeExt}}
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  generate:bindings:
+    summary: Gera as bindings TS para frontend/bindings/ide
+    cmds:
+      - task: common:generate:bindings

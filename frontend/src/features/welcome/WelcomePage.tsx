@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { ClaudeProfileCard } from "@/features/claude/ClaudeProfileCard";
+import { CodexProfileCard } from "@/features/codex/CodexProfileCard";
 import { GitHubProfileCard } from "@/features/git/GitHubProfileCard";
 import { LinearProfileCard } from "@/features/linear/LinearProfileCard";
 import { SpotifyProfileCard } from "@/features/spotify/SpotifyProfileCard";
@@ -99,6 +101,10 @@ export function WelcomePage({
             </div>
             <div className="mt-3">
               <LinearProfileCard />
+            </div>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ClaudeProfileCard onOpen={onOpenSettings} />
+              <CodexProfileCard onOpen={onOpenSettings} />
             </div>
           </motion.div>
           <div className="grid grid-cols-2 gap-10">

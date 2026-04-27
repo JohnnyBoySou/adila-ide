@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { ListDir } from "../../../wailsjs/go/main/App";
+import { SymbolIcon } from "@/components/SymbolIcon";
 
 type FileEntry = { name: string; path: string; isDir: boolean };
 
@@ -28,6 +29,14 @@ export const Breadcrumbs = memo(function Breadcrumbs({ path, rootPath, onOpenFil
       : rootPath + "/" + parts.slice(0, i + 1).join("/");
     return { label, dirPath, isLast };
   });
+
+  // Fecha dropdown sempre que o arquivo ativo muda — sem isso, ao trocar de
+  // tab o dropdown continua exibindo entradas do diretório da tab anterior
+  // e cria a sensação de breadcrumb "duplicado/empilhado".
+  useEffect(() => {
+    setDropdownDir(null);
+    setEntries([]);
+  }, [path]);
 
   useEffect(() => {
     if (!dropdownDir) return;
@@ -62,8 +71,11 @@ export const Breadcrumbs = memo(function Breadcrumbs({ path, rootPath, onOpenFil
       className="relative flex items-center gap-0.5 px-3 py-0.5 text-xs text-muted-foreground border-b bg-background overflow-x-auto"
       style={{ scrollbarWidth: "none" }}
     >
-      {crumbs.map(({ label, dirPath, isLast }) => (
-        <span key={dirPath} className="flex items-center gap-0.5 shrink-0">
+      {crumbs.map(({ label, dirPath, isLast }, i) => (
+        // Key inclui índice e label porque o último crumb (arquivo) compartilha
+        // dirPath com o penúltimo (pasta-pai), e React duplicava a key —
+        // causando reuso de DOM entre tabs e breadcrumb fantasma.
+        <span key={`${i}-${label}`} className="flex items-center gap-0.5 shrink-0">
           <button
             onClick={(e) => openDropdown(dirPath, e)}
             className={
@@ -98,7 +110,14 @@ export const Breadcrumbs = memo(function Breadcrumbs({ path, rootPath, onOpenFil
                   (entry.path === path ? "text-primary font-medium" : "")
                 }
               >
-                {entry.isDir ? "📁" : "📄"}
+                {/* Usa o icon theme global (vesc/seti/etc.) em vez de emojis
+                    genéricos. SymbolIcon resolve por nome+extensão; a regra
+                    é a mesma do FileExplorer/QuickOpen. */}
+                <SymbolIcon
+                  name={entry.name}
+                  isDir={entry.isDir}
+                  className="size-3.5 shrink-0"
+                />
                 <span className="truncate">{entry.name}</span>
               </button>
             ))

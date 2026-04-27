@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type GitChangedFile struct {
@@ -71,7 +69,7 @@ func NewGit(cfg *Config) *Git {
 func (g *Git) startup(ctx context.Context) {
 	g.ctx = ctx
 	g.restartAutoFetch()
-	wruntime.EventsOn(ctx, "config.changed", func(args ...interface{}) {
+	onEvent("config.changed", func(args ...any) {
 		if len(args) == 0 {
 			return
 		}
@@ -809,6 +807,6 @@ func (g *Git) firstCommitIfEmpty() error {
 
 func (g *Git) emitChanged() {
 	if g.ctx != nil {
-		wruntime.EventsEmit(g.ctx, "git.changed")
+		emit("git.changed")
 	}
 }

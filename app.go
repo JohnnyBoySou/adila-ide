@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -11,8 +12,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -203,9 +202,7 @@ type FileEntry struct {
 }
 
 func (a *App) OpenFolderDialog() (string, error) {
-	return wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
-		Title: "Selecione uma pasta",
-	})
+	return pickDirectory("Selecione uma pasta")
 }
 
 // ListDir lista um diretório ocultando dotfiles e ordenando dirs primeiro.
@@ -271,6 +268,32 @@ func (a *App) ReadFile(path string) (string, error) {
 func (a *App) WriteFile(path string, content string) error {
 	defer bench.Time("App.WriteFile")()
 	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+// WriteFileBase64 grava conteúdo binário (imagens, etc.) decodificado de
+// uma string base64. Cria o diretório pai se necessário. Retorna erro se o
+// arquivo de destino já existir, para não sobrescrever silenciosamente.
+func (a *App) WriteFileBase64(path string, b64 string) error {
+	defer bench.Time("App.WriteFileBase64")()
+	if path == "" {
+		return errors.New("caminho vazio")
+	}
+	data, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return fmt.Errorf("base64 inválido: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *App) CreateFile(path string) error {

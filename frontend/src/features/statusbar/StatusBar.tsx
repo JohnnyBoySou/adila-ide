@@ -3,6 +3,7 @@ import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { FpsMeter } from "@/components/FpsMeter";
 import { LSPStatus } from "@/features/editor/LSPStatus";
+import { IndexerStatus } from "@/features/indexer/IndexerStatus";
 import { useMarkersStore } from "@/stores/markersStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useNotificationCount } from "./useNotificationCount";
@@ -136,6 +137,8 @@ export const StatusBar = memo(function StatusBar({
       {/* Right */}
       <div className="flex items-center h-full">
         <ProblemsItem onOpen={onOpenProblems} />
+        <IndexerStatus />
+        <Divider />
         <LSPStatus activeLang={activeLang} />
 
         {activeLang && activeLang !== "plaintext" && (

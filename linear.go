@@ -16,8 +16,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // linearDefaultClientID é o Client ID do OAuth app registrado em linear.app/settings/api.
@@ -209,7 +207,7 @@ func (l *Linear) StartOAuth() error {
 	}
 	go func() { _ = srv.Serve(ln) }()
 
-	wruntime.BrowserOpenURL(l.ctx, authURL.String())
+	openBrowser(authURL.String())
 
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -226,7 +224,7 @@ func (l *Linear) StartOAuth() error {
 		if err := l.cfg.Set(linearTokenKey, tok); err != nil {
 			return fmt.Errorf("salvar token: %w", err)
 		}
-		wruntime.EventsEmit(l.ctx, "linear.authed")
+		emit("linear.authed")
 		return nil
 	case err := <-errCh:
 		return err

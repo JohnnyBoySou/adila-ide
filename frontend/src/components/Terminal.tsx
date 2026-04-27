@@ -3,6 +3,7 @@ import { Terminal as Xterm, type ITerminalOptions } from "@xterm/xterm";
 import { call } from "@/rpc/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { CanvasAddon } from "@xterm/addon-canvas";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
 import type { ISearchOptions } from "@xterm/addon-search";
@@ -12,8 +13,21 @@ import { WebFontsAddon } from "@xterm/addon-web-fonts";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import "@xterm/xterm/css/xterm.css";
 
+import { Call as $Call } from "@wailsio/runtime";
 import { ResizePty, WritePty } from "../../wailsjs/go/main/Terminal";
 import { EventsOff, EventsOn } from "../../wailsjs/runtime/runtime";
+
+// Bridge WS pra E/S do terminal — bypassa o transport HTTP-fetch do Wails v3,
+// que adiciona dezenas de ms por chamada. Cada keystroke + cada chunk de
+// output viaja por uma WebSocket de loopback (~ms), não por fetch.
+const TERMINAL_WS_PORT_CACHE = { value: 0, fetched: false };
+async function getTerminalPort(): Promise<number> {
+  if (TERMINAL_WS_PORT_CACHE.fetched) return TERMINAL_WS_PORT_CACHE.value;
+  const port = await ($Call.ByName("main.Terminal.GetTerminalPort") as Promise<number>);
+  TERMINAL_WS_PORT_CACHE.value = port;
+  TERMINAL_WS_PORT_CACHE.fetched = true;
+  return port;
+}
 
 export type TerminalHandle = {
   search: (query: string, opts?: ISearchOptions) => void;
@@ -34,22 +48,37 @@ type Props = {
   handleRef?: (handle: TerminalHandle | null) => void;
 };
 
-function getCssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// resolveCssColor aplica `var(--name)` num elemento probe e lê o resultado
+// computado (sempre rgb/rgba). Isso converte qualquer formato moderno (oklch,
+// hsl, color()) pro formato que o renderer WebGL/Canvas do xterm entende.
+function resolveCssColor(varName: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const probe = document.createElement("span");
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.pointerEvents = "none";
+  probe.style.color = `var(${varName})`;
+  document.body.appendChild(probe);
+  try {
+    const resolved = getComputedStyle(probe).color;
+    return resolved && resolved !== "rgba(0, 0, 0, 0)" ? resolved : fallback;
+  } finally {
+    probe.remove();
+  }
 }
 
 function buildTheme(): ITerminalOptions["theme"] {
-  const bg = getCssVar("--background") || "#18181b";
-  const fg = getCssVar("--foreground") || "#e4e4e7";
-  const sel = getCssVar("--accent") || "#3f3f46";
-  const muted = getCssVar("--muted-foreground") || "#71717a";
+  const bg = resolveCssColor("--background", "#18181b");
+  const fg = resolveCssColor("--foreground", "#e4e4e7");
+  const sel = resolveCssColor("--accent", "#3f3f46");
+  const muted = resolveCssColor("--muted-foreground", "#71717a");
 
   return {
-    background: bg.startsWith("oklch") ? "#18181b" : bg,
-    foreground: fg.startsWith("oklch") ? "#e4e4e7" : fg,
-    cursor: fg.startsWith("oklch") ? "#e4e4e7" : fg,
-    cursorAccent: bg.startsWith("oklch") ? "#18181b" : bg,
-    selectionBackground: sel.startsWith("oklch") ? "#3f3f46" : sel,
+    background: bg,
+    foreground: fg,
+    cursor: fg,
+    cursorAccent: bg,
+    selectionBackground: sel,
     selectionInactiveBackground: "#2d2d30",
     black: "#09090b",
     brightBlack: "#52525b",
@@ -68,7 +97,7 @@ function buildTheme(): ITerminalOptions["theme"] {
     white: "#e4e4e7",
     brightWhite: "#fafafa",
     // OSC 133 prompt marker color
-    overviewRulerBorder: muted.startsWith("oklch") ? "#52525b" : muted,
+    overviewRulerBorder: muted,
   };
 }
 
@@ -140,12 +169,25 @@ export function Terminal({
 
       term.open(container);
 
+      // Renderer cascade: WebGL > Canvas > DOM (default).
+      // WebGL falha silenciosamente em alguns WebKitGTK; Canvas é compatível
+      // e ainda assim ~5x mais rápido que o DOM renderer pra rajadas grandes.
+      let rendererAttached = false;
       try {
         const webgl = new WebglAddon();
         webgl.onContextLoss(() => webgl.dispose());
         term.loadAddon(webgl);
+        rendererAttached = true;
       } catch {
-        // fallback to DOM renderer
+        /* fallback abaixo */
+      }
+      if (!rendererAttached) {
+        try {
+          term.loadAddon(new CanvasAddon());
+          rendererAttached = true;
+        } catch {
+          /* DOM renderer fica como último recurso */
+        }
       }
 
       // OSC 7 — atualiza cwd
@@ -239,6 +281,8 @@ export function Terminal({
         return true;
       });
 
+      // Fallback via Wails events — só recebe quando o WS bridge não está
+      // anexado no backend (transição inicial, ou WS quebrou).
       const unsubData = EventsOn(`pty:data:${sessionId}`, (b64: string) => {
         try {
           const raw = atob(b64);
@@ -255,8 +299,46 @@ export function Terminal({
         onExit?.(code);
       });
 
+      // ── WebSocket bridge ──────────────────────────────────────────────────
+      // Conecta em paralelo. Enquanto não abrir, term.onData cai no WritePty
+      // (slow path). Quando abrir, vira o caminho primário pros dois sentidos.
+      // Usa ref-object pra manter o tipo estável (TS faz narrowing agressivo
+      // de `let x: WebSocket | null` quando há reatribuições em closures).
+      const wsRef: { current: WebSocket | null } = { current: null };
+      const encoder = new TextEncoder();
+
+      void (async () => {
+        try {
+          const port = await getTerminalPort();
+          if (cancelled || !port) return;
+          const conn = new WebSocket(`ws://127.0.0.1:${port}/term/${sessionId}`);
+          conn.binaryType = "arraybuffer";
+          conn.onmessage = (e) => {
+            if (e.data instanceof ArrayBuffer) {
+              term.write(new Uint8Array(e.data));
+            } else if (typeof e.data === "string") {
+              term.write(e.data);
+            }
+          };
+          conn.onerror = () => {
+            wsRef.current = null;
+          };
+          conn.onclose = () => {
+            wsRef.current = null;
+          };
+          wsRef.current = conn;
+        } catch {
+          wsRef.current = null;
+        }
+      })();
+
       term.onData((data) => {
-        WritePty(sessionId, data).catch(() => {});
+        const conn = wsRef.current;
+        if (conn && conn.readyState === WebSocket.OPEN) {
+          conn.send(encoder.encode(data));
+        } else {
+          WritePty(sessionId, data).catch(() => {});
+        }
       });
 
       const resizeObs = new ResizeObserver(() => {
@@ -276,14 +358,18 @@ export function Terminal({
         serialize: () => serialize.serialize(),
       });
 
-      try {
-        await webFonts.loadFonts();
-      } catch {}
+      // Carrega fontes em paralelo — não bloqueia o fit/focus inicial.
+      void webFonts.loadFonts().catch(() => {});
       if (cancelled) {
         resizeObs.disconnect();
         unsubData?.();
         unsubExit?.();
         EventsOff(`pty:data:${sessionId}`, `pty:exit:${sessionId}`);
+        try {
+          wsRef.current?.close();
+        } catch {
+          /* ignore */
+        }
         handleRef?.(null);
         term.dispose();
         return;
@@ -297,6 +383,11 @@ export function Terminal({
         unsubData?.();
         unsubExit?.();
         EventsOff(`pty:data:${sessionId}`, `pty:exit:${sessionId}`);
+        try {
+          wsRef.current?.close();
+        } catch {
+          /* ignore */
+        }
         handleRef?.(null);
         term.dispose();
       };

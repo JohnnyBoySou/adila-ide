@@ -8,6 +8,7 @@
 
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState } from "react";
+import { useConfig } from "@/hooks/useConfig";
 import { Breadcrumbs } from "./Breadcrumbs";
 import type { EditorMarker } from "./ProblemsPanel";
 import { TabBar } from "./TabBar";
@@ -247,10 +248,15 @@ function LeafView({
         </div>
       </div>
 
-      {/* Breadcrumbs + editor */}
-      {activeTab && !isWebviewPath(activeTab.path) && (
-        <Breadcrumbs path={activeTab.path} rootPath={rootPath} onOpenFile={onOpenFileByPath} />
-      )}
+      {/* Breadcrumbs + editor.
+          O componente é renderizado por leaf, então usar useConfig aqui é
+          aceitável (até 4 panes no layout máximo). Default true: mantém o
+          comportamento atual de quem nunca tocou na config. */}
+      {activeTab && !isWebviewPath(activeTab.path) && <BreadcrumbsGate
+        path={activeTab.path}
+        rootPath={rootPath}
+        onOpenFile={onOpenFileByPath}
+      />}
       <div className="relative flex-1 overflow-hidden min-h-0">
         {activeTab ? (
           isWebviewPath(activeTab.path) ? (
@@ -331,4 +337,22 @@ function DropOverlay({ side }: { side: DropSide | null }) {
       />
     </div>
   );
+}
+
+// BreadcrumbsGate consulta editor.breadcrumbs.enabled antes de montar o
+// componente real. Isolado pra que a tipagem `useConfig<boolean>` re-renderize
+// só esse subtree quando o usuário troca o toggle, sem afetar o LeafView
+// inteiro (que tem state pesado de drag-and-drop).
+function BreadcrumbsGate({
+  path,
+  rootPath,
+  onOpenFile,
+}: {
+  path: string;
+  rootPath: string;
+  onOpenFile: (path: string) => void;
+}) {
+  const { value: enabled } = useConfig<boolean>("editor.breadcrumbs.enabled", true);
+  if (!enabled) return null;
+  return <Breadcrumbs path={path} rootPath={rootPath} onOpenFile={onOpenFile} />;
 }

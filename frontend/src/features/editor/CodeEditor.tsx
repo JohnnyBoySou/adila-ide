@@ -1,6 +1,6 @@
 import Editor, { type OnMount, useMonaco } from "@monaco-editor/react";
 import { useEffect, useRef, useState } from "react";
-import { EventsOn } from "../../../wailsjs/runtime/runtime";
+import { EventsEmit, EventsOn } from "../../../wailsjs/runtime/runtime";
 import { useEditorConfig } from "./useEditorConfig";
 import { useGitDecorations } from "./useGitDecorations";
 import { useLSP } from "./useLSP";
@@ -9,12 +9,26 @@ import { TAILWIND_MONACO_THEME, installMonacoTailwindTheme } from "@/lib/monacoT
 import { EditorContextMenu } from "./EditorContextMenu";
 import { registerSnippets, unregisterSnippets } from "./snippets";
 import { registerPathCompletion, unregisterPathCompletion } from "./pathCompletion";
+import {
+  filePathFromModelUri,
+  findImportSpec,
+  registerDefinitionProvider,
+  unregisterDefinitionProvider,
+} from "./definitionProvider";
+import { ResolveImport, SymbolsForFile } from "../../../wailsjs/go/main/Indexer";
 
 const LANG_MAP: Record<string, string> = {
   ts: "typescript",
   tsx: "typescript",
+  // mts/cts: variantes ESM/CJS introduzidas no TS 4.7+. Mesmo tokenizer do .ts.
+  mts: "typescript",
+  cts: "typescript",
   js: "javascript",
   jsx: "javascript",
+  // mjs/cjs: módulos ES e CommonJS explicitamente marcados pela extensão.
+  // Monaco trata como JS comum para syntax highlight.
+  mjs: "javascript",
+  cjs: "javascript",
   json: "json",
   css: "css",
   scss: "scss",
@@ -24,6 +38,8 @@ const LANG_MAP: Record<string, string> = {
   mdx: "markdown",
   go: "go",
   py: "python",
+  // pyi: type stubs do Python (PEP 484). Mesma sintaxe do .py.
+  pyi: "python",
   rs: "rust",
   sh: "shell",
   bash: "shell",
@@ -57,7 +73,15 @@ export function CodeEditor({
   onCursorChange,
   onMarkersChange,
 }: Props) {
-  const cfg = useEditorConfig();
+  const { config: cfg, zoomIn, zoomOut, resetZoom } = useEditorConfig();
+  const zoomInRef = useRef(zoomIn);
+  const zoomOutRef = useRef(zoomOut);
+  const resetZoomRef = useRef(resetZoom);
+  useEffect(() => {
+    zoomInRef.current = zoomIn;
+    zoomOutRef.current = zoomOut;
+    resetZoomRef.current = resetZoom;
+  });
   const lang = detectLanguage(path);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const [editorInstance, setEditorInstance] = useState<Parameters<OnMount>[0] | null>(null);
@@ -146,6 +170,59 @@ export function CodeEditor({
     unregisterPathCompletion();
   }, [monacoInstance, cfg.pathCompletion]);
 
+  // Go to Definition (F12 + underline ao Ctrl+hover) pra TS/JS. Resolve
+  // aliases via tsconfig.json e refina linha via Indexer.SymbolsForFile.
+  useEffect(() => {
+    if (!monacoInstance) return;
+    registerDefinitionProvider(monacoInstance);
+    return () => unregisterDefinitionProvider();
+  }, [monacoInstance]);
+
+  // Ctrl+Click direto no identificador — bypassa o pipeline do Monaco e
+  // emite editor.openFile/gotoLine pra evitar qualquer corrida com o
+  // service built-in. Roda em paralelo ao DefinitionProvider; o que
+  // chegar primeiro abre o arquivo.
+  useEffect(() => {
+    if (!editorInstance) return;
+    const ed = editorInstance;
+    const disposable = ed.onMouseDown(async (e) => {
+      const ev = e.event;
+      if (!ev.ctrlKey && !ev.metaKey) return;
+      const pos = e.target?.position;
+      if (!pos) return;
+      const model = ed.getModel();
+      if (!model) return;
+      const word = model.getWordAtPosition(pos);
+      if (!word) return;
+
+      const moduleSpec = findImportSpec(model.getValue(), word.word);
+      if (!moduleSpec) return;
+      const currentPath = filePathFromModelUri(model.uri);
+      if (!currentPath) return;
+
+      try {
+        const resolved = await ResolveImport(currentPath, moduleSpec);
+        if (!resolved) return;
+        EventsEmit("editor.openFile", resolved);
+        try {
+          const syms = await SymbolsForFile(resolved);
+          const hit = syms.find((s: { name: string }) => s.name === word.word);
+          if (hit) {
+            setTimeout(
+              () => EventsEmit("editor.gotoLine", { line: hit.line + 1, column: hit.col + 1 }),
+              80,
+            );
+          }
+        } catch {
+          /* indexer ainda não tem symbols pra esse arquivo, ignora */
+        }
+      } catch {
+        /* falhou silenciosamente — Monaco DefinitionProvider tenta de novo */
+      }
+    });
+    return () => disposable.dispose();
+  }, [editorInstance]);
+
   // Subscreve mudanças de markers (diagnósticos LSP/TypeScript) para este arquivo.
   useEffect(() => {
     if (!monacoInstance || !onMarkersChange) return;
@@ -193,13 +270,85 @@ export function CodeEditor({
           };
           tsDefaults.setCompilerOptions(compilerOptions);
           jsDefaults.setCompilerOptions(compilerOptions);
+
+          // Desativa o DefinitionProvider built-in pra que o nosso (ciente
+          // de tsconfig paths e do indexador) seja a única fonte de verdade
+          // ao Ctrl+Click. Sem isso o TS bundled responde com a linha do
+          // import dentro do mesmo arquivo (intra-file), competindo com a
+          // navegação cross-file que queremos. Demais features (autocomplete,
+          // hover, diagnostics de sintaxe) continuam ligadas.
+          const tsMode = tsDefaults.modeConfiguration;
+          const jsMode = jsDefaults.modeConfiguration;
+          tsDefaults.setModeConfiguration({ ...tsMode, definitions: false });
+          jsDefaults.setModeConfiguration({ ...jsMode, definitions: false });
         }}
-        onMount={(ed) => {
+        onMount={(ed, monaco) => {
           editorRef.current = ed;
           setEditorInstance(ed);
           ed.onDidChangeCursorPosition((e) => {
             onCursorChange?.(e.position.lineNumber, e.position.column);
           });
+          const { KeyMod, KeyCode } = monaco;
+          ed.addAction({
+            id: "adila.editor.zoomIn",
+            label: "Aumentar zoom do editor",
+            keybindings: [
+              KeyMod.CtrlCmd | KeyCode.Equal,
+              KeyMod.CtrlCmd | KeyCode.NumpadAdd,
+            ],
+            run: () => zoomInRef.current(),
+          });
+          ed.addAction({
+            id: "adila.editor.zoomOut",
+            label: "Diminuir zoom do editor",
+            keybindings: [
+              KeyMod.CtrlCmd | KeyCode.Minus,
+              KeyMod.CtrlCmd | KeyCode.NumpadSubtract,
+            ],
+            run: () => zoomOutRef.current(),
+          });
+          ed.addAction({
+            id: "adila.editor.resetZoom",
+            label: "Redefinir zoom do editor",
+            keybindings: [KeyMod.CtrlCmd | KeyCode.Digit0, KeyMod.CtrlCmd | KeyCode.Numpad0],
+            run: () => resetZoomRef.current(),
+          });
+
+          // Monaco em modo standalone só sabe abrir URIs que já têm modelo
+          // carregado. Pra "Go to Definition" funcionar entre arquivos, a
+          // gente intercepta o IEditorService.openCodeEditor: se Monaco não
+          // conseguir resolver, emite "editor.openFile" + "editor.gotoLine"
+          // pro App.tsx tratar via fluxo de tabs normal.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const editorService = (ed as any)._codeEditorService;
+          if (editorService && typeof editorService.openCodeEditor === "function") {
+            const openBase = editorService.openCodeEditor.bind(editorService);
+            editorService.openCodeEditor = async (
+              input: { resource?: { fsPath?: string; path?: string }; options?: { selection?: { startLineNumber?: number; startColumn?: number } } },
+              source: unknown,
+            ) => {
+              try {
+                const result = await openBase(input, source);
+                if (result) return result;
+              } catch {
+                // Cai no fallback abaixo.
+              }
+              const fsPath = input?.resource?.fsPath ?? input?.resource?.path ?? "";
+              if (fsPath) {
+                EventsEmit("editor.openFile", fsPath);
+                const sel = input?.options?.selection;
+                if (sel?.startLineNumber) {
+                  setTimeout(() => {
+                    EventsEmit("editor.gotoLine", {
+                      line: sel.startLineNumber,
+                      column: sel.startColumn ?? 1,
+                    });
+                  }, 80);
+                }
+              }
+              return null;
+            };
+          }
         }}
         onChange={(v) => onChange(v ?? "")}
         options={{

@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // WorkspaceConfig persiste configurações específicas do projeto em
@@ -79,12 +77,12 @@ func (w *WorkspaceConfig) SetWorkdir(path string) {
 	}
 	w.mu.Unlock()
 	if w.ctx != nil {
-		wruntime.EventsEmit(w.ctx, "workspaceConfig.changed", map[string]any{
+		emit("workspaceConfig.changed", map[string]any{
 			"key":   "*",
 			"value": nil,
 		})
 		for k, v := range affected {
-			wruntime.EventsEmit(w.ctx, "config.changed", map[string]any{
+			emit("config.changed", map[string]any{
 				"key":   k,
 				"value": v,
 			})
@@ -225,10 +223,10 @@ func (w *WorkspaceConfig) Set(key string, value any) error {
 	w.scheduleSave()
 	if w.ctx != nil {
 		payload := map[string]any{"key": key, "value": value}
-		wruntime.EventsEmit(w.ctx, "workspaceConfig.changed", payload)
+		emit("workspaceConfig.changed", payload)
 		// Espelha em config.changed pra que serviços escutando config global
 		// também revalidem (resolução em camadas é transparente pra eles).
-		wruntime.EventsEmit(w.ctx, "config.changed", payload)
+		emit("config.changed", payload)
 	}
 	return nil
 }
@@ -245,8 +243,8 @@ func (w *WorkspaceConfig) Reset(key string) error {
 	w.scheduleSave()
 	if w.ctx != nil {
 		payload := map[string]any{"key": key, "value": nil}
-		wruntime.EventsEmit(w.ctx, "workspaceConfig.changed", payload)
-		wruntime.EventsEmit(w.ctx, "config.changed", payload)
+		emit("workspaceConfig.changed", payload)
+		emit("config.changed", payload)
 	}
 	return nil
 }
@@ -263,7 +261,7 @@ func (w *WorkspaceConfig) OpenSettingsJson() error {
 		w.flush()
 	}
 	if w.ctx != nil {
-		wruntime.EventsEmit(w.ctx, "editor.openFile", path)
+		emit("editor.openFile", path)
 	}
 	return nil
 }

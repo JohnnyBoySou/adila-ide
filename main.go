@@ -1,17 +1,13 @@
 package main
 
 import (
-	"context"
 	"embed"
+	_ "embed"
+	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/linux"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
@@ -37,82 +33,59 @@ func main() {
 	tasks := NewTasks(term)
 	wcfg := NewWorkspaceConfig()
 	cfg.AttachWorkspace(wcfg)
+	claude := NewClaude(cfg)
+	codex := NewCodex(cfg)
+	indexer := NewIndexer(cfg)
 
-	err := wails.Run(&options.App{
-		Title:     "Adila IDE",
-		Width:     1280,
-		Height:    800,
-		Frameless: true,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	a := application.New(application.Options{
+		Name:        "Adila IDE",
+		Description: "O editor de código forjado para fullstack",
+		Icon:        embeddedAppIcon,
+		Linux: application.LinuxOptions{
+			ProgramName: "adila",
 		},
-		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 0},
-		Linux: &linux.Options{
-			Icon:                embeddedAppIcon,
-			ProgramName:         "adila",
-			WindowIsTranslucent: true,
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
 		},
-		OnStartup: func(ctx context.Context) {
-			app.startup(ctx)
-			term.startup(ctx)
-			git.startup(ctx)
-			cfg.startup(ctx)
-			about.startup(ctx)
-			lsp.startup(ctx)
-			cmd.startup(ctx)
-			gh.startup(ctx)
-			sp.startup(ctx)
-			linear.startup(ctx)
-			tasks.startup(ctx)
-			wcfg.startup(ctx)
-		},
-		OnShutdown: func(ctx context.Context) {
-			term.shutdown(ctx)
-			cfg.shutdown(ctx)
-			lsp.shutdown(ctx)
-			wcfg.shutdown(ctx)
-		},
-		OnBeforeClose: func(ctx context.Context) bool {
-			confirm, _ := cfg.Get("window.confirmClose", false).(bool)
-			if !confirm {
-				return false
-			}
-			result, err := wruntime.MessageDialog(ctx, wruntime.MessageDialogOptions{
-				Type:          wruntime.QuestionDialog,
-				Title:         "Fechar Adila IDE",
-				Message:       "Deseja realmente sair?",
-				Buttons:       []string{"Sair", "Cancelar"},
-				DefaultButton: "Cancelar",
-				CancelButton:  "Cancelar",
-			})
-			if err != nil {
-				return false
-			}
-			// MessageDialog no Linux/GTK pode devolver o label com whitespace,
-			// case diferente ou prefixo de mnemonic ("_Sair"). Comparamos só
-			// pelo botão de cancelar — qualquer outra coisa libera o close.
-			normalized := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(result, "_", "")))
-			return normalized == "cancelar"
-		},
-		Bind: []interface{}{
-			app,
-			term,
-			git,
-			cfg,
-			about,
-			lsp,
-			cmd,
-			gh,
-			sp,
-			linear,
-			tasks,
-			wcfg,
-			bench,
+		// A ordem dos Services é a ordem em que ServiceStartup é chamado,
+		// e a inversa em ServiceShutdown. Mantemos cfg primeiro para que
+		// outros services já encontrem ~/.config/adila/settings.json carregado.
+		Services: []application.Service{
+			application.NewService(cfg),
+			application.NewService(wcfg),
+			application.NewService(app),
+			application.NewService(term),
+			application.NewService(git),
+			application.NewService(about),
+			application.NewService(lsp),
+			application.NewService(cmd),
+			application.NewService(gh),
+			application.NewService(sp),
+			application.NewService(linear),
+			application.NewService(claude),
+			application.NewService(codex),
+			application.NewService(indexer),
+			application.NewService(tasks),
+			application.NewService(bench),
 		},
 	})
 
-	if err != nil {
-		println("Error:", err.Error())
+	a.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:            "Adila IDE",
+		Width:            1280,
+		Height:           800,
+		Frameless:        true,
+		URL:              "/",
+		BackgroundType:   application.BackgroundTypeTranslucent,
+		BackgroundColour: application.RGBA{Red: 24, Green: 24, Blue: 27, Alpha: 0},
+		Linux: application.LinuxWindow{
+			Icon:                embeddedAppIcon,
+			WindowIsTranslucent: true,
+		},
+	})
+
+	if err := a.Run(); err != nil {
+		log.Fatal(err)
 	}
 }
 

@@ -10,8 +10,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type TaskKind string
@@ -53,7 +51,7 @@ func (t *Tasks) SetWorkdir(path string) {
 	t.workdir = path
 	t.mu.Unlock()
 	if changed && t.ctx != nil {
-		wruntime.EventsEmit(t.ctx, "tasks.changed")
+		emit("tasks.changed")
 	}
 }
 

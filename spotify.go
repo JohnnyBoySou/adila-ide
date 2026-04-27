@@ -15,8 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // spotifyClientID — ID público do app registrado em developer.spotify.com.
@@ -127,7 +125,7 @@ func (s *Spotify) Disconnect() error {
 	_ = s.cfg.Reset(spotifyRefreshKey)
 	_ = s.cfg.Reset(spotifyExpiresAtKey)
 	if s.ctx != nil {
-		wruntime.EventsEmit(s.ctx, "spotify.changed")
+		emit("spotify.changed")
 	}
 	return nil
 }
@@ -223,7 +221,7 @@ func (s *Spotify) Connect() (string, error) {
 	authorize := spotifyAuthURL + "?" + q.Encode()
 
 	if s.ctx != nil {
-		wruntime.BrowserOpenURL(s.ctx, authorize)
+		openBrowser(authorize)
 	}
 
 	select {
@@ -253,7 +251,7 @@ func (s *Spotify) exchangeCode(code, verifier string) (string, error) {
 		return "", err
 	}
 	if s.ctx != nil {
-		wruntime.EventsEmit(s.ctx, "spotify.changed")
+		emit("spotify.changed")
 	}
 	return tok.AccessToken, nil
 }

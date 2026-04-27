@@ -1,11 +1,20 @@
 import type { ISearchOptions } from "@xterm/addon-search";
 import { ChevronDown, ChevronUp, Plus, Search, X, XCircle } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { WritePty } from "../../../wailsjs/go/main/Terminal";
+import { ListShells, WritePty } from "../../../wailsjs/go/main/Terminal";
 import type { TerminalHandle } from "../../components/Terminal";
 import { Checkbox } from "../../components/ui/checkbox";
-import { ShellPicker } from "./ShellPicker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { useTerminals } from "./store";
+
+type ShellInfo = { path: string; name: string; avail: boolean };
 
 const Terminal = lazy(() =>
   import("../../components/Terminal").then((m) => ({ default: m.Terminal })),
@@ -51,18 +60,30 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
     sessionId: "",
   });
 
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const [shells, setShells] = useState<ShellInfo[]>([]);
+
+  useEffect(() => {
+    ListShells()
+      .then((list) => setShells((list ?? []).filter((s: ShellInfo) => s.avail)))
+      .catch(() => {});
+  }, []);
 
   const handlesRef = useRef<Map<string, TerminalHandle>>(new Map());
   const isDragging = useRef(false);
   const dragStart = useRef({ y: 0, height: 0 });
 
-  // inicia com uma sessão se não houver nenhuma
+  // inicia com uma sessão se não houver nenhuma.
+  // Guard via ref pra evitar a corrida do StrictMode em dev: o efeito
+  // dispara duas vezes, e como `create` é async, `sessions.length` ainda é
+  // 0 na segunda passada — sem o guard nasceria um terminal duplicado.
+  const initStartedRef = useRef(false);
   useEffect(() => {
-    if (sessions.length === 0) {
-      create({ cwd: defaultCwd }).catch(() => {});
-    }
+    if (initStartedRef.current) return;
+    if (sessions.length > 0) return;
+    initStartedRef.current = true;
+    create({ cwd: defaultCwd }).catch(() => {
+      initStartedRef.current = false;
+    });
   }, []);
 
   const newTab = useCallback(
@@ -213,22 +234,34 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
           >
             <Search className="size-3.5" />
           </button>
-          <button
-            ref={addBtnRef}
-            onClick={() => setPickerOpen((v) => !v)}
-            className="p-1 rounded hover:bg-accent opacity-70 hover:opacity-100"
-            title="Novo terminal"
-          >
-            <Plus className="size-3.5" />
-          </button>
-
-          {pickerOpen && (
-            <ShellPicker
-              anchorRef={addBtnRef}
-              onPick={(shell) => newTab(shell)}
-              onClose={() => setPickerOpen(false)}
-            />
-          )}
+          {/* Dropdown shadcn: usa Radix Popper com collision detection,
+              então nunca fica escondido por borda da WebView. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1 rounded hover:bg-accent opacity-70 hover:opacity-100 cursor-pointer"
+                title="Novo terminal"
+                aria-label="Novo terminal"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[180px]">
+              <DropdownMenuLabel className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Novo terminal
+              </DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => newTab("")}>Shell padrão</DropdownMenuItem>
+              {shells.length > 0 && <DropdownMenuSeparator />}
+              {shells.map((s) => (
+                <DropdownMenuItem key={s.path} onSelect={() => newTab(s.path)}>
+                  <span className="flex flex-col gap-0">
+                    <span>{s.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{s.path}</span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-accent opacity-70 hover:opacity-100"
@@ -323,18 +356,6 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
           ))}
         </Suspense>
       </div>
-
-      {/* status bar */}
-      {activeSession && (
-        <div className="flex items-center justify-between px-3 py-0.5 border-t text-[10px] text-muted-foreground bg-muted/20 shrink-0 font-mono">
-          <span className="truncate max-w-[60%]">{activeSession.cwd || "—"}</span>
-          <span className="shrink-0">
-            {activeSession.running
-              ? activeSession.shell || "shell"
-              : `exit ${activeSession.exitCode}`}
-          </span>
-        </div>
-      )}
 
       {/* context menu */}
       {contextMenu.open && (

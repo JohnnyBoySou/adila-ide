@@ -1,6 +1,24 @@
 #!/bin/bash
-# Build for Linux (AMD64)
+# Build for Linux (amd64). Roda wails3 generate bindings + bun build + go build.
 
-echo "Building for Linux (amd64)..."
-wails build -platform linux/amd64 -clean -tags webkit2_41
-echo "Build complete! Check build/bin/"
+set -e
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+VERSION="${VERSION:-dev}"
+
+echo "→ Generating bindings..."
+wails3 generate bindings -ts -clean
+
+echo "→ Building frontend..."
+(cd frontend && bun install --frozen-lockfile && bun run build)
+
+echo "→ Building backend (linux/amd64)..."
+mkdir -p build/bin
+GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
+  go build -tags production,webkit2_41 -trimpath \
+  -ldflags "-s -w -X main.version=${VERSION}" \
+  -o build/bin/adila-ide .
+
+echo "✓ Build complete: build/bin/adila-ide"

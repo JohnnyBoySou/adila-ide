@@ -271,6 +271,15 @@ export const settingsGroups: SettingsGroupDef[] = [
         defaultValue: false,
       },
       {
+        key: "editor.breadcrumbs.enabled",
+        title: "Breadcrumbs",
+        description:
+          "Mostra o caminho do arquivo (pasta1 › pasta2 › arquivo) acima do editor, com dropdown clicável em cada pasta.",
+        type: "boolean",
+        defaultValue: true,
+        keywords: ["breadcrumbs", "caminho", "path", "navegação"],
+      },
+      {
         key: "editor.renderLineHighlight",
         title: "Destacar linha atual",
         type: "enum",
@@ -715,6 +724,108 @@ export const settingsGroups: SettingsGroupDef[] = [
         type: "number",
         defaultValue: 1000,
         keywords: ["search", "busca", "limite", "max", "resultados"],
+      },
+    ],
+  },
+  {
+    id: "indexer",
+    title: "Indexador",
+    description:
+      "Indexador de símbolos baseado em tree-sitter. Roda em background ao abrir um workspace e alimenta a tab Símbolos do QuickOpen (atalho @).",
+    settings: [
+      {
+        key: "indexer.enabled",
+        title: "Indexador ativo",
+        description:
+          "Quando desligado, o índice existente é mantido mas não é atualizado e a busca por símbolos retorna vazio.",
+        type: "boolean",
+        defaultValue: true,
+        keywords: ["indexer", "indexador", "símbolos", "tree-sitter"],
+      },
+      {
+        key: "indexer.maxFileSize",
+        title: "Tamanho máx. por arquivo (bytes)",
+        description:
+          "Arquivos maiores que esse limite são ignorados. Útil pra evitar parsear minified/vendor bundles.",
+        type: "number",
+        defaultValue: 1048576,
+        keywords: ["indexer", "limite", "tamanho", "size"],
+      },
+      {
+        key: "indexer.reindex",
+        title: "Reindexar workspace",
+        description:
+          "Limpa o banco do indexer e reconstrói tudo do zero. Útil após mudar exclude folders ou se o índice ficou inconsistente.",
+        type: "action",
+        defaultValue: null,
+        actionId: "reindexWorkspace",
+        actionLabel: "Reindexar agora",
+        keywords: ["indexer", "reindexar", "rebuild", "reset"],
+      },
+    ],
+  },
+  {
+    id: "codex",
+    title: "Codex (OpenAI)",
+    description:
+      "Conecta o agente do Adila à API da OpenAI (Codex/GPT). A API key fica em settings.json.",
+    settings: [
+      {
+        key: "codex.connect",
+        title: "API key",
+        description:
+          "Abre o modal de configuração para colar/atualizar a key. O input é mascarado e a key nunca é exibida em texto puro depois de salva.",
+        type: "action",
+        defaultValue: null,
+        actionId: "openCodexConnect",
+        actionLabel: "Configurar…",
+        keywords: ["codex", "openai", "gpt", "api", "key", "agent", "agente"],
+      },
+      {
+        key: "codex.model",
+        title: "Modelo padrão",
+        description: "Modelo usado nas chamadas do agente. O id deve bater com um modelo disponível na sua conta.",
+        type: "enum",
+        defaultValue: "gpt-5-codex",
+        options: [
+          { value: "gpt-5-codex", label: "GPT-5 Codex (especializado em código)" },
+          { value: "gpt-5", label: "GPT-5 (uso geral)" },
+          { value: "gpt-5-mini", label: "GPT-5 Mini (rápido/barato)" },
+          { value: "o4-mini", label: "o4-mini (raciocínio)" },
+        ],
+        keywords: ["codex", "openai", "gpt", "model", "modelo"],
+      },
+    ],
+  },
+  {
+    id: "claude",
+    title: "Claude (Anthropic)",
+    description:
+      "Conecta o agente do Adila à API da Anthropic. A API key fica em settings.json (mesmo storage usado por Spotify e Linear).",
+    settings: [
+      {
+        key: "claude.connect",
+        title: "API key",
+        description:
+          "Abre o modal de configuração para colar/atualizar a key. O input é mascarado e a key nunca é exibida em texto puro depois de salva.",
+        type: "action",
+        defaultValue: null,
+        actionId: "openClaudeConnect",
+        actionLabel: "Configurar…",
+        keywords: ["claude", "anthropic", "api", "key", "agent", "agente"],
+      },
+      {
+        key: "claude.model",
+        title: "Modelo padrão",
+        description: "Modelo usado nas chamadas do agente. O id deve bater com um modelo disponível na sua conta.",
+        type: "enum",
+        defaultValue: "claude-opus-4-7",
+        options: [
+          { value: "claude-opus-4-7", label: "Claude Opus 4.7 (mais capaz)" },
+          { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (balanceado)" },
+          { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (rápido/barato)" },
+        ],
+        keywords: ["claude", "model", "modelo", "opus", "sonnet", "haiku"],
       },
     ],
   },

@@ -749,42 +749,49 @@ html.translucent body::before {
   -webkit-backdrop-filter: blur(var(--app-blur, 24px)) saturate(140%);
 }
 
+/* ----------------------------------------------------------------------- */
+/* Scrollbar global fino. Aplica a qualquer elemento com overflow auto/scroll */
+/* sem precisar opt-in via classe. A classe .scrollbar continua existindo    */
+/* como alias para compatibilidade com código já existente.                  */
+/* Monaco e xterm renderizam scrollbars próprias e não são afetados.         */
+/* ----------------------------------------------------------------------- */
+
 /* Firefox */
-.scrollbar {
+html {
   scrollbar-width: thin;
   scrollbar-color: oklch(0 0 0 / 12%) transparent;
 }
-.dark .scrollbar {
+html.dark {
   scrollbar-color: oklch(1 0 0 / 20%) transparent;
 }
 
-/* WebKit / Blink */
-.scrollbar::-webkit-scrollbar {
+/* WebKit / Blink — global */
+::-webkit-scrollbar {
   width: 6px;
   height: 6px;
   background: transparent;
 }
-.scrollbar::-webkit-scrollbar-track,
-.scrollbar::-webkit-scrollbar-track-piece {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-track-piece {
   background: transparent;
   border: none;
 }
-.scrollbar::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: oklch(0 0 0 / 12%);
   border-radius: 10px;
   border: none;
   outline: none;
 }
-.dark .scrollbar::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb {
   background: oklch(1 0 0 / 20%);
 }
-.scrollbar::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background: oklch(0 0 0 / 28%);
 }
-.dark .scrollbar::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover {
   background: oklch(1 0 0 / 38%);
 }
-.scrollbar::-webkit-scrollbar-corner {
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 

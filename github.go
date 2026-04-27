@@ -15,8 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // githubClientID identifica o OAuth App registrado em github.com/settings/developers.
@@ -233,7 +231,7 @@ func (g *GitHub) PollDeviceToken(deviceCode string, interval int) error {
 				return err
 			}
 			if g.ctx != nil {
-				wruntime.EventsEmit(g.ctx, "github.changed")
+				emit("github.changed")
 			}
 			g.mu.Lock()
 			if g.pollStop == stop {

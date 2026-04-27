@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Config persiste configurações do usuário em ~/.config/adila/settings.json.
@@ -182,7 +180,7 @@ func (c *Config) Set(key string, value any) error {
 	c.mu.Unlock()
 	c.scheduleSave()
 	if c.ctx != nil {
-		wruntime.EventsEmit(c.ctx, "config.changed", map[string]any{
+		emit("config.changed", map[string]any{
 			"key":   key,
 			"value": value,
 		})
@@ -198,7 +196,7 @@ func (c *Config) Reset(key string) error {
 	c.mu.Unlock()
 	c.scheduleSave()
 	if c.ctx != nil {
-		wruntime.EventsEmit(c.ctx, "config.changed", map[string]any{
+		emit("config.changed", map[string]any{
 			"key":   key,
 			"value": nil,
 		})
@@ -217,7 +215,7 @@ func (c *Config) OpenSettingsJson() error {
 		c.flush()
 	}
 	if c.ctx != nil {
-		wruntime.EventsEmit(c.ctx, "editor.openFile", c.path)
+		emit("editor.openFile", c.path)
 	}
 	return nil
 }

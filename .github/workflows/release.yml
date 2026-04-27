@@ -15,9 +15,9 @@ permissions:
   contents: write
 
 env:
-  GO_VERSION: "1.23"
+  GO_VERSION: "1.25"
   BUN_VERSION: "1.2.21"
-  WAILS_VERSION: "v2.12.0"
+  WAILS_VERSION: "v3.0.0-alpha.78"
 
 jobs:
   release-linux:
@@ -48,12 +48,17 @@ jobs:
         id: cache-wails
         uses: actions/cache@v4
         with:
-          path: ~/go/bin/wails
+          path: ~/go/bin/wails3
           key: wails-${{ env.WAILS_VERSION }}-${{ runner.os }}
 
       - name: Install Wails CLI
         if: steps.cache-wails.outputs.cache-hit != 'true'
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Generate bindings
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          wails3 generate bindings -ts -clean
 
       - name: Frontend deps
         working-directory: frontend
@@ -68,12 +73,16 @@ jobs:
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Wails build
+      - name: Frontend build
+        working-directory: frontend
+        run: bun run build
+
+      - name: Backend build
         run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          wails build -platform linux/amd64 -clean -trimpath \
-            -tags webkit2_41 \
-            -ldflags "-s -w -X main.version=${{ steps.ver.outputs.version }}"
+          mkdir -p build/bin
+          go build -tags production,webkit2_41 -trimpath \
+            -ldflags "-s -w -X main.version=${{ steps.ver.outputs.version }}" \
+            -o build/bin/adila-ide .
 
       - name: Package
         id: pkg
@@ -149,12 +158,18 @@ jobs:
         id: cache-wails
         uses: actions/cache@v4
         with:
-          path: ~/go/bin/wails.exe
+          path: ~/go/bin/wails3.exe
           key: wails-${{ env.WAILS_VERSION }}-${{ runner.os }}
 
       - name: Install Wails CLI
         if: steps.cache-wails.outputs.cache-hit != 'true'
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Generate bindings
+        shell: bash
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          wails3 generate bindings -ts -clean
 
       - name: Frontend deps
         working-directory: frontend
@@ -170,12 +185,17 @@ jobs:
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Wails build (binary + NSIS installer)
+      - name: Frontend build
+        working-directory: frontend
+        run: bun run build
+
+      - name: Backend build
         shell: bash
         run: |
-          export PATH="$PATH:$(go env GOPATH)/bin"
-          wails build -platform windows/amd64 -clean -trimpath -nsis \
-            -ldflags "-s -w -X main.version=${{ steps.ver.outputs.version }}"
+          mkdir -p build/bin
+          go build -tags production -trimpath \
+            -ldflags "-s -w -H windowsgui -X main.version=${{ steps.ver.outputs.version }}" \
+            -o build/bin/adila-ide.exe .
 
       - name: Package
         id: pkg
@@ -190,14 +210,7 @@ jobs:
           $zipHash = (Get-FileHash "dist/$zip" -Algorithm SHA256).Hash.ToLower()
           "$zipHash  $zip" | Out-File -FilePath "dist/$zip.sha256" -Encoding ascii -NoNewline
 
-          $installerSrc = "build/bin/adila-ide-amd64-installer.exe"
-          $installer = "adila-ide-$env:VERSION-windows-amd64-installer.exe"
-          Copy-Item -Path $installerSrc -Destination "dist/$installer"
-          $instHash = (Get-FileHash "dist/$installer" -Algorithm SHA256).Hash.ToLower()
-          "$instHash  $installer" | Out-File -FilePath "dist/$installer.sha256" -Encoding ascii -NoNewline
-
-          "zip=$zip"             | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding ascii
-          "installer=$installer" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding ascii
+          "zip=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding ascii
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -209,5 +222,3 @@ jobs:
           files: |
             dist/${{ steps.pkg.outputs.zip }}
             dist/${{ steps.pkg.outputs.zip }}.sha256
-            dist/${{ steps.pkg.outputs.installer }}
-            dist/${{ steps.pkg.outputs.installer }}.sha256

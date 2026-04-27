@@ -118,20 +118,21 @@ function buildTheme(): MonacoNs.editor.IStandaloneThemeData {
   const popover = readVar("--popover");
   const popoverFg = readVar("--popover-foreground");
   const destr = readVar("--destructive");
-  const c1 = readVar("--chart-1");
-  const c2 = readVar("--chart-2");
-  const c3 = readVar("--chart-3");
-  const c4 = readVar("--chart-4");
-  const c5 = readVar("--chart-5");
 
-  // Em light mode os chart colors de alta luminosidade ficam invisíveis sobre
-  // fundo branco. Usamos cores fixas com bom contraste no tema claro.
-  const kw = dark ? strip(c1) : "0000CC"; // keywords  → azul escuro
-  const str = dark ? strip(c2) : "A31515"; // strings   → vermelho escuro
-  const num = dark ? strip(c3) : "098658"; // numbers   → verde escuro
-  const typ = dark ? strip(c4) : "267F99"; // types     → teal
-  const fn = dark ? strip(c5) : "795E26"; // functions → amarelo-escuro
-  const cmt = strip(muted); // comments  → muted em ambos
+  // Paleta de sintaxe espelhando VSCode Dark+ / Light+ — calibradas pra ter
+  // contraste consistente em qualquer fundo do tema do workbench. Os chart
+  // colors do shadcn/ui são mid-luminance e baixa croma (desenhados pra
+  // gráficos sobre cards), o que produzia azul/verde sem contraste no editor.
+  // Mudar aqui afeta apenas o syntax highlight; cores de UI (background,
+  // borda, sidebar etc.) continuam vindo das CSS vars do tema escolhido.
+  const kw = dark ? "569CD6" : "0000FF"; // keyword     → azul VSCode
+  const str = dark ? "CE9178" : "A31515"; // string      → laranja/peach
+  const num = dark ? "B5CEA8" : "098658"; // number      → verde claro
+  const typ = dark ? "4EC9B0" : "267F99"; // type        → teal
+  const fn = dark ? "DCDCAA" : "795E26"; // function    → amarelo pastel
+  const vr = dark ? "9CDCFE" : "001080"; // variable    → ciano claro
+  const re = dark ? "D16969" : "811F3F"; // regexp      → salmão
+  const cmt = dark ? "6A9955" : "008000"; // comment     → verde itálico
 
   return {
     base: dark ? "vs-dark" : "vs",
@@ -149,7 +150,7 @@ function buildTheme(): MonacoNs.editor.IStandaloneThemeData {
       { token: "string.invalid", foreground: strip(destr) },
       { token: "number", foreground: num },
       { token: "number.float", foreground: num },
-      { token: "regexp", foreground: fn },
+      { token: "regexp", foreground: re },
       { token: "type", foreground: typ },
       { token: "type.identifier", foreground: typ },
       { token: "entity.name.type", foreground: typ },
@@ -157,9 +158,10 @@ function buildTheme(): MonacoNs.editor.IStandaloneThemeData {
       { token: "function", foreground: fn },
       { token: "entity.name.function", foreground: fn },
       { token: "support.function", foreground: fn },
-      { token: "variable", foreground: strip(fg) },
+      { token: "variable", foreground: vr },
+      { token: "variable.parameter", foreground: vr },
       { token: "variable.predefined", foreground: typ },
-      { token: "identifier", foreground: strip(fg) },
+      { token: "identifier", foreground: vr },
       { token: "delimiter", foreground: strip(muted) },
       { token: "delimiter.bracket", foreground: strip(fg) },
       { token: "operator", foreground: strip(fg) },
@@ -177,13 +179,20 @@ function buildTheme(): MonacoNs.editor.IStandaloneThemeData {
       "editorLineNumber.activeForeground": strip(fg),
       "editor.lineHighlightBackground": withAlpha(strip(muted), "18"),
       "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": withAlpha(strip(primary), "40"),
-      "editor.inactiveSelectionBackground": withAlpha(strip(primary), "20"),
-      "editor.selectionHighlightBackground": withAlpha(strip(primary), "20"),
-      "editor.wordHighlightBackground": withAlpha(strip(primary), "20"),
-      "editor.findMatchBackground": withAlpha(strip(primary), "60"),
-      "editor.findMatchHighlightBackground": withAlpha(strip(primary), "30"),
-      "editorCursor.foreground": strip(primary),
+      // Seleção e cursor não usam --primary porque essa CSS var varia entre
+      // temas (rose-pine tem primary rosa-avermelhado, ayu-mirage amarelo,
+      // etc.) e produzia seleções com fundo saturado/agressivo no editor.
+      // Aqui usamos a cor de keyword (azul calibrado) com baixa alpha
+      // — replica o comportamento do VSCode Dark+ onde a seleção é sempre
+      // azul-acinzentada independente do tema.
+      "editor.selectionBackground": withAlpha(kw, "40"),
+      "editor.inactiveSelectionBackground": withAlpha(kw, "20"),
+      "editor.selectionHighlightBackground": withAlpha(kw, "20"),
+      "editor.wordHighlightBackground": withAlpha(kw, "20"),
+      "editor.findMatchBackground": withAlpha(kw, "60"),
+      "editor.findMatchHighlightBackground": withAlpha(kw, "30"),
+      // Cursor usa o foreground do tema → sempre tem contraste com o fundo.
+      "editorCursor.foreground": strip(fg),
       "editorWhitespace.foreground": withAlpha(strip(muted), "50"),
       "editorIndentGuide.background1": withAlpha(strip(border), "80"),
       "editorIndentGuide.activeBackground1": strip(muted),
@@ -203,11 +212,11 @@ function buildTheme(): MonacoNs.editor.IStandaloneThemeData {
       "editorGroup.border": strip(border),
       "editorGutter.background": bg,
       "editorGutter.modifiedBackground": typ,
-      "editorGutter.addedBackground": dark ? strip(c2) : "098658",
+      "editorGutter.addedBackground": num, // verde da paleta de syntax
       "editorGutter.deletedBackground": strip(destr),
       "editorError.foreground": strip(destr),
-      "editorWarning.foreground": dark ? strip(c3) : "795E26",
-      "editorInfo.foreground": dark ? strip(c1) : "0000CC",
+      "editorWarning.foreground": fn, // amarelo da paleta de syntax
+      "editorInfo.foreground": kw, // azul da paleta de syntax
       "scrollbar.shadow": "#00000000",
       "scrollbarSlider.background": withAlpha(strip(muted), "30"),
       "scrollbarSlider.hoverBackground": withAlpha(strip(muted), "60"),

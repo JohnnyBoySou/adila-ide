@@ -40,10 +40,12 @@ const MatchRow = memo(function MatchRow({
     <li>
       <button
         onClick={() => onOpen(match.path, match.line, match.column)}
-        className="w-full flex gap-2 px-6 py-1 text-xs hover:bg-accent text-left font-mono"
+        className="w-full flex gap-2 pl-6 pr-2 py-1 text-xs hover:bg-accent text-left font-mono min-w-0"
       >
-        <span className="text-muted-foreground shrink-0 w-8 text-right">{match.line}</span>
-        <span className="truncate">{match.preview}</span>
+        <span className="text-muted-foreground shrink-0 w-8 text-right tabular-nums">
+          {match.line}
+        </span>
+        <span className="truncate min-w-0 flex-1">{match.preview}</span>
       </button>
     </li>
   );
@@ -83,16 +85,24 @@ const FileGroup = memo(function FileGroup({
             onToggle(path);
           }
         }}
-        className="w-full flex items-center gap-1 px-2 py-1 hover:bg-accent text-left cursor-pointer select-none"
+        className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-accent text-left cursor-pointer select-none min-w-0"
       >
         {collapsed ? (
           <ChevronRight className="size-3 shrink-0" />
         ) : (
           <ChevronDown className="size-3 shrink-0" />
         )}
-        <span className="truncate font-medium">{name}</span>
-        <span className="truncate text-xs text-muted-foreground">{dir}</span>
-        <span className="ml-auto text-xs text-muted-foreground shrink-0">{fileMatches.length}</span>
+        <div className="flex flex-1 min-w-0 flex-col leading-tight">
+          <span className="truncate font-medium">{name}</span>
+          {dir && (
+            <span className="truncate text-[10px] text-muted-foreground" title={dir}>
+              {dir.replace(/\/$/, "")}
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+          {fileMatches.length}
+        </span>
       </div>
       {!collapsed && (
         <ul>
@@ -187,10 +197,10 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
   };
 
   return (
-    <div className="h-full flex flex-col text-sm">
-      <div className="px-2 py-2 space-y-2 border-b">
-        <div className="flex items-center gap-1">
-          <div className="flex-1 flex items-center gap-1 border rounded-md px-2 py-1 bg-background focus-within:ring-1 focus-within:ring-ring">
+    <div className="h-full flex flex-col text-sm min-w-0">
+      <div className="px-2 py-2 space-y-2 border-b min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-1 border rounded-md px-2 py-1 bg-background focus-within:ring-1 focus-within:ring-ring">
             <SearchIcon className="size-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
@@ -220,8 +230,8 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
             />
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="flex-1 flex items-center gap-1 border rounded-md px-2 py-1 bg-background focus-within:ring-1 focus-within:ring-ring">
+        <div className="flex items-center gap-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-1 border rounded-md px-2 py-1 bg-background focus-within:ring-1 focus-within:ring-ring">
             <ReplaceIcon className="size-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
@@ -234,19 +244,19 @@ export function SearchView({ rootPath, onOpenMatch }: Props) {
           <button
             onClick={replaceAll}
             disabled={!query || replacing || totalMatches === 0}
-            className="px-2 py-1 text-xs rounded-md border hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+            className="shrink-0 px-2 py-1 text-xs rounded-md border hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
             title="Substituir todos"
           >
             {replacing ? <Spinner /> : "Tudo"}
           </button>
         </div>
-        <div className="text-xs text-muted-foreground min-h-5">
+        <div className="text-xs text-muted-foreground min-h-5 break-words">
           {!rootPath ? (
             "Abra uma pasta para buscar."
           ) : loading ? (
             "Buscando…"
           ) : error ? (
-            <span className="text-red-400">{error}</span>
+            <span className="text-red-400 break-all">{error}</span>
           ) : query ? (
             `${totalMatches} resultado${totalMatches === 1 ? "" : "s"} em ${totalFiles} arquivo${totalFiles === 1 ? "" : "s"}`
           ) : (

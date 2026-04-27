@@ -1,8 +1,11 @@
-import { lazy, memo, Suspense } from "react";
+import { lazy, memo, Suspense, useEffect, useState } from "react";
 import { Notifications } from "@/features/notifications/Notifications";
 import { QuickOpen } from "@/features/editor/QuickOpen";
 import { ThemePicker } from "@/features/editor/ThemePicker";
 import { useUiStore } from "@/stores/uiStore";
+import { ClaudeConnect } from "@/features/claude/ClaudeConnect";
+import { CodexConnect } from "@/features/codex/CodexConnect";
+import { EventsOn } from "../../../wailsjs/runtime/runtime";
 
 const CommandPalette = lazy(() =>
   import("@/features/command-palette/CommandPalette").then((m) => ({ default: m.CommandPalette })),
@@ -36,6 +39,8 @@ export const Overlays = memo(function Overlays({
       <ThemePickerOverlay onOpenEditor={onOpenThemeEditor} />
       <QuickOpenOverlay rootPath={rootPath} onOpenFile={onOpenFile} />
       <NotificationsOverlay open={notificationsOpen} onOpen={onOpenNotifications} />
+      <ClaudeConnectOverlay />
+      <CodexConnectOverlay />
     </>
   );
 });
@@ -99,4 +104,27 @@ const NotificationsOverlay = memo(function NotificationsOverlay({
   onOpen: () => void;
 }) {
   return <Notifications centerOpen={open} onOpenCenter={onOpen} />;
+});
+
+// Disponibiliza globalmente o modal de configuração da API key. Ouve
+// "claude.openConnect" — disparado pelo card do welcome (quando configurado o
+// onOpen leva pro agente, mas usamos o mesmo modal pra reconfigurar) e pelo
+// botão "Configurar..." do SettingsView.
+const ClaudeConnectOverlay = memo(function ClaudeConnectOverlay() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    return EventsOn("claude.openConnect", () => setOpen(true));
+  }, []);
+  return <ClaudeConnect open={open} onOpenChange={setOpen} />;
+});
+
+// Mesma estratégia do ClaudeConnectOverlay: ouve "codex.openConnect" pra que
+// o botão "Configurar..." do SettingsView reabra o mesmo modal usado no
+// welcome.
+const CodexConnectOverlay = memo(function CodexConnectOverlay() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    return EventsOn("codex.openConnect", () => setOpen(true));
+  }, []);
+  return <CodexConnect open={open} onOpenChange={setOpen} />;
 });

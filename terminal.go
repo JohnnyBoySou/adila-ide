@@ -7,23 +7,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
 	xpty "github.com/aymanbagabas/go-pty"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
-)
-
-// flushInterval and flushBytes control output batching.
-// Curtos o suficiente pra não atrasar a digitação,
-// grandes o suficiente pra coalescer floods de output.
-const (
-	flushInterval = 12 * time.Millisecond
-	flushBytes    = 64 * 1024
+	"github.com/gorilla/websocket"
 )
 
 type StartOptions struct {
@@ -59,20 +54,102 @@ type ptySession struct {
 	running   atomic.Bool
 	exitCode  atomic.Int32
 	once      sync.Once
+
+	// Quando o frontend abre o bridge WebSocket pra essa sessão, wsConn
+	// aponta pra conexão. flush() serializa pra cá em vez de emitir via
+	// runtime Wails (HTTP fetch), o que reduz a latência de E/S em ordens
+	// de magnitude. Nil = caminho legacy via emit().
+	wsConn    atomic.Pointer[websocket.Conn]
+	wsWriteMu sync.Mutex
 }
 
 type Terminal struct {
 	ctx      context.Context
 	mu       sync.Mutex
 	sessions map[string]*ptySession
+
+	wsPort   int
+	wsServer *http.Server
+	upgrader websocket.Upgrader
 }
 
 func NewTerminal() *Terminal {
-	return &Terminal{sessions: make(map[string]*ptySession)}
+	return &Terminal{
+		sessions: make(map[string]*ptySession),
+		upgrader: websocket.Upgrader{
+			CheckOrigin:     func(r *http.Request) bool { return true },
+			ReadBufferSize:  16 * 1024,
+			WriteBufferSize: 64 * 1024,
+		},
+	}
 }
 
 func (t *Terminal) startup(ctx context.Context) {
 	t.ctx = ctx
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		logErrorf("Terminal WS: não foi possível abrir porta: %v", err)
+		return
+	}
+	t.wsPort = ln.Addr().(*net.TCPAddr).Port
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/term/", t.handleWS)
+
+	t.wsServer = &http.Server{Handler: mux}
+	go func() {
+		if err := t.wsServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+			logErrorf("Terminal WS server: %v", err)
+		}
+	}()
+
+	logInfof("Terminal WS bridge rodando em 127.0.0.1:%d", t.wsPort)
+}
+
+// GetTerminalPort devolve a porta do bridge WebSocket pro frontend conectar.
+func (t *Terminal) GetTerminalPort() int {
+	return t.wsPort
+}
+
+// handleWS faz o upgrade pra WebSocket e amarra a conexão na sessão. Enquanto
+// estiver conectado, o pump escreve direto no WS (binário) em vez de emitir
+// eventos Wails. As mensagens recebidas viram input pro PTY.
+func (t *Terminal) handleWS(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/term/")
+	s, ok := t.get(id)
+	if !ok {
+		http.Error(w, "sessão não encontrada", http.StatusNotFound)
+		return
+	}
+
+	ws, err := t.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	// só uma conexão WS ativa por sessão. Se já tem outra, fecha a antiga.
+	if old := s.wsConn.Swap(ws); old != nil {
+		_ = old.Close()
+	}
+	defer func() {
+		s.wsConn.CompareAndSwap(ws, nil)
+		_ = ws.Close()
+	}()
+
+	// WS → PTY (input do usuário). Bloqueia até a conexão fechar.
+	for {
+		_, msg, err := ws.ReadMessage()
+		if err != nil {
+			return
+		}
+		if !s.running.Load() {
+			return
+		}
+		if _, err := s.pty.Write(msg); err != nil {
+			return
+		}
+	}
 }
 
 func defaultShell() string {
@@ -161,82 +238,66 @@ func (t *Terminal) StartPtyWith(opts StartOptions) (string, error) {
 	return id, nil
 }
 
-// pump lê do pty e emite chunks UTF-8-safe e batched.
+// pump lê do pty e despacha o output. Quando o bridge WebSocket está
+// conectado (caminho default), escreve cada Read() direto na WS — sem
+// batching, sem timer, sem base64. O kernel já entrega a leitura quando
+// tem dados, então cada chunk vira uma frame WS. Se a WS estiver caída,
+// cai no fallback Wails event com base64.
+//
+// utf8SafeBoundary é mantido pra não cortar runes ao meio entre frames:
+// o byte parcial fica retido como leftover até a próxima leitura.
 func (t *Terminal) pump(s *ptySession) {
 	dataEvent := "pty:data:" + s.id
-	read := make([]byte, 32*1024)
-	pending := make([]byte, 0, flushBytes)
-	timer := time.NewTimer(flushInterval)
-	timer.Stop()
-	timerActive := false
+	buf := make([]byte, 32*1024)
+	leftover := make([]byte, 0, 4)
 
-	flush := func() {
-		if len(pending) == 0 {
+	send := func(data []byte) {
+		if len(data) == 0 {
 			return
 		}
-		// Bench mede latência por flush (chunk → frontend). pump() em si é
-		// goroutine de vida longa, então benchear a função inteira não diz nada.
-		defer bench.Time("Terminal.pumpFlush")()
-		// só envia até o último boundary UTF-8 válido,
-		// guardando bytes parciais pra próxima rodada
-		safe := utf8SafeBoundary(pending)
-		if safe == 0 {
-			return
-		}
-		chunk := make([]byte, safe)
-		copy(chunk, pending[:safe])
-		pending = append(pending[:0], pending[safe:]...)
-		wruntime.EventsEmit(t.ctx, dataEvent, base64.StdEncoding.EncodeToString(chunk))
-	}
-
-	stopTimer := func() {
-		if timerActive {
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
+		if ws := s.wsConn.Load(); ws != nil {
+			s.wsWriteMu.Lock()
+			err := ws.WriteMessage(websocket.BinaryMessage, data)
+			s.wsWriteMu.Unlock()
+			if err == nil {
+				return
 			}
-			timerActive = false
+			s.wsConn.CompareAndSwap(ws, nil)
 		}
+		emit(dataEvent, base64.StdEncoding.EncodeToString(data))
 	}
 
 	for {
-		readDone := make(chan struct{})
-		var n int
-		var err error
-		go func() {
-			n, err = s.pty.Read(read)
-			close(readDone)
-		}()
-
-		select {
-		case <-readDone:
-		case <-timer.C:
-			timerActive = false
-			flush()
-			<-readDone
-		}
-
+		n, err := s.pty.Read(buf)
 		if n > 0 {
-			pending = append(pending, read[:n]...)
-			if len(pending) >= flushBytes {
-				stopTimer()
-				flush()
-			} else if !timerActive {
-				timer.Reset(flushInterval)
-				timerActive = true
+			var data []byte
+			if len(leftover) > 0 {
+				data = append(leftover, buf[:n]...)
+				leftover = leftover[:0]
+			} else {
+				data = buf[:n]
+			}
+			safe := utf8SafeBoundary(data)
+			if safe < len(data) {
+				leftover = append(leftover[:0], data[safe:]...)
+				data = data[:safe]
+			}
+			if len(data) > 0 {
+				// cópia: WS pode segurar o slice depois do retorno
+				out := make([]byte, len(data))
+				copy(out, data)
+				send(out)
 			}
 		}
 		if err != nil {
-			stopTimer()
-			// flush força incluindo bytes "parciais" no fim
-			if len(pending) > 0 {
-				wruntime.EventsEmit(t.ctx, dataEvent, base64.StdEncoding.EncodeToString(pending))
-				pending = pending[:0]
+			if len(leftover) > 0 {
+				out := make([]byte, len(leftover))
+				copy(out, leftover)
+				send(out)
+				leftover = leftover[:0]
 			}
 			if !errors.Is(err, io.EOF) {
-				wruntime.LogDebugf(t.ctx, "pty read end %s: %v", s.id, err)
+				logDebugf("pty read end %s: %v", s.id, err)
 			}
 			return
 		}
@@ -271,7 +332,7 @@ func (t *Terminal) wait(s *ptySession) {
 	}
 	s.running.Store(false)
 	s.exitCode.Store(int32(code))
-	wruntime.EventsEmit(t.ctx, "pty:exit:"+s.id, code)
+	emit("pty:exit:"+s.id, code)
 	t.removeAndClose(s.id)
 }
 
@@ -376,12 +437,18 @@ func (t *Terminal) removeAndClose(id string) {
 	if !ok {
 		return
 	}
+	if ws := s.wsConn.Swap(nil); ws != nil {
+		_ = ws.Close()
+	}
 	s.once.Do(func() {
 		_ = s.pty.Close()
 	})
 }
 
 func (t *Terminal) shutdown(_ context.Context) {
+	if t.wsServer != nil {
+		_ = t.wsServer.Close()
+	}
 	t.mu.Lock()
 	ids := make([]string, 0, len(t.sessions))
 	pids := make([]int, 0, len(t.sessions))

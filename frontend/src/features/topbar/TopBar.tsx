@@ -22,6 +22,7 @@ import {
     WindowToggleMaximise,
 } from "../../../wailsjs/runtime/runtime";
 import { EventsEmit } from "../../../wailsjs/runtime/runtime";
+import { useUiStore } from "@/stores/uiStore";
 
 // Wails v2 reconhece o atributo CSS --wails-draggable nos style do elemento.
 // "drag" → arrastar a janela; "no-drag" → impede em filhos clicáveis.
@@ -47,6 +48,13 @@ type Props = {
   zenMode: boolean;
   spotifyEnabled: boolean;
   sidebarVisible: boolean;
+  /**
+   * Quando true, o item "Preview Markdown" do menu Extensões fica
+   * habilitado. Vem do App raiz porque ele já calcula `isMarkdown` a partir
+   * da extensão da tab ativa; centralizar aqui evitaria reimplementar a
+   * derivação.
+   */
+  isMarkdownActive: boolean;
   onOpenFolder: () => void;
   onSave: () => void;
   onCloseTab: () => void;
@@ -71,6 +79,7 @@ export function TopBar({
   zenMode,
   spotifyEnabled,
   sidebarVisible,
+  isMarkdownActive,
   onOpenFolder,
   onSave,
   onCloseTab,
@@ -90,6 +99,14 @@ export function TopBar({
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [isMaximised, setIsMaximised] = useState(false);
+
+  // Estado dos viewers ativáveis. Cada checkbox do menu "Extensões"
+  // reflete e altera essas flags do uiStore. Usamos selectors estreitos
+  // pra que clicar em outras partes da UI não dispare re-render do menu.
+  const livePreviewOpen = useUiStore((s) => s.livePreviewOpen);
+  const markdownPreviewOpen = useUiStore((s) => s.markdownPreviewOpen);
+  const setLivePreviewOpen = useUiStore((s) => s.setLivePreviewOpen);
+  const setMarkdownPreviewOpen = useUiStore((s) => s.setMarkdownPreviewOpen);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,26 +273,6 @@ export function TopBar({
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator />
-            <MenubarCheckboxItem
-              className="text-xs"
-              checked={zenMode as boolean}
-              onCheckedChange={() => onToggleZen()}
-            >
-              Modo zen
-              <MenubarShortcut>Ctrl+K Z</MenubarShortcut>
-            </MenubarCheckboxItem>
-            <MenubarCheckboxItem
-              className="text-xs"
-              checked={spotifyEnabled}
-              onCheckedChange={() => onToggleSpotify()}
-            >
-              Mini-player Spotify
-              <MenubarShortcut>Ctrl+Alt+M</MenubarShortcut>
-            </MenubarCheckboxItem>
-            <MenubarItem className="text-xs" onSelect={() => onSetView("themeEditor")}>
-              Editor de tema
-            </MenubarItem>
-            <MenubarSeparator />
             <MenubarItem className="text-xs" onSelect={() => onSetView("settings")}>
               Configurações
             </MenubarItem>
@@ -308,6 +305,63 @@ export function TopBar({
             <MenubarItem className="text-xs" onSelect={onOpenUrl}>
               URL como aba…
               <MenubarShortcut>Ctrl+Shift+U</MenubarShortcut>
+            </MenubarItem>
+          </MenubarContent>
+        </MenubarMenu>
+
+        {/* ── Extensões ──
+            Centraliza viewers e modos ativáveis. Toggles usam MenubarItem
+            regular pra alinhar com "Editor de tema" (sem o pl-8 reservado
+            do MenubarCheckboxItem). preventDefault no onSelect mantém o
+            menu aberto após o click, útil pra ligar/desligar em sequência. */}
+        <MenubarMenu>
+          <MenubarTrigger className="text-xs font-light">Extensões</MenubarTrigger>
+          <MenubarContent>
+            <MenubarItem
+              className="text-xs"
+              onSelect={(e) => {
+                e.preventDefault();
+                setLivePreviewOpen(!livePreviewOpen);
+              }}
+            >
+              Live Preview
+              <MenubarShortcut>localhost</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem
+              className="text-xs"
+              disabled={!isMarkdownActive}
+              onSelect={(e) => {
+                e.preventDefault();
+                setMarkdownPreviewOpen(!markdownPreviewOpen);
+              }}
+            >
+              Preview Markdown
+              <MenubarShortcut>{isMarkdownActive ? ".md/.mdx" : "abra um .md"}</MenubarShortcut>
+            </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem
+              className="text-xs"
+              onSelect={(e) => {
+                e.preventDefault();
+                onToggleSpotify();
+              }}
+            >
+              Mini-player Spotify
+              <MenubarShortcut>Ctrl+Alt+M</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem
+              className="text-xs"
+              onSelect={(e) => {
+                e.preventDefault();
+                onToggleZen();
+              }}
+            >
+              Modo zen
+              <MenubarShortcut>Ctrl+K Z</MenubarShortcut>
+            </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem className="text-xs" onSelect={() => onSetView("themeEditor")}>
+              Editor de tema
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

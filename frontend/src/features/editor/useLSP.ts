@@ -11,10 +11,12 @@ async function getLSPPort(): Promise<number> {
   return portCache;
 }
 
-let availableCache: Promise<Record<string, string>> | null = null;
-function getAvailableLSP(): Promise<Record<string, string>> {
+let availableCache: Promise<Record<string, string | undefined>> | null = null;
+function getAvailableLSP(): Promise<Record<string, string | undefined>> {
   if (!availableCache) {
-    availableCache = ListAvailableLSP().catch(() => ({}));
+    availableCache = ListAvailableLSP()
+      .then((r) => r as Record<string, string | undefined>)
+      .catch(() => ({}) as Record<string, string | undefined>);
   }
   return availableCache;
 }

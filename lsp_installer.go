@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type LSPServerStatus struct {
@@ -121,7 +119,7 @@ func (l *LSP) InstallLSPServer(lang string) error {
 		return fmt.Errorf("servidor desconhecido: %s", lang)
 	}
 	if err := s.install(l); err != nil {
-		wruntime.EventsEmit(l.ctx, "lsp:install:error:"+lang, err.Error())
+		emit("lsp:install:error:"+lang, err.Error())
 		return err
 	}
 	// atualiza cache
@@ -131,7 +129,7 @@ func (l *LSP) InstallLSPServer(lang string) error {
 		l.available[lang] = path
 	}
 	l.mu.Unlock()
-	wruntime.EventsEmit(l.ctx, "lsp:install:done:"+lang, path)
+	emit("lsp:install:done:"+lang, path)
 	return nil
 }
 
@@ -216,7 +214,7 @@ func installRustAnalyzer(l *LSP) error {
 	}
 	destPath := filepath.Join(dir, binName)
 
-	wruntime.LogInfof(l.ctx, "LSP install: baixando rust-analyzer de %s", url)
+	logInfof("LSP install: baixando rust-analyzer de %s", url)
 	l.emitProgress("rust-analyzer", 5)
 
 	resp, err := http.Get(url) //nolint:gosec
@@ -301,7 +299,7 @@ func writeFile(r io.Reader, dest string) error {
 }
 
 func (l *LSP) emitProgress(lang string, pct int) {
-	wruntime.EventsEmit(l.ctx, "lsp:install:progress:"+lang, pct)
+	emit("lsp:install:progress:"+lang, pct)
 }
 
 type progressReader struct {

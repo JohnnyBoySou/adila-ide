@@ -7,8 +7,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type PaletteItem struct {
@@ -192,16 +190,16 @@ func (c *CommandCenter) Execute(id string) error {
 	case "git.push":
 		return c.git.Push()
 	case "reloadWindow":
-		wruntime.WindowReload(c.ctx)
+		reloadCurrentWindow()
 		return nil
 	default:
-		wruntime.EventsEmit(c.ctx, "commandCenter.exec", id)
+		emit("commandCenter.exec", id)
 		return nil
 	}
 }
 
 func (c *CommandCenter) GotoLine(line, column int) error {
-	wruntime.EventsEmit(c.ctx, "editor.gotoLine", map[string]int{
+	emit("editor.gotoLine", map[string]int{
 		"line":   line,
 		"column": column,
 	})
@@ -209,6 +207,6 @@ func (c *CommandCenter) GotoLine(line, column int) error {
 }
 
 func (c *CommandCenter) OpenFile(path string) error {
-	wruntime.EventsEmit(c.ctx, "editor.openFile", path)
+	emit("editor.openFile", path)
 	return nil
 }
