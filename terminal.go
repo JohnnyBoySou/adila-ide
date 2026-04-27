@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -399,19 +398,4 @@ func (t *Terminal) shutdown(_ context.Context) {
 	for _, id := range ids {
 		t.removeAndClose(id)
 	}
-}
-
-// killProcessTree mata o processo e seu grupo. go-pty cria a sessão
-// já em um novo session/process group, então kill(-pid) atinge filhos.
-func killProcessTree(pid int) {
-	if pid <= 0 {
-		return
-	}
-	if runtime.GOOS == "windows" {
-		_ = syscall.Kill(pid, syscall.SIGKILL)
-		return
-	}
-	_ = syscall.Kill(-pid, syscall.SIGTERM)
-	time.Sleep(150 * time.Millisecond)
-	_ = syscall.Kill(-pid, syscall.SIGKILL)
 }
