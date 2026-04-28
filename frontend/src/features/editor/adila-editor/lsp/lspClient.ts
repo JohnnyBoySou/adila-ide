@@ -170,7 +170,12 @@ export class AdilaLSPClient {
    * Abre um documento. Retorna função de detach que envia didClose.
    * Chamar de novo com mesmo URI é no-op (mantém o estado).
    */
-  openDocument(uri: string, text: string, onDiagnostics: DiagnosticsHandler): () => void {
+  openDocument(
+    uri: string,
+    text: string,
+    languageId: string,
+    onDiagnostics: DiagnosticsHandler,
+  ): () => void {
     if (this.docs.has(uri)) {
       this.diagnosticsHandlers.set(uri, onDiagnostics);
       return () => this.closeDocument(uri);
@@ -182,7 +187,7 @@ export class AdilaLSPClient {
     void this.connection.sendNotification("textDocument/didOpen", {
       textDocument: {
         uri,
-        languageId: this.lang,
+        languageId,
         version: 1,
         text,
       },

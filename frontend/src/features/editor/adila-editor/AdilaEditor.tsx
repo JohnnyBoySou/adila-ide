@@ -117,6 +117,7 @@ export function AdilaEditor({
       <AdilaEditorContextMenu store={store} filePath={path} lspApi={lspApi}>
         <EditorView
           store={store}
+          filePath={path}
           fontFamily={cfg.fontFamily}
           fontSize={cfg.fontSize}
           lineHeight={lineHeight}

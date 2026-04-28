@@ -63,7 +63,7 @@ function SelectionLayerInner({
     }
     const caretVisual = layout.positionToPoint(c.pos);
     const top = paddingTop + caretVisual.y;
-    const left = paddingLeft + caretVisual.x;
+    const left = paddingLeft + caretVisual.x * charWidth;
     carets.push(
       <span
         key={`c${idx}`}
@@ -112,8 +112,8 @@ function pushSelectionRects(
     if (eCol < lineStart || sCol > lineEnd || eCol < sCol) continue;
     const sPoint = layout.positionToPoint({ line: vl.line, col: sCol });
     const ePoint = layout.positionToPoint({ line: vl.line, col: eCol });
-    const left = paddingLeft + sPoint.x;
-    const width = Math.max(2, Math.max(ePoint.x, sPoint.x + charWidth) - sPoint.x);
+      const left = paddingLeft + sPoint.x * charWidth;
+      const width = Math.max(2, Math.max(ePoint.x - sPoint.x, 1) * charWidth);
     out.push(
       <span
         key={`${keyPrefix}_${vl.visualIndex}`}

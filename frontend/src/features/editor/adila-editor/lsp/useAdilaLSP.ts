@@ -23,6 +23,16 @@ export type LspApi = {
   available: boolean;
 };
 
+function lspRouteLang(lang: string): string {
+  if (lang === "typescriptreact") return "typescript";
+  if (lang === "javascriptreact") return "javascript";
+  return lang;
+}
+
+function documentLanguageId(lang: string): string {
+  return lang;
+}
+
 let portCache: number | null = null;
 async function getLSPPort(): Promise<number> {
   const cached = portCache;
@@ -106,7 +116,8 @@ export function useAdilaLSP({
   const [available, setAvailable] = useState(false);
 
   useEffect(() => {
-    if (!rootUri || !isLSPRelevant(lang) || !path) {
+    const routeLang = lspRouteLang(lang);
+    if (!rootUri || !isLSPRelevant(routeLang) || !path) {
       setAvailable(false);
       setUri(null);
       clientRef.current = null;
@@ -123,7 +134,7 @@ export function useAdilaLSP({
     void (async () => {
       const availMap = await getAvailableLSP();
       if (cancelled) return;
-      if (!availMap[lang]) {
+      if (!availMap[routeLang]) {
         return;
       }
 
@@ -137,7 +148,7 @@ export function useAdilaLSP({
       if (cancelled) return;
 
       const client = await getOrCreateAdilaClient({
-        lang,
+        lang: routeLang,
         rootUri,
         port,
         onError: reportError,
@@ -145,7 +156,7 @@ export function useAdilaLSP({
       if (cancelled || !client) return;
 
       const initialText = store.getState().getValue();
-      detach = client.openDocument(docUri, initialText, (diagnostics) => {
+      detach = client.openDocument(docUri, initialText, documentLanguageId(lang), (diagnostics) => {
         const markers = diagnostics.map(diagnosticToMarker);
         onMarkersRef.current?.(path, markers);
         onDiagnosticsRef.current?.(diagnostics);

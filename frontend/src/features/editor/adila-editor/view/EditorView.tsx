@@ -46,6 +46,8 @@ import {
   positionToVisualPoint,
   visualPointToPosition,
 } from "./layout";
+import { EventsEmit } from "../../../../../wailsjs/runtime/runtime";
+import { tryResolveImportDefinition } from "../definitionFallback";
 import type { LspApi } from "../lsp/useAdilaLSP";
 import {
   editsFromCompletion,
@@ -62,6 +64,7 @@ const OVERSCAN = 6;
 
 type Props = {
   store: EditorStore;
+  filePath: string;
   fontFamily: string;
   fontSize: number;
   lineHeight: number;
@@ -84,6 +87,7 @@ const MINIMAP_WIDTH = 100;
 
 export function EditorView({
   store,
+  filePath,
   fontFamily,
   fontSize,
   lineHeight,
@@ -234,7 +238,7 @@ export function EditorView({
     const el = scrollerRef.current;
     if (!el) return { line: 0, col: 0 };
     const rect = el.getBoundingClientRect();
-    const x = clientX - rect.left + el.scrollLeft - gutterWidth - 4;
+    const x = clientX - rect.left + el.scrollLeft - gutterWidth;
     const y = clientY - rect.top + el.scrollTop - PADDING_TOP;
     return visualPointToPosition(layout, Math.max(0, y), Math.max(0, Math.round(x / charWidth)));
   }
@@ -332,25 +336,35 @@ export function EditorView({
   }
 
   async function goToDefinitionAt(pos: Position) {
-    if (!lspApi?.available) return;
-    const res = await lspApi.definition(pos.line, pos.col);
-    if (!res || res.length === 0) return;
-    const first = res[0];
-    const uri = "targetUri" in first ? first.targetUri : first.uri;
-    const range = "targetSelectionRange" in first ? first.targetSelectionRange : first.range;
-    if (!uri || !range) return;
-    const path = decodeURIComponent(uri.replace(/^file:\/\//, ""));
-    // Import local para evitar dependência circular com shell do app.
-    const { EventsEmit } = await import("../../../../../wailsjs/runtime/runtime");
-    EventsEmit("editor.openFile", path);
-    setTimeout(
-      () =>
-        EventsEmit("editor.gotoLine", {
-          line: range.start.line + 1,
-          column: range.start.character + 1,
-        }),
-      80,
-    );
+    const openTarget = (targetPath: string, line: number, column: number) => {
+      EventsEmit("editor.openFile", targetPath);
+      setTimeout(
+        () =>
+          EventsEmit("editor.gotoLine", {
+            line,
+            column,
+          }),
+        80,
+      );
+    };
+
+    if (lspApi?.available) {
+      const res = await lspApi.definition(pos.line, pos.col);
+      if (res && res.length > 0) {
+        const first = res[0];
+        const uri = "targetUri" in first ? first.targetUri : first.uri;
+        const range = "targetSelectionRange" in first ? first.targetSelectionRange : first.range;
+        if (uri && range) {
+          const targetPath = decodeURIComponent(uri.replace(/^file:\/\//, ""));
+          openTarget(targetPath, range.start.line + 1, range.start.character + 1);
+          return;
+        }
+      }
+    }
+
+    const fallback = await tryResolveImportDefinition(filePath, buffer.getValue(), pos);
+    if (!fallback) return;
+    openTarget(fallback.path, fallback.line + 1, fallback.col + 1);
   }
 
   async function openCodeActions(posOverride?: Position) {
@@ -439,9 +453,9 @@ export function EditorView({
       const rect = el.getBoundingClientRect();
       const anchorLine = result.range?.start.line ?? pos.line;
       const anchorCol = result.range?.start.character ?? pos.col;
-      const anchorX =
-        rect.left - el.scrollLeft + gutterWidth + 4 + anchorCol * charWidth;
-      const anchorY = rect.top - el.scrollTop + PADDING_TOP + anchorLine * lineHeight;
+      const anchorPoint = positionToVisualPoint(layout, { line: anchorLine, col: anchorCol });
+      const anchorX = rect.left - el.scrollLeft + gutterWidth + 4 + anchorPoint.x * charWidth;
+      const anchorY = rect.top - el.scrollTop + PADDING_TOP + anchorPoint.y;
       setHoverState({ hover: result, anchorX, anchorY });
     }, 350);
   }
@@ -452,10 +466,14 @@ export function EditorView({
     focusTextarea();
     const pos = pointerToPos(e.clientX, e.clientY);
 
-    if ((e.ctrlKey || e.metaKey) && lspApi?.available) {
+    if (e.ctrlKey || e.metaKey) {
       void goToDefinitionAt(pos);
       return;
     }
+
+    setHoverState(null);
+    setCompletionState(null);
+    setCodeActionState(null);
 
     if (e.altKey) {
       // Alt+click: adiciona cursor.
