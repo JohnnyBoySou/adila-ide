@@ -1,5 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as proto from "vscode-languageserver-protocol";
+import DOMPurify from "dompurify";
+import { marked } from "marked";
 
 type Props = {
   hover: proto.Hover;
@@ -37,6 +39,10 @@ export function HoverPopup({
   }, [anchorX, anchorY, lineHeight]);
 
   const text = hoverToString(hover.contents);
+  const html = useMemo(() => {
+    if (!text) return "";
+    return DOMPurify.sanitize(marked.parse(text, { async: false }) as string);
+  }, [text]);
   if (!text) return null;
 
   return (
@@ -47,7 +53,10 @@ export function HoverPopup({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[12px]">{text}</pre>
+      <div
+        className="ade-hover-markdown"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </div>
   );
 }

@@ -36,6 +36,7 @@ export function getOrCreateAdilaClient(args: ConnectArgs): Promise<AdilaLSPClien
 }
 
 type DiagnosticsHandler = (diagnostics: proto.Diagnostic[]) => void;
+type WorkspaceEditHandler = (edit: proto.WorkspaceEdit) => boolean;
 
 export class AdilaLSPClient {
   private connection: ReturnType<typeof createMessageConnection>;
@@ -44,6 +45,7 @@ export class AdilaLSPClient {
   private serverCaps: proto.ServerCapabilities = {};
   private docs = new Map<string, { version: number }>();
   private diagnosticsHandlers = new Map<string, DiagnosticsHandler>();
+  private workspaceEditHandler: WorkspaceEditHandler | null = null;
   private onError: ConnectArgs["onError"];
   private disposed = false;
 
@@ -86,6 +88,11 @@ export class AdilaLSPClient {
       clients.delete(`${lang}::${rootUri}`);
     });
     connection.onError(([err]) => onError(`Erro LSP (${lang})`, err));
+    connection.onRequest("workspace/applyEdit", () => {
+      // O AdilaEditor aplica edits localmente no accept de completion/code action.
+      // Responde sucesso para servidores que enviam applyEdit por compatibilidade.
+      return { applied: true };
+    });
 
     connection.listen();
 
@@ -109,6 +116,33 @@ export class AdilaLSPClient {
             hover: { contentFormat: ["markdown", "plaintext"] },
             publishDiagnostics: { relatedInformation: true },
             definition: { linkSupport: true },
+            codeAction: {
+              dynamicRegistration: false,
+              codeActionLiteralSupport: {
+                codeActionKind: {
+                  valueSet: [
+                    "",
+                    "quickfix",
+                    "refactor",
+                    "refactor.extract",
+                    "refactor.inline",
+                    "refactor.rewrite",
+                    "source",
+                    "source.organizeImports",
+                    "source.fixAll",
+                  ],
+                },
+              },
+              resolveSupport: { properties: ["edit", "command"] },
+            },
+          },
+          workspace: {
+            applyEdit: true,
+            workspaceEdit: {
+              documentChanges: true,
+              resourceOperations: ["create", "rename", "delete"],
+              failureHandling: "textOnlyTransactional",
+            },
           },
         },
       } as proto.InitializeParams);
@@ -122,7 +156,12 @@ export class AdilaLSPClient {
     }
 
     client.installDiagnosticsHandler();
+    client.installWorkspaceEditHandler();
     return client;
+  }
+
+  setWorkspaceEditHandler(handler: WorkspaceEditHandler | null) {
+    this.workspaceEditHandler = handler;
   }
 
   /**
@@ -209,6 +248,21 @@ export class AdilaLSPClient {
     }
   }
 
+  async resolveCompletion(item: proto.CompletionItem): Promise<proto.CompletionItem> {
+    const provider = this.serverCaps.completionProvider;
+    const canResolve = typeof provider === "object" && !!provider.resolveProvider;
+    if (!canResolve) return item;
+    try {
+      return await this.connection.sendRequest<proto.CompletionItem>(
+        "completionItem/resolve",
+        item,
+      );
+    } catch (err) {
+      this.onError(`Erro ao resolver completion (${this.lang})`, err);
+      return item;
+    }
+  }
+
   async requestDefinition(
     uri: string,
     line: number,
@@ -231,12 +285,69 @@ export class AdilaLSPClient {
     }
   }
 
+  async requestCodeActions(
+    uri: string,
+    range: proto.Range,
+    diagnostics: proto.Diagnostic[],
+  ): Promise<proto.CodeAction[]> {
+    if (!this.serverCaps.codeActionProvider) return [];
+    if (!this.docs.has(uri)) return [];
+    try {
+      const resp = await this.connection.sendRequest<(proto.CodeAction | proto.Command)[] | null>(
+        "textDocument/codeAction",
+        {
+          textDocument: { uri },
+          range,
+          context: { diagnostics },
+        } satisfies proto.CodeActionParams,
+      );
+      return (resp ?? []).filter((item): item is proto.CodeAction => "title" in item && ("edit" in item || "kind" in item));
+    } catch (err) {
+      this.onError(`Erro em code actions (${this.lang})`, err);
+      return [];
+    }
+  }
+
+  async resolveCodeAction(action: proto.CodeAction): Promise<proto.CodeAction> {
+    const provider = this.serverCaps.codeActionProvider;
+    const canResolve = typeof provider === "object" && !!provider.resolveProvider;
+    if (!canResolve) return action;
+    try {
+      return await this.connection.sendRequest<proto.CodeAction>("codeAction/resolve", action);
+    } catch (err) {
+      this.onError(`Erro ao resolver code action (${this.lang})`, err);
+      return action;
+    }
+  }
+
+  async executeCommand(command: proto.Command): Promise<void> {
+    if (!command.command) return;
+    try {
+      await this.connection.sendRequest("workspace/executeCommand", command);
+    } catch (err) {
+      this.onError(`Erro ao executar comando LSP (${this.lang})`, err);
+    }
+  }
+
   private installDiagnosticsHandler() {
     this.connection.onNotification(
       "textDocument/publishDiagnostics",
       (params: proto.PublishDiagnosticsParams) => {
         const handler = this.diagnosticsHandlers.get(params.uri);
         if (handler) handler(params.diagnostics);
+      },
+    );
+  }
+
+  private installWorkspaceEditHandler() {
+    this.connection.onRequest(
+      "workspace/applyEdit",
+      (params: proto.ApplyWorkspaceEditParams): proto.ApplyWorkspaceEditResult => {
+        const applied = this.workspaceEditHandler?.(params.edit) ?? false;
+        return {
+          applied,
+          failureReason: applied ? undefined : "Nenhum documento aberto aceitou a edição.",
+        };
       },
     );
   }
