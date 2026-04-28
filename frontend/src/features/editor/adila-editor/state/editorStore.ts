@@ -57,6 +57,8 @@ export type EditorState = {
   findCaseSensitive: boolean;
   findWholeWord: boolean;
   findRegex: boolean;
+  findReplacement: string;
+  findError: string | null;
   findMatches: Range[];
   findIndex: number;
 };
@@ -78,10 +80,13 @@ export type EditorActions = {
   redo: () => void;
   // Find
   setFindQuery: (q: string) => void;
+  setFindReplacement: (q: string) => void;
   setFindOptions: (opts: Partial<Pick<EditorState, "findCaseSensitive" | "findWholeWord" | "findRegex">>) => void;
   computeFindMatches: () => void;
   findNext: () => void;
   findPrev: () => void;
+  replaceCurrent: () => void;
+  replaceAll: () => void;
 };
 
 export type EditorStore = StoreApi<EditorState & EditorActions>;
@@ -203,6 +208,8 @@ export function createEditorStore(initialText: string, langId: string): EditorSt
       findCaseSensitive: false,
       findWholeWord: false,
       findRegex: false,
+      findReplacement: "",
+      findError: null,
       findMatches: [],
       findIndex: -1,
 
@@ -331,13 +338,16 @@ export function createEditorStore(initialText: string, langId: string): EditorSt
       setFindQuery: (q) => {
         set({ findQuery: q });
       },
+      setFindReplacement: (q) => {
+        set({ findReplacement: q });
+      },
       setFindOptions: (opts) => {
         set(opts);
       },
       computeFindMatches: () => {
         const { findQuery, findCaseSensitive, findWholeWord, findRegex, buffer } = get();
         if (!findQuery) {
-          set({ findMatches: [], findIndex: -1 });
+          set({ findMatches: [], findIndex: -1, findError: null });
           return;
         }
         const matches: Range[] = [];
@@ -350,8 +360,12 @@ export function createEditorStore(initialText: string, langId: string): EditorSt
             const pat = findWholeWord ? `\\b${escaped}\\b` : escaped;
             re = new RegExp(pat, findCaseSensitive ? "g" : "gi");
           }
-        } catch {
-          set({ findMatches: [], findIndex: -1 });
+        } catch (err) {
+          set({
+            findMatches: [],
+            findIndex: -1,
+            findError: err instanceof Error ? err.message : "Regex inválida",
+          });
           return;
         }
         for (let line = 0; line < buffer.getLineCount(); line++) {
@@ -366,7 +380,17 @@ export function createEditorStore(initialText: string, langId: string): EditorSt
             if (m[0].length === 0) re.lastIndex++;
           }
         }
-        set({ findMatches: matches, findIndex: matches.length > 0 ? 0 : -1 });
+        set((s) => {
+          let nextIndex = matches.length > 0 ? s.findIndex : -1;
+          if (nextIndex < 0 && matches.length > 0) nextIndex = 0;
+          if (nextIndex >= matches.length) nextIndex = matches.length - 1;
+          const primary = s.cursors[0];
+          if (primary && matches.length > 0) {
+            const atOrAfterCursor = matches.findIndex((m) => posCmp(m.start, primary.pos) >= 0);
+            nextIndex = atOrAfterCursor === -1 ? 0 : atOrAfterCursor;
+          }
+          return { findMatches: matches, findIndex: nextIndex, findError: null };
+        });
       },
       findNext: () => {
         const { findMatches, findIndex } = get();
@@ -388,6 +412,33 @@ export function createEditorStore(initialText: string, langId: string): EditorSt
           cursors: [{ pos: m.end, anchor: m.start, desiredCol: m.end.col }],
         });
       },
+      replaceCurrent: () => {
+        const { findMatches, findIndex, findReplacement } = get();
+        if (findMatches.length === 0 || findIndex < 0) return;
+        const match = findMatches[findIndex];
+        const end = advancePosition(match.start, findReplacement);
+        applyEdit(
+          [{ range: match, text: findReplacement }],
+          [{ pos: end, anchor: end, desiredCol: end.col }],
+          "replace",
+        );
+        get().computeFindMatches();
+      },
+      replaceAll: () => {
+        const { findMatches, findReplacement } = get();
+        if (findMatches.length === 0) return;
+        const ops = findMatches.map((range) => ({ range, text: findReplacement }));
+        const first = findMatches[0];
+        const end = advancePosition(first.start, findReplacement);
+        applyEdit(ops, [{ pos: end, anchor: end, desiredCol: end.col }], "replace-all");
+        get().computeFindMatches();
+      },
     };
   });
+}
+
+function advancePosition(start: Position, text: string): Position {
+  const lines = text.split("\n");
+  if (lines.length === 1) return { line: start.line, col: start.col + lines[0].length };
+  return { line: start.line + lines.length - 1, col: lines[lines.length - 1].length };
 }

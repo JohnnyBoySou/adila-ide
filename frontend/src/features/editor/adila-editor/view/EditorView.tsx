@@ -39,7 +39,19 @@ import { SelectionLayer } from "./SelectionLayer";
 import { DiagnosticsLayer } from "./DiagnosticsLayer";
 import { HoverPopup } from "./HoverPopup";
 import { CompletionPopup } from "./CompletionPopup";
+import { CodeActionPopup } from "./CodeActionPopup";
+import {
+  buildLayout,
+  segmentForVisualRow,
+  positionToVisualPoint,
+  visualPointToPosition,
+} from "./layout";
 import type { LspApi } from "../lsp/useAdilaLSP";
+import {
+  editsFromCompletion,
+  editsFromWorkspaceEdit,
+  finalPositionAfterEdit,
+} from "../lsp/applyLspEdits";
 import type * as proto from "vscode-languageserver-protocol";
 import { measureCharWidth } from "./metrics";
 
@@ -78,7 +90,7 @@ export function EditorView({
   showLineNumbers,
   relativeLineNumbers,
   highlightCurrentLine,
-  wordWrap: _wordWrap, // V0: line wrapping não implementado, ignorado por enquanto
+  wordWrap,
   tabSize,
   caretBlink,
   smoothScroll,
@@ -99,33 +111,37 @@ export function EditorView({
 
   const charWidth = useMemo(() => measureCharWidth(fontFamily, fontSize), [fontFamily, fontSize]);
   const lineCount = buffer.getLineCount();
-  const totalHeight = lineCount * lineHeight + PADDING_TOP * 2;
 
   // Largura do gutter ajusta com nº de dígitos do total de linhas.
   const gutterDigits = Math.max(GUTTER_MIN_DIGITS, String(lineCount).length);
   const gutterWidth = showLineNumbers ? gutterDigits * charWidth + GUTTER_PADDING_X * 2 : 0;
 
-  // Largura do conteúdo: linha mais longa visível (aproximação O(visible)).
-  const [contentWidth, setContentWidth] = useState(0);
+  const availableContentWidth = Math.max(0, viewport.width - gutterWidth - 16);
+  const layout = useMemo(
+    () => buildLayout(buffer, lineHeight, charWidth, tabSize, wordWrap, availableContentWidth),
+    [buffer, version, lineHeight, charWidth, tabSize, wordWrap, availableContentWidth],
+  );
+  const totalHeight = layout.totalHeight + PADDING_TOP * 2;
+  const contentWidth = wordWrap
+    ? Math.max(viewport.width, (layout.wrapColumn ?? 1) * charWidth + 64)
+    : Math.max(viewport.width, layout.maxVisualColumn * charWidth + 64);
 
   // Tokenização incremental até o limite visível.
   const scrollTop = state.scrollTop;
-  const firstVisible = Math.max(0, Math.floor((scrollTop - PADDING_TOP) / lineHeight) - OVERSCAN);
-  const visibleCount = Math.ceil(viewport.height / lineHeight) + OVERSCAN * 2;
-  const lastVisible = Math.min(lineCount - 1, firstVisible + visibleCount);
+  const visibleTop = Math.max(0, scrollTop - PADDING_TOP);
+  const visibleBottom = visibleTop + viewport.height;
+  const firstVisualRow = Math.max(0, Math.floor(visibleTop / lineHeight) - OVERSCAN);
+  const lastVisualRow = Math.min(
+    Math.max(0, layout.totalRows - 1),
+    Math.ceil(visibleBottom / lineHeight) + OVERSCAN,
+  );
+  const firstVisible = Math.max(0, layout.visualLineToLogicalLine(firstVisualRow));
+  const lastVisible = Math.min(
+    lineCount - 1,
+    layout.visualLineToLogicalLine(lastVisualRow),
+  );
 
   tokenCache.tokenizeUpTo((i) => buffer.getLine(i), lineCount, lastVisible, langId);
-
-  // Calcula contentWidth baseado em linhas visíveis (mais barato que escanear tudo).
-  useEffect(() => {
-    let max = 0;
-    for (let i = firstVisible; i <= lastVisible; i++) {
-      const len = buffer.getLineLength(i);
-      if (len > max) max = len;
-    }
-    const target = Math.max(viewport.width, max * charWidth + 64);
-    setContentWidth(target);
-  }, [buffer, firstVisible, lastVisible, charWidth, viewport.width, version]);
 
   // Resize observer.
   useEffect(() => {
@@ -144,6 +160,11 @@ export function EditorView({
     if (primary) onCursorChange?.(primary.pos.line + 1, primary.pos.col + 1);
   }, [primary, onCursorChange]);
 
+  // Mantém resultados de busca sincronizados com edições locais.
+  useEffect(() => {
+    if (state.findQuery) state.computeFindMatches();
+  }, [version, state.findQuery, state.findCaseSensitive, state.findWholeWord, state.findRegex]);
+
   // Reporta valor para o host quando o version muda. Evita ciclo: se a
   // mudança veio de fora (setValue), o version foi incrementado mas não
   // queremos disparar onChange com o mesmo valor.
@@ -157,14 +178,13 @@ export function EditorView({
     }
   }, [version, buffer, onChange]);
 
-  // Garante que o cursor primário fica visível ao mover. Sem margem de
-  // "leitura" — só rola quando o cursor sai da área visível, evitando que
-  // o conteúdo "suba" criando espaço vazio embaixo ao digitar perto do fim.
+  // Garante que o cursor primário fica visível ao mover, considerando wrap e tabs.
   useLayoutEffect(() => {
     if (!primary || !scrollerRef.current) return;
     const el = scrollerRef.current;
-    const top = primary.pos.line * lineHeight + PADDING_TOP;
-    const left = primary.pos.col * charWidth;
+    const point = positionToVisualPoint(layout, primary.pos);
+    const top = point.top + PADDING_TOP;
+    const left = point.column * charWidth;
     const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
     if (top < el.scrollTop) {
       el.scrollTop = top;
@@ -175,7 +195,23 @@ export function EditorView({
     else if (left + charWidth > el.scrollLeft + el.clientWidth - gutterWidth - 16) {
       el.scrollLeft = left + charWidth - el.clientWidth + gutterWidth + 16;
     }
-  }, [primary, lineHeight, charWidth, gutterWidth]);
+  }, [primary, layout, lineHeight, charWidth, gutterWidth]);
+
+  // Navegação por find move o cursor; garante que o match atual fique visível.
+  useLayoutEffect(() => {
+    if (findIndex < 0 || findMatches.length === 0 || !scrollerRef.current) return;
+    const match = findMatches[findIndex];
+    const el = scrollerRef.current;
+    const point = positionToVisualPoint(layout, match.start);
+    const top = point.top + PADDING_TOP;
+    const left = point.column * charWidth;
+    if (top < el.scrollTop || top + lineHeight > el.scrollTop + el.clientHeight) {
+      el.scrollTop = Math.max(0, top - Math.floor(el.clientHeight / 3));
+    }
+    if (left < el.scrollLeft || left + charWidth > el.scrollLeft + el.clientWidth - gutterWidth) {
+      el.scrollLeft = Math.max(0, left - gutterWidth - 32);
+    }
+  }, [findIndex, findMatches, layout, lineHeight, charWidth, gutterWidth]);
 
   // Foco automático no textarea quando o container recebe click.
   function focusTextarea() {
@@ -186,23 +222,21 @@ export function EditorView({
   useLayoutEffect(() => {
     const ta = textareaRef.current;
     if (!ta || !primary) return;
-    const top = PADDING_TOP + primary.pos.line * lineHeight;
-    const left = gutterWidth + primary.pos.col * charWidth;
+    const point = positionToVisualPoint(layout, primary.pos);
+    const top = PADDING_TOP + point.top;
+    const left = gutterWidth + point.column * charWidth;
     ta.style.top = `${top}px`;
     ta.style.left = `${left}px`;
-  }, [primary, lineHeight, charWidth, gutterWidth]);
+  }, [primary, layout, charWidth, gutterWidth]);
 
-  // Mouse → posição (col baseada em charWidth).
+  // Mouse → posição lógica, convertendo coluna visual (tabs/wrap) para col real.
   function pointerToPos(clientX: number, clientY: number): Position {
     const el = scrollerRef.current;
     if (!el) return { line: 0, col: 0 };
     const rect = el.getBoundingClientRect();
     const x = clientX - rect.left + el.scrollLeft - gutterWidth - 4;
     const y = clientY - rect.top + el.scrollTop - PADDING_TOP;
-    const line = Math.max(0, Math.min(lineCount - 1, Math.floor(y / lineHeight)));
-    const col = Math.max(0, Math.round(x / charWidth));
-    const lineLen = buffer.getLineLength(line);
-    return { line, col: Math.min(col, lineLen) };
+    return visualPointToPosition(layout, Math.max(0, y), Math.max(0, Math.round(x / charWidth)));
   }
 
   const dragRef = useRef<{ anchor: Position; mode: "char" | "word" | "line" } | null>(null);
@@ -238,6 +272,11 @@ export function EditorView({
     anchorX: number;
     anchorY: number;
   } | null>(null);
+  const [codeActionState, setCodeActionState] = useState<{
+    actions: proto.CodeAction[];
+    anchorX: number;
+    anchorY: number;
+  } | null>(null);
 
   /** Texto digitado entre triggerCol e cursor atual — usado pra filtrar. */
   function completionFilter(): string {
@@ -258,8 +297,9 @@ export function EditorView({
     const el = scrollerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const anchorX = rect.left - el.scrollLeft + gutterWidth + 4 + col * charWidth;
-    const anchorY = rect.top - el.scrollTop + PADDING_TOP + primary.pos.line * lineHeight;
+    const triggerPoint = positionToVisualPoint(layout, { line: primary.pos.line, col });
+    const anchorX = rect.left - el.scrollLeft + gutterWidth + 4 + triggerPoint.x * charWidth;
+    const anchorY = rect.top - el.scrollTop + PADDING_TOP + triggerPoint.y;
     setCompletionState({
       items,
       triggerLine: primary.pos.line,
@@ -269,27 +309,112 @@ export function EditorView({
     });
   }
 
-  function acceptCompletion(item: proto.CompletionItem) {
+  async function acceptCompletion(item: proto.CompletionItem) {
     if (!completionState || !primary) return;
-    const insertText = item.insertText ?? (item.label as string);
-    // Substitui [triggerCol, primary.pos.col] pelo insertText.
-    const range = {
+    const resolved = item.data ? await lspApi?.resolveCompletion(item) : item;
+    const target = resolved ?? item;
+    const fallbackRange = {
       start: { line: completionState.triggerLine, col: completionState.triggerCol },
       end: { line: primary.pos.line, col: primary.pos.col },
     };
-    const finalCol = completionState.triggerCol + insertText.length;
+    const ops = editsFromCompletion(target, fallbackRange);
+    if (ops.length === 0) return;
+    const primaryOp =
+      ops.find((op) => op.range.start.line === fallbackRange.start.line && op.range.start.col === fallbackRange.start.col) ??
+      ops[0];
+    const finalPos = finalPositionAfterEdit(primaryOp);
     store.getState().edit(
-      [{ range, text: insertText }],
-      [
-        {
-          pos: { line: completionState.triggerLine, col: finalCol },
-          anchor: { line: completionState.triggerLine, col: finalCol },
-          desiredCol: finalCol,
-        },
-      ],
+      ops,
+      [{ pos: finalPos, anchor: finalPos, desiredCol: finalPos.col }],
       "completion",
     );
     setCompletionState(null);
+  }
+
+  async function goToDefinitionAt(pos: Position) {
+    if (!lspApi?.available) return;
+    const res = await lspApi.definition(pos.line, pos.col);
+    if (!res || res.length === 0) return;
+    const first = res[0];
+    const uri = "targetUri" in first ? first.targetUri : first.uri;
+    const range = "targetSelectionRange" in first ? first.targetSelectionRange : first.range;
+    if (!uri || !range) return;
+    const path = decodeURIComponent(uri.replace(/^file:\/\//, ""));
+    // Import local para evitar dependência circular com shell do app.
+    const { EventsEmit } = await import("../../../../../wailsjs/runtime/runtime");
+    EventsEmit("editor.openFile", path);
+    setTimeout(
+      () =>
+        EventsEmit("editor.gotoLine", {
+          line: range.start.line + 1,
+          column: range.start.character + 1,
+        }),
+      80,
+    );
+  }
+
+  async function openCodeActions(posOverride?: Position) {
+    const pos = posOverride ?? primary?.pos;
+    if (!lspApi?.available || !pos) return;
+    const range = primary && !posOverride ? cursorRange(primary) : { start: pos, end: pos };
+    const relatedDiagnostics =
+      diagnostics?.filter((d) => rangesOverlap(range, {
+        start: { line: d.range.start.line, col: d.range.start.character },
+        end: { line: d.range.end.line, col: d.range.end.character },
+      })) ?? [];
+    const actions = await lspApi.codeActions(toLspRange(range), relatedDiagnostics);
+    if (actions.length === 0) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const point = positionToVisualPoint(layout, pos);
+    setCodeActionState({
+      actions,
+      anchorX: rect.left - el.scrollLeft + gutterWidth + 4 + point.x * charWidth,
+      anchorY: rect.top - el.scrollTop + PADDING_TOP + point.y,
+    });
+  }
+
+  async function acceptCodeAction(action: proto.CodeAction) {
+    const resolved = !action.edit && action.data ? await lspApi?.resolveCodeAction(action) : action;
+    const edit = resolved?.edit;
+    let applied = false;
+    if (edit) {
+      const ops = editsFromWorkspaceEdit(edit, lspApi?.uri);
+      if (ops.length > 0) {
+        const primaryAfter = ops[0].range.start;
+        store.getState().edit(
+          ops,
+          [{ pos: primaryAfter, anchor: primaryAfter, desiredCol: primaryAfter.col }],
+          "code-action",
+        );
+        applied = true;
+      }
+    }
+    if (resolved?.command) {
+      await lspApi?.executeCommand(resolved.command);
+    } else if (!applied && "command" in action && action.command) {
+      await lspApi?.executeCommand(action.command);
+    }
+    setCodeActionState(null);
+  }
+
+  async function formatDocumentOrSelection() {
+    if (!lspApi?.available || !lspApi.uri || !primary) return;
+    const opts: proto.FormattingOptions = { tabSize, insertSpaces: true };
+    const edits = cursorHasSelection(primary)
+      ? await lspApi.formatRange(toLspRange(cursorRange(primary)), opts)
+      : await lspApi.formatDocument(opts);
+    if (edits.length === 0) return;
+    const ops = edits.map((edit) => ({
+      range: {
+        start: { line: edit.range.start.line, col: edit.range.start.character },
+        end: { line: edit.range.end.line, col: edit.range.end.character },
+      },
+      text: edit.newText,
+    }));
+    const pos = ops[0].range.start;
+    store.getState().edit(ops, [{ pos, anchor: pos, desiredCol: pos.col }], "format");
   }
 
   function scheduleHover(clientX: number, clientY: number) {
@@ -326,6 +451,11 @@ export function EditorView({
     e.preventDefault();
     focusTextarea();
     const pos = pointerToPos(e.clientX, e.clientY);
+
+    if ((e.ctrlKey || e.metaKey) && lspApi?.available) {
+      void goToDefinitionAt(pos);
+      return;
+    }
 
     if (e.altKey) {
       // Alt+click: adiciona cursor.
@@ -400,10 +530,31 @@ export function EditorView({
     const meta = e.ctrlKey || e.metaKey;
     const shift = e.shiftKey;
 
+    if (e.key === "F12") {
+      e.preventDefault();
+      if (primary) void goToDefinitionAt(primary.pos);
+      return;
+    }
+    if ((meta && e.key === ".") || (meta && shift && (e.key === "A" || e.key === "a"))) {
+      e.preventDefault();
+      void openCodeActions();
+      return;
+    }
+
     // Ctrl+Space: trigger completion manualmente
     if (meta && e.key === " ") {
       e.preventDefault();
       void triggerCompletion();
+      return;
+    }
+    if (e.key === "F12") {
+      e.preventDefault();
+      if (primary) void goToDefinitionAt(primary.pos);
+      return;
+    }
+    if ((meta && e.key === ".") || (meta && shift && (e.key === "a" || e.key === "A"))) {
+      e.preventDefault();
+      void openCodeActions();
       return;
     }
 
@@ -503,20 +654,13 @@ export function EditorView({
     }
     if (e.key === "Enter") {
       e.preventDefault();
-      // Auto-indent simples: replica indent da linha atual.
-      const c = s.cursors[0];
-      const text = buffer.getLine(c.pos.line);
-      let indent = "";
-      for (const ch of text) {
-        if (ch === " " || ch === "\t") indent += ch;
-        else break;
-      }
-      s.insertText("\n" + indent);
+      insertNewlineWithIndent(s, tabSize);
       return;
     }
     if (e.key === "Tab") {
       e.preventDefault();
-      s.insertText(" ".repeat(tabSize));
+      if (shift) outdentSelection(s, tabSize);
+      else indentSelection(s, tabSize);
       return;
     }
 
@@ -570,6 +714,31 @@ export function EditorView({
       toggleLineComment(s);
       return;
     }
+    if (e.altKey && shift && (e.key === "f" || e.key === "F")) {
+      e.preventDefault();
+      void formatDocumentOrSelection();
+      return;
+    }
+    if (meta && shift && (e.key === "d" || e.key === "D")) {
+      e.preventDefault();
+      copySelectedLines(s, 1);
+      return;
+    }
+    if (e.altKey && shift && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      copySelectedLines(s, e.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      moveSelectedLines(s, e.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if (meta && shift && (e.key === "k" || e.key === "K")) {
+      e.preventDefault();
+      deleteSelectedLines(s);
+      return;
+    }
     if (e.key === "Escape") {
       // Reduz a 1 cursor (descarta multi-cursor).
       if (s.cursors.length > 1) {
@@ -588,7 +757,7 @@ export function EditorView({
     if (v.length === 0) return;
     ta.value = "";
     if (readOnly) return;
-    store.getState().insertText(v);
+    insertTextWithPairs(store.getState(), v);
     // Auto-trigger completion no ponto, ou refresh se já aberto.
     const lastChar = v[v.length - 1];
     if (lastChar === "." || lastChar === ":") {
@@ -659,11 +828,13 @@ export function EditorView({
 
   // Render
   const rows: React.ReactNode[] = [];
-  for (let i = firstVisible; i <= lastVisible; i++) {
-    const top = PADDING_TOP + i * lineHeight;
+  for (let visualRow = firstVisualRow; visualRow <= lastVisualRow; visualRow++) {
+    const segment = segmentForVisualRow(buffer, layout, visualRow, tabSize);
+    const top = PADDING_TOP + visualRow * lineHeight;
+    const sliceText = buffer.getLine(segment.line).slice(segment.startCol, segment.endCol);
     rows.push(
       <div
-        key={i}
+        key={`${segment.line}:${segment.segment}`}
         className="ade-line"
         style={{
           position: "absolute",
@@ -677,19 +848,27 @@ export function EditorView({
           zIndex: 2,
         }}
       >
-        <LineRow text={buffer.getLine(i)} tokens={tokenCache.getLineTokens(i)} />
+        <LineRow
+          text={sliceText}
+          tokens={tokenCache.getLineTokens(segment.line)}
+          startCol={segment.startCol}
+          tabSize={tabSize}
+        />
       </div>,
     );
   }
 
   // Linha atual destacada.
-  const currentLineTop = primary ? PADDING_TOP + primary.pos.line * lineHeight : -9999;
+  const currentLineTop = primary ? PADDING_TOP + positionToVisualPoint(layout, primary.pos).top : -9999;
 
   // Gutter rows (line numbers).
   const gutterRows: React.ReactNode[] = [];
   if (showLineNumbers) {
     for (let i = firstVisible; i <= lastVisible; i++) {
-      const top = PADDING_TOP + i * lineHeight;
+      const top = PADDING_TOP + (layout.lineStarts[i] ?? 0) * lineHeight;
+      const height =
+        ((layout.lineStarts[i + 1] ?? layout.lineStarts[i] ?? 0) - (layout.lineStarts[i] ?? 0)) *
+        lineHeight;
       const num = relativeLineNumbers && primary
         ? i === primary.pos.line
           ? i + 1
@@ -705,7 +884,7 @@ export function EditorView({
             top,
             left: 0,
             right: GUTTER_PADDING_X,
-            height: lineHeight,
+            height,
             textAlign: "right",
             paddingRight: GUTTER_PADDING_X,
             fontFamily,
@@ -810,7 +989,7 @@ export function EditorView({
             {rows}
             <SelectionLayer
               cursors={cursors}
-              buffer={buffer}
+              layout={layout}
               charWidth={charWidth}
               lineHeight={lineHeight}
               paddingLeft={4}
@@ -821,12 +1000,18 @@ export function EditorView({
             {diagnostics && diagnostics.length > 0 && (
               <DiagnosticsLayer
                 diagnostics={diagnostics}
+                layout={layout}
                 charWidth={charWidth}
                 lineHeight={lineHeight}
                 paddingLeft={4}
                 paddingTop={PADDING_TOP}
                 firstVisible={firstVisible}
                 lastVisible={lastVisible}
+                onOpenCodeActions={(line, col) => {
+                  const pos = { line, col };
+                  store.getState().setCursors([{ pos, anchor: pos, desiredCol: col }]);
+                  void openCodeActions(pos);
+                }}
               />
             )}
           </div>
@@ -902,8 +1087,218 @@ export function EditorView({
           onClose={() => setCompletionState(null)}
         />
       )}
+      {codeActionState && (
+        <CodeActionPopup
+          actions={codeActionState.actions}
+          anchorX={codeActionState.anchorX}
+          anchorY={codeActionState.anchorY}
+          lineHeight={lineHeight}
+          onAccept={acceptCodeAction}
+          onClose={() => setCodeActionState(null)}
+        />
+      )}
     </div>
   );
+}
+
+function rangesOverlap(a: { start: Position; end: Position }, b: { start: Position; end: Position }) {
+  return posCmp(a.start, b.end) <= 0 && posCmp(b.start, a.end) <= 0;
+}
+
+function toLspRange(range: { start: Position; end: Position }): proto.Range {
+  return {
+    start: { line: range.start.line, character: range.start.col },
+    end: { line: range.end.line, character: range.end.col },
+  };
+}
+
+function touchedLines(s: ReturnType<EditorStore["getState"]>): number[] {
+  const lines = new Set<number>();
+  for (const c of s.cursors) {
+    const r = cursorRange(c);
+    const endLine =
+      r.end.col === 0 && r.end.line > r.start.line ? r.end.line - 1 : r.end.line;
+    for (let line = r.start.line; line <= endLine; line++) lines.add(line);
+  }
+  return Array.from(lines).sort((a, b) => a - b);
+}
+
+function insertNewlineWithIndent(s: ReturnType<EditorStore["getState"]>, tabSize: number) {
+  if (s.cursors.length !== 1) {
+    s.insertText("\n");
+    return;
+  }
+  const c = s.cursors[0];
+  const line = s.buffer.getLine(c.pos.line);
+  const range = cursorRange(c);
+  const before = cursorHasSelection(c) ? "" : line.slice(0, c.pos.col);
+  const after = cursorHasSelection(c) ? "" : line.slice(c.pos.col);
+  let indent = "";
+  for (const ch of line) {
+    if (ch === " " || ch === "\t") indent += ch;
+    else break;
+  }
+  const extra = /[{[(]\s*$/.test(before) ? " ".repeat(tabSize) : "";
+  const shouldOutdentClose = !!extra && /^\s*[})\]]/.test(after);
+  if (shouldOutdentClose) {
+    const text = "\n" + indent + extra + "\n" + indent;
+    const pos = { line: range.start.line + 1, col: indent.length + extra.length };
+    s.edit([{ range, text }], [{ pos, anchor: pos, desiredCol: pos.col }], "enter");
+    return;
+  }
+  s.insertText("\n" + indent + extra);
+}
+
+function indentSelection(s: ReturnType<EditorStore["getState"]>, tabSize: number) {
+  const indent = " ".repeat(tabSize);
+  const lines = touchedLines(s);
+  if (lines.length === 0) {
+    s.insertText(indent);
+    return;
+  }
+  const ops = lines.map((line) => ({
+    range: { start: { line, col: 0 }, end: { line, col: 0 } },
+    text: indent,
+  }));
+  const shiftPos = (p: Position): Position =>
+    lines.includes(p.line) ? { line: p.line, col: p.col + indent.length } : p;
+  const next = s.cursors.map((c) => ({
+    pos: shiftPos(c.pos),
+    anchor: shiftPos(c.anchor),
+    desiredCol: shiftPos(c.pos).col,
+  }));
+  s.edit(ops, next, "indent");
+}
+
+function outdentSelection(s: ReturnType<EditorStore["getState"]>, tabSize: number) {
+  const lines = touchedLines(s);
+  const ops = [];
+  const removedByLine = new Map<number, number>();
+  for (const line of lines) {
+    const text = s.buffer.getLine(line);
+    const remove = text.startsWith("\t")
+      ? 1
+      : Math.min(tabSize, text.match(/^ */)?.[0].length ?? 0);
+    if (remove <= 0) continue;
+    removedByLine.set(line, remove);
+    ops.push({ range: { start: { line, col: 0 }, end: { line, col: remove } }, text: "" });
+  }
+  if (ops.length === 0) return;
+  const shiftPos = (p: Position): Position => {
+    const removed = removedByLine.get(p.line) ?? 0;
+    return removed > 0 ? { line: p.line, col: Math.max(0, p.col - removed) } : p;
+  };
+  const next = s.cursors.map((c) => ({
+    pos: shiftPos(c.pos),
+    anchor: shiftPos(c.anchor),
+    desiredCol: shiftPos(c.pos).col,
+  }));
+  s.edit(ops, next, "outdent");
+}
+
+function insertTextWithPairs(s: ReturnType<EditorStore["getState"]>, text: string) {
+  if (text.length !== 1 || s.cursors.length !== 1) {
+    s.insertText(text);
+    return;
+  }
+  const pairs: Record<string, string> = { "(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`" };
+  const closing = new Set(Object.values(pairs));
+  const close = pairs[text];
+  const c = s.cursors[0];
+  if (closing.has(text) && !cursorHasSelection(c) && s.buffer.getLine(c.pos.line)[c.pos.col] === text) {
+    const pos = { line: c.pos.line, col: c.pos.col + 1 };
+    s.setCursors([{ pos, anchor: pos, desiredCol: pos.col }]);
+    return;
+  }
+  if (!close) {
+    s.insertText(text);
+    return;
+  }
+  if ((text === '"' || text === "'" || text === "`") && !cursorHasSelection(c)) {
+    const prev = s.buffer.getLine(c.pos.line)[c.pos.col - 1] ?? "";
+    if (/\w/.test(prev)) {
+      s.insertText(text);
+      return;
+    }
+  }
+  if (cursorHasSelection(c)) {
+    const selected = s.buffer.getRangeText(cursorRange(c));
+    const r = cursorRange(c);
+    const wrapped = text + selected + close;
+    const selectionStart = { line: r.start.line, col: r.start.col + 1 };
+    const selectionEnd = finalPositionAfterEdit({ range: r, text: text + selected });
+    s.edit(
+      [{ range: r, text: wrapped }],
+      [{ pos: selectionEnd, anchor: selectionStart, desiredCol: selectionEnd.col }],
+      "pair-wrap",
+    );
+    return;
+  }
+  const pos = { line: c.pos.line, col: c.pos.col + 1 };
+  s.edit([{ range: cursorRange(c), text: text + close }], [{ pos, anchor: pos, desiredCol: pos.col }], "pair");
+}
+
+function lineRangeForLine(s: ReturnType<EditorStore["getState"]>, line: number) {
+  const last = s.buffer.getLineCount() - 1;
+  const start = { line, col: 0 };
+  const end =
+    line < last ? { line: line + 1, col: 0 } : { line, col: s.buffer.getLineLength(line) };
+  return { start, end };
+}
+
+function deleteSelectedLines(s: ReturnType<EditorStore["getState"]>) {
+  const lines = touchedLines(s);
+  if (lines.length === 0) return;
+  const ranges = lines.map((line) => lineRangeForLine(s, line));
+  const targetLine = Math.max(0, Math.min(lines[0], s.buffer.getLineCount() - lines.length - 1));
+  const pos = { line: targetLine, col: 0 };
+  s.edit(ranges.map((range) => ({ range, text: "" })), [{ pos, anchor: pos, desiredCol: 0 }], "delete-lines");
+}
+
+function copySelectedLines(s: ReturnType<EditorStore["getState"]>, dir: 1 | -1) {
+  const lines = touchedLines(s);
+  if (lines.length === 0) return;
+  const first = lines[0];
+  const last = lines[lines.length - 1];
+  const text = lines.map((line) => s.buffer.getLine(line)).join("\n");
+  const insertLine = dir > 0 ? last + 1 : first;
+  const suffix = dir > 0 && last === s.buffer.getLineCount() - 1 ? "\n" : "";
+  const insertText = dir > 0 ? "\n" + text : text + "\n";
+  const pos = { line: dir > 0 ? first + lines.length : first, col: 0 };
+  s.edit(
+    [
+      {
+        range: { start: { line: insertLine, col: 0 }, end: { line: insertLine, col: 0 } },
+        text: insertText + suffix,
+      },
+    ],
+    [{ pos, anchor: pos, desiredCol: 0 }],
+    "copy-lines",
+  );
+}
+
+function moveSelectedLines(s: ReturnType<EditorStore["getState"]>, dir: 1 | -1) {
+  const lines = touchedLines(s);
+  if (lines.length === 0) return;
+  const first = lines[0];
+  const last = lines[lines.length - 1];
+  const lineCount = s.buffer.getLineCount();
+  if ((dir < 0 && first === 0) || (dir > 0 && last >= lineCount - 1)) return;
+
+  const block = lines.map((line) => s.buffer.getLine(line)).join("\n");
+  if (dir < 0) {
+    const above = s.buffer.getLine(first - 1);
+    const range = { start: { line: first - 1, col: 0 }, end: { line: last, col: s.buffer.getLineLength(last) } };
+    const text = block + "\n" + above;
+    const pos = { line: Math.max(0, s.cursors[0].pos.line - 1), col: s.cursors[0].pos.col };
+    s.edit([{ range, text }], [{ pos, anchor: pos, desiredCol: pos.col }], "move-lines");
+    return;
+  }
+  const below = s.buffer.getLine(last + 1);
+  const range = { start: { line: first, col: 0 }, end: { line: last + 1, col: s.buffer.getLineLength(last + 1) } };
+  const text = below + "\n" + block;
+  const pos = { line: Math.min(lineCount - 1, s.cursors[0].pos.line + 1), col: s.cursors[0].pos.col };
+  s.edit([{ range, text }], [{ pos, anchor: pos, desiredCol: pos.col }], "move-lines");
 }
 
 function addNextOccurrence(s: ReturnType<EditorStore["getState"]>) {

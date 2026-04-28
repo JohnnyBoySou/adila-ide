@@ -1,30 +1,30 @@
 import { memo } from "react";
 import type { Cursor } from "../cursor/cursorState";
 import { cursorRange, cursorHasSelection } from "../cursor/cursorState";
-import type { LineBuffer } from "../buffer/TextBuffer";
 import type { Range } from "../buffer/types";
+import type { VisualLayout } from "./layout";
 
 type Props = {
   cursors: Cursor[];
-  buffer: LineBuffer;
   charWidth: number;
   lineHeight: number;
   paddingLeft: number;
   paddingTop: number;
   findMatches?: Range[];
   findIndex?: number;
+  layout: VisualLayout;
 };
 
 /** Desenha retângulos para cada linha de cada seleção, mais cursors. */
 function SelectionLayerInner({
   cursors,
-  buffer,
   charWidth,
   lineHeight,
   paddingLeft,
   paddingTop,
   findMatches,
   findIndex,
+  layout,
 }: Props) {
   const rects: React.ReactNode[] = [];
   const carets: React.ReactNode[] = [];
@@ -36,11 +36,11 @@ function SelectionLayerInner({
       pushSelectionRects(
         rects,
         m,
-        buffer,
         charWidth,
         lineHeight,
         paddingLeft,
         paddingTop,
+        layout,
         i === findIndex ? "find-current" : "find-match",
         `f${i}`,
       );
@@ -52,17 +52,18 @@ function SelectionLayerInner({
       pushSelectionRects(
         rects,
         cursorRange(c),
-        buffer,
         charWidth,
         lineHeight,
         paddingLeft,
         paddingTop,
+        layout,
         "selection",
         `s${idx}`,
       );
     }
-    const top = paddingTop + c.pos.line * lineHeight;
-    const left = paddingLeft + c.pos.col * charWidth;
+    const caretVisual = layout.positionToPoint(c.pos);
+    const top = paddingTop + caretVisual.y;
+    const left = paddingLeft + caretVisual.x;
     carets.push(
       <span
         key={`c${idx}`}
@@ -93,27 +94,33 @@ function SelectionLayerInner({
 function pushSelectionRects(
   out: React.ReactNode[],
   range: Range,
-  buffer: LineBuffer,
   charWidth: number,
   lineHeight: number,
   paddingLeft: number,
   paddingTop: number,
+  layout: VisualLayout,
   cls: string,
   keyPrefix: string,
 ) {
   const { start, end } = range;
-  for (let line = start.line; line <= end.line; line++) {
-    const sCol = line === start.line ? start.col : 0;
-    const eCol = line === end.line ? end.col : buffer.getLineLength(line) + 1;
-    const left = paddingLeft + sCol * charWidth;
-    const width = Math.max(2, (eCol - sCol) * charWidth);
+  for (const vl of layout.lines) {
+    if (vl.line < start.line || vl.line > end.line) continue;
+    const lineStart = vl.startCol;
+    const lineEnd = vl.endCol;
+    const sCol = vl.line === start.line ? Math.max(start.col, lineStart) : lineStart;
+    const eCol = vl.line === end.line ? Math.min(end.col, lineEnd) : lineEnd;
+    if (eCol < lineStart || sCol > lineEnd || eCol < sCol) continue;
+    const sPoint = layout.positionToPoint({ line: vl.line, col: sCol });
+    const ePoint = layout.positionToPoint({ line: vl.line, col: eCol });
+    const left = paddingLeft + sPoint.x;
+    const width = Math.max(2, Math.max(ePoint.x, sPoint.x + charWidth) - sPoint.x);
     out.push(
       <span
-        key={`${keyPrefix}_${line}`}
+        key={`${keyPrefix}_${vl.visualIndex}`}
         className={`ade-${cls}`}
         style={{
           position: "absolute",
-          top: paddingTop + line * lineHeight,
+          top: paddingTop + vl.top,
           left,
           width,
           height: lineHeight,

@@ -139,6 +139,12 @@
   font-size: 12px;
 }
 
+.ade-find-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .ade-find-input {
   appearance: none;
   background: var(--background);
@@ -150,8 +156,21 @@
   outline: none;
 }
 
+.ade-find-input.ade-error {
+  border-color: var(--destructive);
+}
+
 .ade-find-input:focus {
   border-color: var(--primary);
+}
+
+.ade-find-error {
+  color: var(--destructive);
+  font-size: 10px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ade-find-count {

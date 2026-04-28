@@ -9,29 +9,38 @@ import { AdilaLSPClient, getOrCreateAdilaClient } from "./lspClient";
 export type LspApi = {
   hover: (line: number, character: number) => Promise<proto.Hover | null>;
   completion: (line: number, character: number) => Promise<proto.CompletionItem[]>;
+  resolveCompletion: (item: proto.CompletionItem) => Promise<proto.CompletionItem>;
   definition: (
     line: number,
     character: number,
   ) => Promise<proto.Location[] | proto.LocationLink[] | null>;
+  resolveCodeAction: (action: proto.CodeAction) => Promise<proto.CodeAction>;
+  codeActions: (range: proto.Range, diagnostics?: proto.Diagnostic[]) => Promise<proto.CodeAction[]>;
+  formatDocument: (options: proto.FormattingOptions) => Promise<proto.TextEdit[]>;
+  formatRange: (range: proto.Range, options: proto.FormattingOptions) => Promise<proto.TextEdit[]>;
+  executeCommand: (command: proto.Command) => Promise<void>;
   uri: string | null;
   available: boolean;
 };
 
 let portCache: number | null = null;
 async function getLSPPort(): Promise<number> {
-  if (portCache !== null) return portCache;
-  portCache = await GetLSPPort();
-  return portCache;
+  const cached = portCache;
+  if (cached !== null) return cached;
+  const next = await GetLSPPort();
+  portCache = next;
+  return next;
 }
 
 let availableCache: Promise<Record<string, string | undefined>> | null = null;
 function getAvailableLSP(): Promise<Record<string, string | undefined>> {
-  if (!availableCache) {
-    availableCache = ListAvailableLSP()
-      .then((r) => r as Record<string, string | undefined>)
-      .catch(() => ({}) as Record<string, string | undefined>);
-  }
-  return availableCache;
+  const cached = availableCache;
+  if (cached) return cached;
+  const next = ListAvailableLSP()
+    .then((r: unknown) => r as Record<string, string | undefined>)
+    .catch(() => ({}) as Record<string, string | undefined>);
+  availableCache = next;
+  return next;
 }
 
 const MONACO_BUILTIN = new Set(["json", "css", "html"]);
@@ -185,10 +194,40 @@ export function useAdilaLSP({
         if (!c || !uri) return [];
         return c.requestCompletion(uri, line, character);
       },
+      resolveCompletion: async (item) => {
+        const c = clientRef.current;
+        if (!c) return item;
+        return c.resolveCompletion(item);
+      },
       definition: async (line, character) => {
         const c = clientRef.current;
         if (!c || !uri) return null;
         return c.requestDefinition(uri, line, character);
+      },
+      codeActions: async (range, diagnostics) => {
+        const c = clientRef.current;
+        if (!c || !uri) return [];
+        return c.requestCodeActions(uri, range, diagnostics ?? []);
+      },
+      resolveCodeAction: async (action) => {
+        const c = clientRef.current;
+        if (!c) return action;
+        return c.resolveCodeAction(action);
+      },
+      formatDocument: async (options) => {
+        const c = clientRef.current;
+        if (!c || !uri) return [];
+        return c.requestDocumentFormatting(uri, options);
+      },
+      formatRange: async (range, options) => {
+        const c = clientRef.current;
+        if (!c || !uri) return [];
+        return c.requestRangeFormatting(uri, range, options);
+      },
+      executeCommand: async (command) => {
+        const c = clientRef.current;
+        if (!c) return;
+        await c.executeCommand(command);
       },
     }),
     [uri, available],
