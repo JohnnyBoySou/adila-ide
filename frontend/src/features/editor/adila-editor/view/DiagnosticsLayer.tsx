@@ -1,5 +1,6 @@
 import { memo } from "react";
 import type * as proto from "vscode-languageserver-protocol";
+import type { VisualLayout } from "./layout";
 
 type Props = {
   diagnostics: proto.Diagnostic[];
@@ -10,6 +11,7 @@ type Props = {
   firstVisible: number;
   lastVisible: number;
   onOpenCodeActions?: (line: number, col: number) => void;
+  layout: VisualLayout;
 };
 
 /** Renderiza squiggle underlines pra cada diagnostic via SVG inline. */
@@ -22,6 +24,7 @@ function DiagnosticsLayerInner({
   firstVisible,
   lastVisible,
   onOpenCodeActions,
+  layout,
 }: Props) {
   const items: React.ReactNode[] = [];
 
@@ -38,9 +41,11 @@ function DiagnosticsLayerInner({
       const sCol = line === startLine ? d.range.start.character : 0;
       const eCol =
         line === endLine ? d.range.end.character : Math.max(sCol + 1, sCol + 80);
-      const width = Math.max(charWidth, (eCol - sCol) * charWidth);
-      const left = paddingLeft + sCol * charWidth;
-      const top = paddingTop + line * lineHeight + lineHeight - 4;
+      const start = layout.positionToPoint({ line, col: sCol });
+      const end = layout.positionToPoint({ line, col: eCol });
+      const width = Math.max(charWidth, end.x - start.x);
+      const left = paddingLeft + start.x;
+      const top = paddingTop + start.y + lineHeight - 4;
 
       const color = severityColor(d.severity);
       items.push(

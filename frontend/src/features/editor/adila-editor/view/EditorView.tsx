@@ -40,6 +40,12 @@ import { DiagnosticsLayer } from "./DiagnosticsLayer";
 import { HoverPopup } from "./HoverPopup";
 import { CompletionPopup } from "./CompletionPopup";
 import { CodeActionPopup } from "./CodeActionPopup";
+import {
+  buildLayout,
+  segmentForVisualRow,
+  positionToVisualPoint,
+  visualPointToPosition,
+} from "./layout";
 import type { LspApi } from "../lsp/useAdilaLSP";
 import {
   editsFromCompletion,
@@ -84,7 +90,7 @@ export function EditorView({
   showLineNumbers,
   relativeLineNumbers,
   highlightCurrentLine,
-  wordWrap: _wordWrap, // V0: line wrapping não implementado, ignorado por enquanto
+  wordWrap,
   tabSize,
   caretBlink,
   smoothScroll,
@@ -105,33 +111,37 @@ export function EditorView({
 
   const charWidth = useMemo(() => measureCharWidth(fontFamily, fontSize), [fontFamily, fontSize]);
   const lineCount = buffer.getLineCount();
-  const totalHeight = lineCount * lineHeight + PADDING_TOP * 2;
 
   // Largura do gutter ajusta com nº de dígitos do total de linhas.
   const gutterDigits = Math.max(GUTTER_MIN_DIGITS, String(lineCount).length);
   const gutterWidth = showLineNumbers ? gutterDigits * charWidth + GUTTER_PADDING_X * 2 : 0;
 
-  // Largura do conteúdo: linha mais longa visível (aproximação O(visible)).
-  const [contentWidth, setContentWidth] = useState(0);
+  const availableContentWidth = Math.max(0, viewport.width - gutterWidth - 16);
+  const layout = useMemo(
+    () => buildLayout(buffer, lineHeight, charWidth, tabSize, wordWrap, availableContentWidth),
+    [buffer, version, lineHeight, charWidth, tabSize, wordWrap, availableContentWidth],
+  );
+  const totalHeight = layout.totalHeight + PADDING_TOP * 2;
+  const contentWidth = wordWrap
+    ? Math.max(viewport.width, (layout.wrapColumn ?? 1) * charWidth + 64)
+    : Math.max(viewport.width, layout.maxVisualColumn * charWidth + 64);
 
   // Tokenização incremental até o limite visível.
   const scrollTop = state.scrollTop;
-  const firstVisible = Math.max(0, Math.floor((scrollTop - PADDING_TOP) / lineHeight) - OVERSCAN);
-  const visibleCount = Math.ceil(viewport.height / lineHeight) + OVERSCAN * 2;
-  const lastVisible = Math.min(lineCount - 1, firstVisible + visibleCount);
+  const visibleTop = Math.max(0, scrollTop - PADDING_TOP);
+  const visibleBottom = visibleTop + viewport.height;
+  const firstVisualRow = Math.max(0, Math.floor(visibleTop / lineHeight) - OVERSCAN);
+  const lastVisualRow = Math.min(
+    Math.max(0, layout.totalRows - 1),
+    Math.ceil(visibleBottom / lineHeight) + OVERSCAN,
+  );
+  const firstVisible = Math.max(0, layout.visualLineToLogicalLine(firstVisualRow));
+  const lastVisible = Math.min(
+    lineCount - 1,
+    layout.visualLineToLogicalLine(lastVisualRow),
+  );
 
   tokenCache.tokenizeUpTo((i) => buffer.getLine(i), lineCount, lastVisible, langId);
-
-  // Calcula contentWidth baseado em linhas visíveis (mais barato que escanear tudo).
-  useEffect(() => {
-    let max = 0;
-    for (let i = firstVisible; i <= lastVisible; i++) {
-      const len = buffer.getLineLength(i);
-      if (len > max) max = len;
-    }
-    const target = Math.max(viewport.width, max * charWidth + 64);
-    setContentWidth(target);
-  }, [buffer, firstVisible, lastVisible, charWidth, viewport.width, version]);
 
   // Resize observer.
   useEffect(() => {
@@ -168,14 +178,13 @@ export function EditorView({
     }
   }, [version, buffer, onChange]);
 
-  // Garante que o cursor primário fica visível ao mover. Sem margem de
-  // "leitura" — só rola quando o cursor sai da área visível, evitando que
-  // o conteúdo "suba" criando espaço vazio embaixo ao digitar perto do fim.
+  // Garante que o cursor primário fica visível ao mover, considerando wrap e tabs.
   useLayoutEffect(() => {
     if (!primary || !scrollerRef.current) return;
     const el = scrollerRef.current;
-    const top = primary.pos.line * lineHeight + PADDING_TOP;
-    const left = primary.pos.col * charWidth;
+    const point = positionToVisualPoint(layout, primary.pos);
+    const top = point.top + PADDING_TOP;
+    const left = point.column * charWidth;
     const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
     if (top < el.scrollTop) {
       el.scrollTop = top;
@@ -186,22 +195,23 @@ export function EditorView({
     else if (left + charWidth > el.scrollLeft + el.clientWidth - gutterWidth - 16) {
       el.scrollLeft = left + charWidth - el.clientWidth + gutterWidth + 16;
     }
-  }, [primary, lineHeight, charWidth, gutterWidth]);
+  }, [primary, layout, lineHeight, charWidth, gutterWidth]);
 
   // Navegação por find move o cursor; garante que o match atual fique visível.
   useLayoutEffect(() => {
     if (findIndex < 0 || findMatches.length === 0 || !scrollerRef.current) return;
     const match = findMatches[findIndex];
     const el = scrollerRef.current;
-    const top = match.start.line * lineHeight + PADDING_TOP;
-    const left = match.start.col * charWidth;
+    const point = positionToVisualPoint(layout, match.start);
+    const top = point.top + PADDING_TOP;
+    const left = point.column * charWidth;
     if (top < el.scrollTop || top + lineHeight > el.scrollTop + el.clientHeight) {
       el.scrollTop = Math.max(0, top - Math.floor(el.clientHeight / 3));
     }
     if (left < el.scrollLeft || left + charWidth > el.scrollLeft + el.clientWidth - gutterWidth) {
       el.scrollLeft = Math.max(0, left - gutterWidth - 32);
     }
-  }, [findIndex, findMatches, lineHeight, charWidth, gutterWidth]);
+  }, [findIndex, findMatches, layout, lineHeight, charWidth, gutterWidth]);
 
   // Foco automático no textarea quando o container recebe click.
   function focusTextarea() {
@@ -212,23 +222,21 @@ export function EditorView({
   useLayoutEffect(() => {
     const ta = textareaRef.current;
     if (!ta || !primary) return;
-    const top = PADDING_TOP + primary.pos.line * lineHeight;
-    const left = gutterWidth + primary.pos.col * charWidth;
+    const point = positionToVisualPoint(layout, primary.pos);
+    const top = PADDING_TOP + point.top;
+    const left = gutterWidth + point.column * charWidth;
     ta.style.top = `${top}px`;
     ta.style.left = `${left}px`;
-  }, [primary, lineHeight, charWidth, gutterWidth]);
+  }, [primary, layout, charWidth, gutterWidth]);
 
-  // Mouse → posição (col baseada em charWidth).
+  // Mouse → posição lógica, convertendo coluna visual (tabs/wrap) para col real.
   function pointerToPos(clientX: number, clientY: number): Position {
     const el = scrollerRef.current;
     if (!el) return { line: 0, col: 0 };
     const rect = el.getBoundingClientRect();
     const x = clientX - rect.left + el.scrollLeft - gutterWidth - 4;
     const y = clientY - rect.top + el.scrollTop - PADDING_TOP;
-    const line = Math.max(0, Math.min(lineCount - 1, Math.floor(y / lineHeight)));
-    const col = Math.max(0, Math.round(x / charWidth));
-    const lineLen = buffer.getLineLength(line);
-    return { line, col: Math.min(col, lineLen) };
+    return visualPointToPosition(layout, Math.max(0, y), Math.max(0, Math.round(x / charWidth)));
   }
 
   const dragRef = useRef<{ anchor: Position; mode: "char" | "word" | "line" } | null>(null);
@@ -289,8 +297,9 @@ export function EditorView({
     const el = scrollerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const anchorX = rect.left - el.scrollLeft + gutterWidth + 4 + col * charWidth;
-    const anchorY = rect.top - el.scrollTop + PADDING_TOP + primary.pos.line * lineHeight;
+    const triggerPoint = positionToVisualPoint(layout, { line: primary.pos.line, col });
+    const anchorX = rect.left - el.scrollLeft + gutterWidth + 4 + triggerPoint.x * charWidth;
+    const anchorY = rect.top - el.scrollTop + PADDING_TOP + triggerPoint.y;
     setCompletionState({
       items,
       triggerLine: primary.pos.line,
@@ -358,10 +367,11 @@ export function EditorView({
     const el = scrollerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const point = positionToVisualPoint(layout, pos);
     setCodeActionState({
       actions,
-      anchorX: rect.left - el.scrollLeft + gutterWidth + 4 + pos.col * charWidth,
-      anchorY: rect.top - el.scrollTop + PADDING_TOP + pos.line * lineHeight,
+      anchorX: rect.left - el.scrollLeft + gutterWidth + 4 + point.x * charWidth,
+      anchorY: rect.top - el.scrollTop + PADDING_TOP + point.y,
     });
   }
 
@@ -387,6 +397,24 @@ export function EditorView({
       await lspApi?.executeCommand(action.command);
     }
     setCodeActionState(null);
+  }
+
+  async function formatDocumentOrSelection() {
+    if (!lspApi?.available || !lspApi.uri || !primary) return;
+    const opts: proto.FormattingOptions = { tabSize, insertSpaces: true };
+    const edits = cursorHasSelection(primary)
+      ? await lspApi.formatRange(toLspRange(cursorRange(primary)), opts)
+      : await lspApi.formatDocument(opts);
+    if (edits.length === 0) return;
+    const ops = edits.map((edit) => ({
+      range: {
+        start: { line: edit.range.start.line, col: edit.range.start.character },
+        end: { line: edit.range.end.line, col: edit.range.end.character },
+      },
+      text: edit.newText,
+    }));
+    const pos = ops[0].range.start;
+    store.getState().edit(ops, [{ pos, anchor: pos, desiredCol: pos.col }], "format");
   }
 
   function scheduleHover(clientX: number, clientY: number) {
@@ -686,6 +714,11 @@ export function EditorView({
       toggleLineComment(s);
       return;
     }
+    if (e.altKey && shift && (e.key === "f" || e.key === "F")) {
+      e.preventDefault();
+      void formatDocumentOrSelection();
+      return;
+    }
     if (meta && shift && (e.key === "d" || e.key === "D")) {
       e.preventDefault();
       copySelectedLines(s, 1);
@@ -795,11 +828,13 @@ export function EditorView({
 
   // Render
   const rows: React.ReactNode[] = [];
-  for (let i = firstVisible; i <= lastVisible; i++) {
-    const top = PADDING_TOP + i * lineHeight;
+  for (let visualRow = firstVisualRow; visualRow <= lastVisualRow; visualRow++) {
+    const segment = segmentForVisualRow(buffer, layout, visualRow, tabSize);
+    const top = PADDING_TOP + visualRow * lineHeight;
+    const sliceText = buffer.getLine(segment.line).slice(segment.startCol, segment.endCol);
     rows.push(
       <div
-        key={i}
+        key={`${segment.line}:${segment.segment}`}
         className="ade-line"
         style={{
           position: "absolute",
@@ -813,19 +848,27 @@ export function EditorView({
           zIndex: 2,
         }}
       >
-        <LineRow text={buffer.getLine(i)} tokens={tokenCache.getLineTokens(i)} />
+        <LineRow
+          text={sliceText}
+          tokens={tokenCache.getLineTokens(segment.line)}
+          startCol={segment.startCol}
+          tabSize={tabSize}
+        />
       </div>,
     );
   }
 
   // Linha atual destacada.
-  const currentLineTop = primary ? PADDING_TOP + primary.pos.line * lineHeight : -9999;
+  const currentLineTop = primary ? PADDING_TOP + positionToVisualPoint(layout, primary.pos).top : -9999;
 
   // Gutter rows (line numbers).
   const gutterRows: React.ReactNode[] = [];
   if (showLineNumbers) {
     for (let i = firstVisible; i <= lastVisible; i++) {
-      const top = PADDING_TOP + i * lineHeight;
+      const top = PADDING_TOP + (layout.lineStarts[i] ?? 0) * lineHeight;
+      const height =
+        ((layout.lineStarts[i + 1] ?? layout.lineStarts[i] ?? 0) - (layout.lineStarts[i] ?? 0)) *
+        lineHeight;
       const num = relativeLineNumbers && primary
         ? i === primary.pos.line
           ? i + 1
@@ -841,7 +884,7 @@ export function EditorView({
             top,
             left: 0,
             right: GUTTER_PADDING_X,
-            height: lineHeight,
+            height,
             textAlign: "right",
             paddingRight: GUTTER_PADDING_X,
             fontFamily,
@@ -946,7 +989,7 @@ export function EditorView({
             {rows}
             <SelectionLayer
               cursors={cursors}
-              buffer={buffer}
+              layout={layout}
               charWidth={charWidth}
               lineHeight={lineHeight}
               paddingLeft={4}
@@ -957,6 +1000,7 @@ export function EditorView({
             {diagnostics && diagnostics.length > 0 && (
               <DiagnosticsLayer
                 diagnostics={diagnostics}
+                layout={layout}
                 charWidth={charWidth}
                 lineHeight={lineHeight}
                 paddingLeft={4}

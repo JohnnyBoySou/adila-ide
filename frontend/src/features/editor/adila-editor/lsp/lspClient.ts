@@ -116,6 +116,8 @@ export class AdilaLSPClient {
             hover: { contentFormat: ["markdown", "plaintext"] },
             publishDiagnostics: { relatedInformation: true },
             definition: { linkSupport: true },
+            documentFormatting: { dynamicRegistration: false },
+            documentRangeFormatting: { dynamicRegistration: false },
             codeAction: {
               dynamicRegistration: false,
               codeActionLiteralSupport: {
@@ -304,6 +306,50 @@ export class AdilaLSPClient {
       return (resp ?? []).filter((item): item is proto.CodeAction => "title" in item && ("edit" in item || "kind" in item));
     } catch (err) {
       this.onError(`Erro em code actions (${this.lang})`, err);
+      return [];
+    }
+  }
+
+  async requestDocumentFormatting(
+    uri: string,
+    options: proto.FormattingOptions,
+  ): Promise<proto.TextEdit[]> {
+    if (!this.serverCaps.documentFormattingProvider) return [];
+    if (!this.docs.has(uri)) return [];
+    try {
+      const resp = await this.connection.sendRequest<proto.TextEdit[] | null>(
+        "textDocument/formatting",
+        {
+          textDocument: { uri },
+          options,
+        } satisfies proto.DocumentFormattingParams,
+      );
+      return resp ?? [];
+    } catch (err) {
+      this.onError(`Erro em format document (${this.lang})`, err);
+      return [];
+    }
+  }
+
+  async requestRangeFormatting(
+    uri: string,
+    range: proto.Range,
+    options: proto.FormattingOptions,
+  ): Promise<proto.TextEdit[]> {
+    if (!this.serverCaps.documentRangeFormattingProvider) return [];
+    if (!this.docs.has(uri)) return [];
+    try {
+      const resp = await this.connection.sendRequest<proto.TextEdit[] | null>(
+        "textDocument/rangeFormatting",
+        {
+          textDocument: { uri },
+          range,
+          options,
+        } satisfies proto.DocumentRangeFormattingParams,
+      );
+      return resp ?? [];
+    } catch (err) {
+      this.onError(`Erro em format selection (${this.lang})`, err);
       return [];
     }
   }

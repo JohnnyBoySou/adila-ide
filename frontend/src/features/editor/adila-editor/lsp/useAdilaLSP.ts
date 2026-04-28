@@ -16,6 +16,8 @@ export type LspApi = {
   ) => Promise<proto.Location[] | proto.LocationLink[] | null>;
   resolveCodeAction: (action: proto.CodeAction) => Promise<proto.CodeAction>;
   codeActions: (range: proto.Range, diagnostics?: proto.Diagnostic[]) => Promise<proto.CodeAction[]>;
+  formatDocument: (options: proto.FormattingOptions) => Promise<proto.TextEdit[]>;
+  formatRange: (range: proto.Range, options: proto.FormattingOptions) => Promise<proto.TextEdit[]>;
   executeCommand: (command: proto.Command) => Promise<void>;
   uri: string | null;
   available: boolean;
@@ -211,6 +213,16 @@ export function useAdilaLSP({
         const c = clientRef.current;
         if (!c) return action;
         return c.resolveCodeAction(action);
+      },
+      formatDocument: async (options) => {
+        const c = clientRef.current;
+        if (!c || !uri) return [];
+        return c.requestDocumentFormatting(uri, options);
+      },
+      formatRange: async (range, options) => {
+        const c = clientRef.current;
+        if (!c || !uri) return [];
+        return c.requestRangeFormatting(uri, range, options);
       },
       executeCommand: async (command) => {
         const c = clientRef.current;
