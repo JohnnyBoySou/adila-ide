@@ -26,8 +26,8 @@ var importExtensions = []string{
 // absoluto resolvido. Strings vazias indicam "não foi possível resolver"
 // — o frontend trata como sem definição.
 //
-// Imports de pacotes (sem prefixo "./" "/" ou "@/" mapeado) são ignorados:
-// nesse MVP não tentamos navegar pra dentro de node_modules.
+// Imports de pacotes (sem prefixo "./" "/" ou "@/" mapeado) tentam resolver
+// para node_modules, preferindo typings quando package.json os declara.
 func (i *Indexer) ResolveImport(currentFile, moduleSpec string) (string, error) {
 	moduleSpec = strings.TrimSpace(moduleSpec)
 	if moduleSpec == "" || currentFile == "" {
@@ -72,8 +72,97 @@ func (i *Indexer) ResolveImport(currentFile, moduleSpec string) (string, error) 
 		}
 	}
 
-	// Bare specifiers (ex.: "react") — não navegamos.
-	return "", nil
+	return resolveNodeModule(root, moduleSpec)
+}
+
+func resolveNodeModule(root, moduleSpec string) (string, error) {
+	if root == "" || moduleSpec == "" {
+		return "", nil
+	}
+	pkg, subpath := splitPackageSpec(moduleSpec)
+	if pkg == "" {
+		return "", nil
+	}
+	pkgRoot := filepath.Join(root, "node_modules", filepath.FromSlash(pkg))
+	if info, err := os.Stat(pkgRoot); err != nil || !info.IsDir() {
+		return "", nil
+	}
+	if subpath != "" {
+		if p, err := resolveOnDisk(filepath.Join(pkgRoot, filepath.FromSlash(subpath))); p != "" || err != nil {
+			return p, err
+		}
+	}
+	if p := resolvePackageEntry(pkgRoot); p != "" {
+		return p, nil
+	}
+	if p, err := resolveOnDisk(pkgRoot); p != "" || err != nil {
+		return p, err
+	}
+	return resolveTypesPackage(root, pkg, subpath)
+}
+
+func splitPackageSpec(moduleSpec string) (pkg, subpath string) {
+	parts := strings.Split(moduleSpec, "/")
+	if len(parts) == 0 || parts[0] == "" {
+		return "", ""
+	}
+	if strings.HasPrefix(moduleSpec, "@") {
+		if len(parts) < 2 {
+			return "", ""
+		}
+		pkg = parts[0] + "/" + parts[1]
+		if len(parts) > 2 {
+			subpath = filepath.Join(parts[2:]...)
+		}
+		return pkg, filepath.ToSlash(subpath)
+	}
+	pkg = parts[0]
+	if len(parts) > 1 {
+		subpath = filepath.Join(parts[1:]...)
+	}
+	return pkg, filepath.ToSlash(subpath)
+}
+
+func resolvePackageEntry(pkgRoot string) string {
+	raw, err := os.ReadFile(filepath.Join(pkgRoot, "package.json"))
+	if err != nil {
+		return ""
+	}
+	var pkg struct {
+		Types   string `json:"types"`
+		Typings string `json:"typings"`
+		Module  string `json:"module"`
+		Main    string `json:"main"`
+	}
+	if err := json.Unmarshal(stripJSONComments(raw), &pkg); err != nil {
+		return ""
+	}
+	for _, entry := range []string{pkg.Types, pkg.Typings, pkg.Module, pkg.Main} {
+		if entry == "" {
+			continue
+		}
+		if p, _ := resolveOnDisk(filepath.Join(pkgRoot, filepath.FromSlash(entry))); p != "" {
+			return p
+		}
+	}
+	return ""
+}
+
+func resolveTypesPackage(root, pkg, subpath string) (string, error) {
+	typesName := strings.ReplaceAll(pkg, "/", "__")
+	if strings.HasPrefix(typesName, "@") {
+		typesName = strings.TrimPrefix(typesName, "@")
+	}
+	base := filepath.Join(root, "node_modules", "@types", typesName)
+	if subpath != "" {
+		if p, err := resolveOnDisk(filepath.Join(base, filepath.FromSlash(subpath))); p != "" || err != nil {
+			return p, err
+		}
+	}
+	if p := resolvePackageEntry(base); p != "" {
+		return p, nil
+	}
+	return resolveOnDisk(base)
 }
 
 // resolveOnDisk tenta o path como-é, depois testa cada extensão e por fim

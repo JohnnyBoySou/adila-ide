@@ -255,6 +255,7 @@ export function EditorView({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverPosRef = useRef<Position | null>(null);
   const hoverOverPopupRef = useRef(false);
+  const [definitionHint, setDefinitionHint] = useState<Range | null>(null);
 
   function clearHover() {
     if (hoverTimerRef.current) {
@@ -265,6 +266,7 @@ export function EditorView({
       setHoverState(null);
       hoverPosRef.current = null;
     }
+    setDefinitionHint(null);
   }
 
   // Completion popup state
@@ -1014,6 +1016,7 @@ export function EditorView({
               paddingTop={PADDING_TOP}
               findMatches={findMatches}
               findIndex={findIndex}
+              definitionHint={definitionHint}
             />
             {diagnostics && diagnostics.length > 0 && (
               <DiagnosticsLayer

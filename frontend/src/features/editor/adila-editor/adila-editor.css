@@ -65,6 +65,11 @@
   border-radius: 2px;
 }
 
+.ade-definition-link {
+  border-bottom: 1px solid var(--primary);
+  cursor: pointer;
+}
+
 .ade-find-match {
   background: var(--ade-find-match);
   border-radius: 2px;

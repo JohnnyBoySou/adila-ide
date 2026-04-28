@@ -46,7 +46,7 @@ func TestResolveImport_Aliases(t *testing.T) {
 		{"alias com extensão ts", "@/lib/utils", filepath.Join(root, "src", "lib", "utils.ts")},
 		{"alias resolvendo /index.tsx", "@/feature", filepath.Join(root, "src", "feature", "index.tsx")},
 		{"relativo ./", "./components/ui/SiteHeader", filepath.Join(root, "src", "components", "ui", "SiteHeader.tsx")},
-		{"bare specifier (não navega)", "react", ""},
+		{"bare specifier inexistente", "react", ""},
 		{"alias inexistente", "@/inexistente", ""},
 	}
 	for _, tc := range cases {
@@ -59,6 +59,59 @@ func TestResolveImport_Aliases(t *testing.T) {
 				t.Errorf("spec=%q got=%q want=%q", tc.spec, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestResolveImport_NodeModulesPackage(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	root := t.TempDir()
+
+	mkdirAndWrite(t, filepath.Join(root, "src", "page.tsx"), "import { Button } from 'pkg'")
+	mkdirAndWrite(t, filepath.Join(root, "node_modules", "pkg", "package.json"), `{
+  "name": "pkg",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.js"
+}`)
+	mkdirAndWrite(t, filepath.Join(root, "node_modules", "pkg", "dist", "index.d.ts"), "export declare const Button: unknown")
+
+	idx := NewIndexer(NewConfig())
+	idx.startup(t.Context())
+	if err := idx.SetWorkdir(root); err != nil {
+		t.Fatalf("SetWorkdir: %v", err)
+	}
+	t.Cleanup(func() { idx.shutdown(nil) })
+
+	got, err := idx.ResolveImport(filepath.Join(root, "src", "page.tsx"), "pkg")
+	if err != nil {
+		t.Fatalf("ResolveImport: %v", err)
+	}
+	want := filepath.Join(root, "node_modules", "pkg", "dist", "index.d.ts")
+	if got != want {
+		t.Errorf("node_modules package got=%q want=%q", got, want)
+	}
+}
+
+func TestResolveImport_NodeModulesScopedPackage(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	root := t.TempDir()
+
+	mkdirAndWrite(t, filepath.Join(root, "src", "page.tsx"), "import x from '@scope/pkg/subpath'")
+	mkdirAndWrite(t, filepath.Join(root, "node_modules", "@scope", "pkg", "subpath.ts"), "export default 1")
+
+	idx := NewIndexer(NewConfig())
+	idx.startup(t.Context())
+	if err := idx.SetWorkdir(root); err != nil {
+		t.Fatalf("SetWorkdir: %v", err)
+	}
+	t.Cleanup(func() { idx.shutdown(nil) })
+
+	got, err := idx.ResolveImport(filepath.Join(root, "src", "page.tsx"), "@scope/pkg/subpath")
+	if err != nil {
+		t.Fatalf("ResolveImport: %v", err)
+	}
+	want := filepath.Join(root, "node_modules", "@scope", "pkg", "subpath.ts")
+	if got != want {
+		t.Errorf("scoped package subpath got=%q want=%q", got, want)
 	}
 }
 
