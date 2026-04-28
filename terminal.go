@@ -96,6 +96,7 @@ func (t *Terminal) startup(ctx context.Context) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/term/", t.handleWS)
+	mux.HandleFunc("/bench/echo", t.handleBenchEchoWS)
 
 	t.wsServer = &http.Server{Handler: mux}
 	go func() {

@@ -102,8 +102,7 @@ export function ClaudeConnect({ open, onOpenChange, onSaved }: ClaudeConnectProp
                   "linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)",
                 backgroundSize: "28px 28px",
                 maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-                WebkitMaskImage:
-                  "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+                WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
               }}
             />
           </div>
@@ -194,11 +193,7 @@ export function ClaudeConnect({ open, onOpenChange, onSaved }: ClaudeConnectProp
               </div>
 
               <label className="flex cursor-pointer items-start gap-2 text-xs text-foreground/80 select-none">
-                <Checkbox
-                  checked={validate}
-                  onCheckedChange={setValidate}
-                  className="mt-0.5"
-                />
+                <Checkbox checked={validate} onCheckedChange={setValidate} className="mt-0.5" />
                 <span className="leading-snug">
                   Validar com a Anthropic antes de salvar (faz uma chamada mínima de teste).
                 </span>

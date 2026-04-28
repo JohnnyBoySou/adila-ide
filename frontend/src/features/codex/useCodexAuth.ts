@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ClearApiKey,
-  GetStatus,
-  SaveApiKey,
-} from "../../../wailsjs/go/main/Codex";
+import { ClearApiKey, GetStatus, SaveApiKey } from "../../../wailsjs/go/main/Codex";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 
 export type CodexStatus = {

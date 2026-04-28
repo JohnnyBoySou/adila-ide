@@ -16,6 +16,9 @@ import { isWebviewPath } from "./WebView";
 import type { DropSide, LeafPane, PaneId, PaneNode } from "./panes";
 
 const CodeEditor = lazy(() => import("./CodeEditor").then((m) => ({ default: m.CodeEditor })));
+const AdilaEditor = lazy(() =>
+  import("./adila-editor").then((m) => ({ default: m.AdilaEditor })),
+);
 const WebView = lazy(() => import("./WebView").then((m) => ({ default: m.WebView })));
 
 export const FILE_DRAG_MIME = "application/x-adila-file";
@@ -252,11 +255,9 @@ function LeafView({
           O componente é renderizado por leaf, então usar useConfig aqui é
           aceitável (até 4 panes no layout máximo). Default true: mantém o
           comportamento atual de quem nunca tocou na config. */}
-      {activeTab && !isWebviewPath(activeTab.path) && <BreadcrumbsGate
-        path={activeTab.path}
-        rootPath={rootPath}
-        onOpenFile={onOpenFileByPath}
-      />}
+      {activeTab && !isWebviewPath(activeTab.path) && (
+        <BreadcrumbsGate path={activeTab.path} rootPath={rootPath} onOpenFile={onOpenFileByPath} />
+      )}
       <div className="relative flex-1 overflow-hidden min-h-0">
         {activeTab ? (
           isWebviewPath(activeTab.path) ? (
@@ -268,7 +269,7 @@ function LeafView({
             </Suspense>
           ) : (
             <Suspense fallback={<ViewFallback />}>
-              <CodeEditor
+              <EditorRouter
                 path={activeTab.path}
                 content={activeTab.content}
                 rootUri={rootPath ? `file://${rootPath}` : undefined}
@@ -337,6 +338,24 @@ function DropOverlay({ side }: { side: DropSide | null }) {
       />
     </div>
   );
+}
+
+// EditorRouter decide entre Monaco (default) e AdilaEditor baseado em
+// workbench.newEditor. Mantém isolado pra re-render desse subtree apenas
+// quando o usuário troca o toggle.
+function EditorRouter(props: {
+  path: string;
+  content: string;
+  rootUri?: string;
+  onChange: (v: string) => void;
+  onCursorChange?: (line: number, column: number) => void;
+  onMarkersChange?: (path: string, markers: EditorMarker[]) => void;
+}) {
+  const { value: useNew } = useConfig<boolean>("workbench.newEditor", false);
+  if (useNew) {
+    return <AdilaEditor {...props} />;
+  }
+  return <CodeEditor {...props} />;
 }
 
 // BreadcrumbsGate consulta editor.breadcrumbs.enabled antes de montar o

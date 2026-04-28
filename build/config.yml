@@ -23,6 +23,8 @@ dev_mode:
       - .DS_Store
       - .gitignore
       - .gitkeep
+      - bench_helpers_test.go
+      - bench_history.go
     watched_extension:
       - "*.go"
     git_ignore: true

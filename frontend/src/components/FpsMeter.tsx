@@ -162,7 +162,8 @@ export function FpsMeter() {
         <span className="text-muted-foreground">fps</span>
       </button>
 
-      {open && anchor &&
+      {open &&
+        anchor &&
         createPortal(
           <FpsPanel
             ref={panelRef}
@@ -209,9 +210,7 @@ const FpsPanel = ({
   });
 
   const linePath = points.length
-    ? points
-        .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-        .join(" ")
+    ? points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")
     : "";
 
   const areaPath = points.length
@@ -241,9 +240,7 @@ const FpsPanel = ({
           <span className={cn("text-base font-semibold", fpsClass(current))}>{current}</span>
           <span className="text-[10px] text-muted-foreground">fps</span>
         </div>
-        <div className="text-[10px] text-muted-foreground">
-          min {min} · 5 min
-        </div>
+        <div className="text-[10px] text-muted-foreground">min {min} · 5 min</div>
       </header>
 
       <div className="px-2 pt-2 pb-1">
@@ -252,7 +249,8 @@ const FpsPanel = ({
             className="flex items-center justify-center text-[11px] text-muted-foreground"
             style={{ height: H }}
           >
-            Coletando primeiro snapshot… (~{Math.max(1, 30 - Math.floor((now - windowStart) / 1000))}
+            Coletando primeiro snapshot… (~
+            {Math.max(1, 30 - Math.floor((now - windowStart) / 1000))}
             s)
           </div>
         ) : (

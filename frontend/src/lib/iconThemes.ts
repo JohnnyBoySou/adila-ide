@@ -57,9 +57,7 @@ interface VscodeIconTheme {
 
 async function loadUrlTheme(themeId: string): Promise<IconResolver> {
   const base = `/icon-themes/${themeId}`;
-  const theme = (await fetch(`${base}/theme.json`).then((r) =>
-    r.json(),
-  )) as VscodeIconTheme;
+  const theme = (await fetch(`${base}/theme.json`).then((r) => r.json())) as VscodeIconTheme;
 
   const defToUrl = (key: string): string | null => {
     const def = theme.iconDefinitions[key];
@@ -170,12 +168,12 @@ const MINIMAL_EXT: Record<string, LucideMapping> = {
 const MINIMAL_FILENAMES: Record<string, LucideMapping> = {
   "package.json": { icon: Braces, color: "text-rose-400" },
   "tsconfig.json": { icon: Braces, color: "text-blue-400" },
-  "dockerfile": { icon: FileCog, color: "text-sky-400" },
+  dockerfile: { icon: FileCog, color: "text-sky-400" },
   ".gitignore": { icon: FileCog, color: "text-zinc-400" },
   ".env": { icon: Lock, color: "text-amber-300" },
   "readme.md": { icon: FileText, color: "text-blue-300" },
-  "license": { icon: FileText, color: "text-zinc-300" },
-  "makefile": { icon: FileCog, color: "text-zinc-300" },
+  license: { icon: FileText, color: "text-zinc-300" },
+  makefile: { icon: FileCog, color: "text-zinc-300" },
 };
 
 function minimalResolveFile(name: string): IconResolution {

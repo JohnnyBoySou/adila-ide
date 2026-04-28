@@ -5,6 +5,7 @@ export type SettingType =
   | "boolean"
   | "string"
   | "number"
+  | "slider"
   | "enum"
   | "color"
   | "string-list"
@@ -20,6 +21,10 @@ export interface SettingDef {
   keywords?: string[];
   actionId?: SettingActionId;
   actionLabel?: string;
+  /** Para `slider` (e opcional em `number` pra validação). */
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
 export interface SettingsGroupDef {
@@ -143,16 +148,22 @@ export const settingsGroups: SettingsGroupDef[] = [
         key: "adila.appearance.transparencyOpacity",
         title: "Opacidade do fundo",
         description: "Quanto menor, mais transparente. Entre 0.2 e 1.0.",
-        type: "number",
+        type: "slider",
         defaultValue: 0.85,
+        min: 0.2,
+        max: 1,
+        step: 0.01,
         keywords: ["transparency", "opacity", "alpha"],
       },
       {
         key: "adila.appearance.transparencyBlur",
         title: "Intensidade do blur",
         description: "Em pixels. 0 desativa o blur. Valores típicos: 16–32.",
-        type: "number",
+        type: "slider",
         defaultValue: 24,
+        min: 0,
+        max: 64,
+        step: 1,
         keywords: ["blur", "transparency", "vidro"],
       },
     ],
@@ -586,6 +597,15 @@ export const settingsGroups: SettingsGroupDef[] = [
         keywords: ["shortcut", "hud", "atalho", "keybinding", "teclado", "indicador"],
       },
       {
+        key: "workbench.newEditor",
+        title: "Novo editor (experimental)",
+        description:
+          "Substitui o Monaco pelo editor nativo do Adila. Mais leve, integrado ao tema, ainda em desenvolvimento — algumas features avançadas (LSP, IntelliSense rico, format-on-save) ainda dependem do Monaco.",
+        type: "boolean",
+        defaultValue: false,
+        keywords: ["editor", "monaco", "novo", "experimental", "adila", "code editor"],
+      },
+      {
         key: "window.confirmClose",
         title: "Confirmar antes de fechar",
         description: "Pede confirmação ao fechar a janela do Adila IDE.",
@@ -784,7 +804,8 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "codex.model",
         title: "Modelo padrão",
-        description: "Modelo usado nas chamadas do agente. O id deve bater com um modelo disponível na sua conta.",
+        description:
+          "Modelo usado nas chamadas do agente. O id deve bater com um modelo disponível na sua conta.",
         type: "enum",
         defaultValue: "gpt-5-codex",
         options: [
@@ -817,7 +838,8 @@ export const settingsGroups: SettingsGroupDef[] = [
       {
         key: "claude.model",
         title: "Modelo padrão",
-        description: "Modelo usado nas chamadas do agente. O id deve bater com um modelo disponível na sua conta.",
+        description:
+          "Modelo usado nas chamadas do agente. O id deve bater com um modelo disponível na sua conta.",
         type: "enum",
         defaultValue: "claude-opus-4-7",
         options: [

@@ -242,4 +242,3 @@ func snapshotToString(cells []vt.Cell, cols, rows int) string {
 	}
 	return string(out)
 }
-

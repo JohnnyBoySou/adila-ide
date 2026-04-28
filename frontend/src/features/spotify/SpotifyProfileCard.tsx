@@ -96,11 +96,7 @@ export function SpotifyProfileCard({ onOpen }: SpotifyProfileCardProps) {
           </span>
         )}
       </Card>
-      <SpotifyConnect
-        open={connectOpen}
-        onOpenChange={setConnectOpen}
-        onConnected={onOpen}
-      />
+      <SpotifyConnect open={connectOpen} onOpenChange={setConnectOpen} onConnected={onOpen} />
     </>
   );
 }

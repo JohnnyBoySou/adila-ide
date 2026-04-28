@@ -174,11 +174,7 @@ function IssueGroup({
 
 // ── Setup screen ──────────────────────────────────────────────────────────────
 
-function SetupScreen({
-  onSaved,
-}: {
-  onSaved: (clientId: string) => void;
-}) {
+function SetupScreen({ onSaved }: { onSaved: (clientId: string) => void }) {
   const [clientId, setClientId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -297,11 +293,7 @@ function ConnectScreen({ onConnected }: { onConnected: () => void }) {
             <span>{error}</span>
           </div>
         )}
-        <Button
-          className="w-full gap-2"
-          onClick={() => void handleConnect()}
-          disabled={connecting}
-        >
+        <Button className="w-full gap-2" onClick={() => void handleConnect()} disabled={connecting}>
           {connecting ? (
             <>
               <Spinner className="size-3.5" />
@@ -473,7 +465,11 @@ export function LinearView({ overlayOpen, onClose }: Props = {}) {
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {f === "all" ? `Todas (${issues.length})` : f === "started" ? "Em andamento" : "Urgentes"}
+            {f === "all"
+              ? `Todas (${issues.length})`
+              : f === "started"
+                ? "Em andamento"
+                : "Urgentes"}
           </button>
         ))}
       </div>

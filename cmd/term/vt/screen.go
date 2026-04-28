@@ -302,7 +302,7 @@ func (s *Screen) applySGR(params []int) {
 	}
 }
 
-func (s *Screen) OSC(_ []byte) { /* títulos/links — TODO */ }
+func (s *Screen) OSC(_ []byte)         { /* títulos/links — TODO */ }
 func (s *Screen) ESC(_ byte, _ []byte) { /* charset, RIS, etc — TODO */ }
 
 // ── Helpers de cor ──

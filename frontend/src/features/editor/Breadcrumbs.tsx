@@ -113,11 +113,7 @@ export const Breadcrumbs = memo(function Breadcrumbs({ path, rootPath, onOpenFil
                 {/* Usa o icon theme global (vesc/seti/etc.) em vez de emojis
                     genéricos. SymbolIcon resolve por nome+extensão; a regra
                     é a mesma do FileExplorer/QuickOpen. */}
-                <SymbolIcon
-                  name={entry.name}
-                  isDir={entry.isDir}
-                  className="size-3.5 shrink-0"
-                />
+                <SymbolIcon name={entry.name} isDir={entry.isDir} className="size-3.5 shrink-0" />
                 <span className="truncate">{entry.name}</span>
               </button>
             ))

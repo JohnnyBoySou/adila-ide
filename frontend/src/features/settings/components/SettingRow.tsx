@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -162,7 +163,7 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
     <div
       id={`setting-${def.key}`}
       className={cn(
-        "flex items-start gap-6 py-4 px-2 -mx-2 border-b border-border/40 last:border-b-0 rounded-md transition-colors",
+        "flex items-start justify-between gap-6 py-4 px-2 -mx-2 border-b border-border/40 last:border-b-0 rounded-md transition-colors",
         highlighted && "bg-accent/60 ring-1 ring-primary/40",
       )}
     >
@@ -172,6 +173,17 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
             {def.title}
           </label>
           {isModified && <span className="inline-block size-1.5 rounded-full bg-primary" />}
+          {isModified && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleReset}
+              title="Restaurar padrão"
+              className="size-6 text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="size-3" />
+            </Button>
+          )}
         </div>
         {def.description && (
           <p className="text-xs text-muted-foreground mt-1 max-w-prose">{def.description}</p>
@@ -180,8 +192,8 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
           {def.key}
         </code>
       </div>
-      <div className={cn("flex items-start gap-2 shrink-0", isWideControl ? "w-96" : "w-64")}>
-        <div className="flex-1">
+      <div className={cn("shrink-0", isWideControl ? "w-96" : "w-64")}>
+        <div className="w-full">
           {def.type === "boolean" && (
             <Switch id={def.key} checked={Boolean(value)} onCheckedChange={update} />
           )}
@@ -201,6 +213,13 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
                 const n = Number(e.target.value);
                 update(Number.isFinite(n) ? n : def.defaultValue);
               }}
+            />
+          )}
+          {def.type === "slider" && (
+            <SliderControl
+              def={def}
+              value={typeof value === "number" ? value : Number(def.defaultValue ?? 0)}
+              onChange={update}
             />
           )}
           {def.type === "enum" && def.options && (
@@ -241,18 +260,38 @@ function SettingRowImpl({ def, highlighted, onDirty }: SettingRowProps) {
             </Button>
           )}
         </div>
-        {isModified && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleReset}
-            title="Restaurar padrão"
-            className="size-8"
-          >
-            <RotateCcw className="size-3.5" />
-          </Button>
-        )}
       </div>
+    </div>
+  );
+}
+
+function SliderControl({
+  def,
+  value,
+  onChange,
+}: {
+  def: SettingDef;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const min = def.min ?? 0;
+  const max = def.max ?? 100;
+  const step = def.step ?? 1;
+  const decimals = step < 1 ? Math.max(0, -Math.floor(Math.log10(step))) : 0;
+  const display = value.toFixed(decimals);
+  return (
+    <div className="flex items-center gap-3 w-full">
+      <Slider
+        min={min}
+        max={max}
+        step={step}
+        value={[value]}
+        onValueChange={(v) => onChange(v[0])}
+        className="flex-1"
+      />
+      <span className="text-xs text-muted-foreground tabular-nums w-10 text-right shrink-0">
+        {display}
+      </span>
     </div>
   );
 }

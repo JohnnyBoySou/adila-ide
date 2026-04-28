@@ -150,12 +150,7 @@ export const spotifyApi = {
   playContext: (token: string, deviceId: string | null, contextUri: string) =>
     put(`/me/player/play${deviceQuery(deviceId)}`, token, { context_uri: contextUri }),
   /** Toca uma faixa específica dentro de um context_uri (preserva playlist). */
-  playContextAt: (
-    token: string,
-    deviceId: string | null,
-    contextUri: string,
-    offsetUri: string,
-  ) =>
+  playContextAt: (token: string, deviceId: string | null, contextUri: string, offsetUri: string) =>
     put(`/me/player/play${deviceQuery(deviceId)}`, token, {
       context_uri: contextUri,
       offset: { uri: offsetUri },

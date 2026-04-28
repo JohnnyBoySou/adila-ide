@@ -1,25 +1,25 @@
 import { Button } from "@/components/ui/button";
 import {
-    Menubar,
-    MenubarCheckboxItem,
-    MenubarContent,
-    MenubarItem,
-    MenubarMenu,
-    MenubarSeparator,
-    MenubarShortcut,
-    MenubarSub,
-    MenubarSubContent,
-    MenubarSubTrigger,
-    MenubarTrigger,
+  Menubar,
+  MenubarCheckboxItem,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarSeparator,
+  MenubarShortcut,
+  MenubarSub,
+  MenubarSubContent,
+  MenubarSubTrigger,
+  MenubarTrigger,
 } from "@/components/ui/menubar";
 import { Maximize2, Menu, Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-    BrowserOpenURL,
-    Quit,
-    WindowIsMaximised,
-    WindowMinimise,
-    WindowToggleMaximise,
+  BrowserOpenURL,
+  Quit,
+  WindowIsMaximised,
+  WindowMinimise,
+  WindowToggleMaximise,
 } from "../../../wailsjs/runtime/runtime";
 import { EventsEmit } from "../../../wailsjs/runtime/runtime";
 import { useUiStore } from "@/stores/uiStore";
@@ -128,281 +128,281 @@ export function TopBar({
 
   return (
     <header className="border-b px-2 py-1 flex items-center gap-2 shrink-0" style={dragStyle}>
-
       <div className="flex items-center gap-2" style={noDragStyle}>
+        <Button
+          variant="ghost"
+          size="icon"
+          style={noDragStyle}
+          title="Alternar menu"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+        >
+          <Menu className="size-4" />
+        </Button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        style={noDragStyle}
-        title="Alternar menu"
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-      >
-        <Menu className="size-4" />
-      </Button>
+        {isMenuOpen && (
+          <Menubar
+            style={noDragStyle}
+            className="border-none shadow-none bg-transparent h-auto p-0 gap-0"
+          >
+            <span className="font-semibold text-sm px-1 mr-1">Adila IDE</span>
 
-    {isMenuOpen && (
-      <Menubar
-        style={noDragStyle}
-        className="border-none shadow-none bg-transparent h-auto p-0 gap-0"
-      >
-        <span className="font-semibold text-sm px-1 mr-1">Adila IDE</span>
-
-        {/* ── Arquivo ── */}
-        <MenubarMenu>
-          <MenubarTrigger className="text-xs font-light">Arquivo</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem className="text-xs" onSelect={onOpenFolder}>
-              Abrir pasta…
-              <MenubarShortcut>Ctrl+K O</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={onOpenQuickFile}>
-              Abrir arquivo…
-              <MenubarShortcut>Ctrl+P</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={onOpenUrl}>
-              Abrir URL como aba…
-              <MenubarShortcut>Ctrl+Shift+U</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={onSave}>
-              Salvar
-              <MenubarShortcut>Ctrl+S</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={onCloseTab}>
-              Fechar aba
-              <MenubarShortcut>Ctrl+W</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" variant="destructive" onSelect={() => Quit()}>
-              Sair
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-
-        {/* ── Editar ── */}
-        <MenubarMenu>
-          <MenubarTrigger className="text-xs font-light">Editar</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.undo")}>
-              Desfazer
-              <MenubarShortcut>Ctrl+Z</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.redo")}>
-              Refazer
-              <MenubarShortcut>Ctrl+Y</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => document.execCommand("cut")}>
-              Recortar
-              <MenubarShortcut>Ctrl+X</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => document.execCommand("copy")}>
-              Copiar
-              <MenubarShortcut>Ctrl+C</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => document.execCommand("paste")}>
-              Colar
-              <MenubarShortcut>Ctrl+V</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.find")}>
-              Localizar no arquivo
-              <MenubarShortcut>Ctrl+F</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.replace")}>
-              Substituir no arquivo
-              <MenubarShortcut>Ctrl+H</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={onFindInFiles}>
-              Localizar nos arquivos
-              <MenubarShortcut>Ctrl+Shift+F</MenubarShortcut>
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-
-        {/* ── Exibir ── */}
-        <MenubarMenu>
-          <MenubarTrigger className="text-xs font-light">Exibir</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem className="text-xs" onSelect={onOpenPalette}>
-              Paleta de comandos
-              <MenubarShortcut>Ctrl+Shift+P</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarCheckboxItem
-              className="text-xs"
-              checked={sidebarVisible}
-              onCheckedChange={() => onToggleSidebar()}
-            >
-              Explorador de arquivos
-              <MenubarShortcut>Ctrl+B</MenubarShortcut>
-            </MenubarCheckboxItem>
-            <MenubarCheckboxItem
-              className="text-xs"
-              checked={terminalOpen}
-              onCheckedChange={() => onToggleTerminal()}
-            >
-              Terminal
-              <MenubarShortcut>Ctrl+J</MenubarShortcut>
-            </MenubarCheckboxItem>
-            <MenubarCheckboxItem
-              className="text-xs"
-              checked={problemsOpen}
-              onCheckedChange={() => onToggleProblems()}
-            >
-              Problemas
-              <MenubarShortcut>Ctrl+Shift+M</MenubarShortcut>
-            </MenubarCheckboxItem>
-            <MenubarItem className="text-xs" onSelect={() => onSetView("git")}>
-              Controle de versão
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarSub>
-              <MenubarSubTrigger className="text-xs">Dividir editor</MenubarSubTrigger>
-              <MenubarSubContent>
-                <MenubarItem className="text-xs" onSelect={onSplitRight}>
-                  Dividir à direita
-                  <MenubarShortcut>Ctrl+\</MenubarShortcut>
+            {/* ── Arquivo ── */}
+            <MenubarMenu>
+              <MenubarTrigger className="text-xs font-light">Arquivo</MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem className="text-xs" onSelect={onOpenFolder}>
+                  Abrir pasta…
+                  <MenubarShortcut>Ctrl+K O</MenubarShortcut>
                 </MenubarItem>
-                <MenubarItem className="text-xs" onSelect={onSplitDown}>
-                  Dividir abaixo
-                  <MenubarShortcut>Ctrl+K \</MenubarShortcut>
+                <MenubarItem className="text-xs" onSelect={onOpenQuickFile}>
+                  Abrir arquivo…
+                  <MenubarShortcut>Ctrl+P</MenubarShortcut>
                 </MenubarItem>
-              </MenubarSubContent>
-            </MenubarSub>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => onSetView("settings")}>
-              Configurações
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => onSetView("keybindings")}>
-              Atalhos de teclado
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => onSetView("bench")}>
-              Benchmark de runtime
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
+                <MenubarItem className="text-xs" onSelect={onOpenUrl}>
+                  Abrir URL como aba…
+                  <MenubarShortcut>Ctrl+Shift+U</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={onSave}>
+                  Salvar
+                  <MenubarShortcut>Ctrl+S</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={onCloseTab}>
+                  Fechar aba
+                  <MenubarShortcut>Ctrl+W</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" variant="destructive" onSelect={() => Quit()}>
+                  Sair
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
 
-        {/* ── Ir para ── */}
-        <MenubarMenu>
-          <MenubarTrigger className="text-xs font-light">Ir para</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem className="text-xs" onSelect={onOpenQuickFile}>
-              Arquivo…
-              <MenubarShortcut>Ctrl+P</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={onGotoSymbol}>
-              Símbolo…
-              <MenubarShortcut>Ctrl+Shift+O</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.gotoLine")}>
-              Linha…
-              <MenubarShortcut>Ctrl+G</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={onOpenUrl}>
-              URL como aba…
-              <MenubarShortcut>Ctrl+Shift+U</MenubarShortcut>
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
+            {/* ── Editar ── */}
+            <MenubarMenu>
+              <MenubarTrigger className="text-xs font-light">Editar</MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.undo")}>
+                  Desfazer
+                  <MenubarShortcut>Ctrl+Z</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.redo")}>
+                  Refazer
+                  <MenubarShortcut>Ctrl+Y</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => document.execCommand("cut")}>
+                  Recortar
+                  <MenubarShortcut>Ctrl+X</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => document.execCommand("copy")}>
+                  Copiar
+                  <MenubarShortcut>Ctrl+C</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => document.execCommand("paste")}>
+                  Colar
+                  <MenubarShortcut>Ctrl+V</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.find")}>
+                  Localizar no arquivo
+                  <MenubarShortcut>Ctrl+F</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.replace")}>
+                  Substituir no arquivo
+                  <MenubarShortcut>Ctrl+H</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={onFindInFiles}>
+                  Localizar nos arquivos
+                  <MenubarShortcut>Ctrl+Shift+F</MenubarShortcut>
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
 
-        {/* ── Extensões ──
+            {/* ── Exibir ── */}
+            <MenubarMenu>
+              <MenubarTrigger className="text-xs font-light">Exibir</MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem className="text-xs" onSelect={onOpenPalette}>
+                  Paleta de comandos
+                  <MenubarShortcut>Ctrl+Shift+P</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarCheckboxItem
+                  className="text-xs"
+                  checked={sidebarVisible}
+                  onCheckedChange={() => onToggleSidebar()}
+                >
+                  Explorador de arquivos
+                  <MenubarShortcut>Ctrl+B</MenubarShortcut>
+                </MenubarCheckboxItem>
+                <MenubarCheckboxItem
+                  className="text-xs"
+                  checked={terminalOpen}
+                  onCheckedChange={() => onToggleTerminal()}
+                >
+                  Terminal
+                  <MenubarShortcut>Ctrl+J</MenubarShortcut>
+                </MenubarCheckboxItem>
+                <MenubarCheckboxItem
+                  className="text-xs"
+                  checked={problemsOpen}
+                  onCheckedChange={() => onToggleProblems()}
+                >
+                  Problemas
+                  <MenubarShortcut>Ctrl+Shift+M</MenubarShortcut>
+                </MenubarCheckboxItem>
+                <MenubarItem className="text-xs" onSelect={() => onSetView("git")}>
+                  Controle de versão
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarSub>
+                  <MenubarSubTrigger className="text-xs">Dividir editor</MenubarSubTrigger>
+                  <MenubarSubContent>
+                    <MenubarItem className="text-xs" onSelect={onSplitRight}>
+                      Dividir à direita
+                      <MenubarShortcut>Ctrl+\</MenubarShortcut>
+                    </MenubarItem>
+                    <MenubarItem className="text-xs" onSelect={onSplitDown}>
+                      Dividir abaixo
+                      <MenubarShortcut>Ctrl+K \</MenubarShortcut>
+                    </MenubarItem>
+                  </MenubarSubContent>
+                </MenubarSub>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => onSetView("settings")}>
+                  Configurações
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => onSetView("keybindings")}>
+                  Atalhos de teclado
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => onSetView("bench")}>
+                  Benchmark de runtime
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
+
+            {/* ── Ir para ── */}
+            <MenubarMenu>
+              <MenubarTrigger className="text-xs font-light">Ir para</MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem className="text-xs" onSelect={onOpenQuickFile}>
+                  Arquivo…
+                  <MenubarShortcut>Ctrl+P</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={onGotoSymbol}>
+                  Símbolo…
+                  <MenubarShortcut>Ctrl+Shift+O</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => EventsEmit("editor.gotoLine")}>
+                  Linha…
+                  <MenubarShortcut>Ctrl+G</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={onOpenUrl}>
+                  URL como aba…
+                  <MenubarShortcut>Ctrl+Shift+U</MenubarShortcut>
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
+
+            {/* ── Extensões ──
             Centraliza viewers e modos ativáveis. Toggles usam MenubarItem
             regular pra alinhar com "Editor de tema" (sem o pl-8 reservado
             do MenubarCheckboxItem). preventDefault no onSelect mantém o
             menu aberto após o click, útil pra ligar/desligar em sequência. */}
-        <MenubarMenu>
-          <MenubarTrigger className="text-xs font-light">Extensões</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem
-              className="text-xs"
-              onSelect={(e) => {
-                e.preventDefault();
-                setLivePreviewOpen(!livePreviewOpen);
-              }}
-            >
-              Live Preview
-              <MenubarShortcut>localhost</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem
-              className="text-xs"
-              disabled={!isMarkdownActive}
-              onSelect={(e) => {
-                e.preventDefault();
-                setMarkdownPreviewOpen(!markdownPreviewOpen);
-              }}
-            >
-              Preview Markdown
-              <MenubarShortcut>{isMarkdownActive ? ".md/.mdx" : "abra um .md"}</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem
-              className="text-xs"
-              onSelect={(e) => {
-                e.preventDefault();
-                onToggleSpotify();
-              }}
-            >
-              Mini-player Spotify
-              <MenubarShortcut>Ctrl+Alt+M</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem
-              className="text-xs"
-              onSelect={(e) => {
-                e.preventDefault();
-                onToggleZen();
-              }}
-            >
-              Modo zen
-              <MenubarShortcut>Ctrl+K Z</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => onSetView("themeEditor")}>
-              Editor de tema
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
+            <MenubarMenu>
+              <MenubarTrigger className="text-xs font-light">Extensões</MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem
+                  className="text-xs"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setLivePreviewOpen(!livePreviewOpen);
+                  }}
+                >
+                  Live Preview
+                  <MenubarShortcut>localhost</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem
+                  className="text-xs"
+                  disabled={!isMarkdownActive}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setMarkdownPreviewOpen(!markdownPreviewOpen);
+                  }}
+                >
+                  Preview Markdown
+                  <MenubarShortcut>{isMarkdownActive ? ".md/.mdx" : "abra um .md"}</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem
+                  className="text-xs"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    onToggleSpotify();
+                  }}
+                >
+                  Mini-player Spotify
+                  <MenubarShortcut>Ctrl+Alt+M</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem
+                  className="text-xs"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    onToggleZen();
+                  }}
+                >
+                  Modo zen
+                  <MenubarShortcut>Ctrl+K Z</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => onSetView("themeEditor")}>
+                  Editor de tema
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
 
-        {/* ── Ajuda ── */}
-        <MenubarMenu>
-          <MenubarTrigger className="text-xs font-light">Ajuda</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem className="text-xs" onSelect={onOpenPalette}>
-              Paleta de comandos
-              <MenubarShortcut>Ctrl+Shift+P</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => onSetView("onboarding")}>
-              Tour de boas-vindas
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => onSetView("keybindings")}>
-              Atalhos de teclado
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => onSetView("githubProfile")}>
-              Perfil do GitHub
-            </MenubarItem>
-            <MenubarItem className="text-xs" onSelect={() => onSetView("notifications")}>
-              Notificações
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem
-              className="text-xs"
-              onSelect={() => BrowserOpenURL("https://github.com/JohnnyBoySou/adila-ide/issues")}
-            >
-              Reportar problema
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem className="text-xs" onSelect={() => onSetView("about")}>
-              Sobre o Adila IDE
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-      </Menubar>
-    )}
+            {/* ── Ajuda ── */}
+            <MenubarMenu>
+              <MenubarTrigger className="text-xs font-light">Ajuda</MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem className="text-xs" onSelect={onOpenPalette}>
+                  Paleta de comandos
+                  <MenubarShortcut>Ctrl+Shift+P</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => onSetView("onboarding")}>
+                  Tour de boas-vindas
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => onSetView("keybindings")}>
+                  Atalhos de teclado
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => onSetView("githubProfile")}>
+                  Perfil do GitHub
+                </MenubarItem>
+                <MenubarItem className="text-xs" onSelect={() => onSetView("notifications")}>
+                  Notificações
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem
+                  className="text-xs"
+                  onSelect={() =>
+                    BrowserOpenURL("https://github.com/JohnnyBoySou/adila-ide/issues")
+                  }
+                >
+                  Reportar problema
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem className="text-xs" onSelect={() => onSetView("about")}>
+                  Sobre o Adila IDE
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
+          </Menubar>
+        )}
       </div>
 
       {/* Área de arrasto da janela (Wails) — preenche o espaço entre menu e controles */}
@@ -417,7 +417,6 @@ export function TopBar({
 
       {/* Controles de janela */}
       <div className="flex items-center gap-0.5" style={noDragStyle}>
-
         <button
           type="button"
           onClick={() => WindowMinimise()}

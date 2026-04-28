@@ -172,8 +172,7 @@ export async function dropIntoDir(
   }
 
   // 2) URLs (imagens arrastadas de páginas web, link da barra de endereço).
-  const uriRaw =
-    dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain") || "";
+  const uriRaw = dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain") || "";
   const urls = uriRaw
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -188,8 +187,7 @@ export async function dropIntoDir(
         const blob = await resp.blob();
         const ext = extFor(blob.type || "application/octet-stream");
         const fromUrl = filenameFromUrl(url);
-        const base =
-          fromUrl ?? `colado-${stamp}${urls.length > 1 ? `-${i + 1}` : ""}.${ext}`;
+        const base = fromUrl ?? `colado-${stamp}${urls.length > 1 ? `-${i + 1}` : ""}.${ext}`;
         const name = HAS_EXT_RE.test(base) ? base : `${base}.${ext}`;
         const path = `${dir}/${name}`;
         const b64 = await blobToBase64(blob);

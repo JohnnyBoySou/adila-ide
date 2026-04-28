@@ -707,11 +707,14 @@ export function FileExplorer({
     [onRefresh, confirmDelete],
   );
 
-  const targetDirFor = useCallback((entry: FileEntry): string => {
-    if (entry.isDir) return entry.path;
-    const sep = Math.max(entry.path.lastIndexOf("/"), entry.path.lastIndexOf("\\"));
-    return sep > 0 ? entry.path.slice(0, sep) : rootPath;
-  }, [rootPath]);
+  const targetDirFor = useCallback(
+    (entry: FileEntry): string => {
+      if (entry.isDir) return entry.path;
+      const sep = Math.max(entry.path.lastIndexOf("/"), entry.path.lastIndexOf("\\"));
+      return sep > 0 ? entry.path.slice(0, sep) : rootPath;
+    },
+    [rootPath],
+  );
 
   const onPaste = useCallback(
     async (entry: FileEntry) => {
@@ -743,9 +746,7 @@ export function FileExplorer({
     const types = Array.from(e.dataTransfer.types ?? []);
     if (types.includes("application/x-adila-file")) return false;
     return (
-      types.includes("Files") ||
-      types.includes("text/uri-list") ||
-      types.includes("text/plain")
+      types.includes("Files") || types.includes("text/uri-list") || types.includes("text/plain")
     );
   }, []);
 

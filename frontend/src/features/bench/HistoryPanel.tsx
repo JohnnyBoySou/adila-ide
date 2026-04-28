@@ -117,7 +117,8 @@ export const HistoryPanel = memo(function HistoryPanel() {
         if (!cancelled) setContent(c);
       })
       .catch((e: unknown) => {
-        if (!cancelled) setContent(`Erro ao ler ${selected}: ${e instanceof Error ? e.message : e}`);
+        if (!cancelled)
+          setContent(`Erro ao ler ${selected}: ${e instanceof Error ? e.message : e}`);
       })
       .finally(() => {
         if (!cancelled) setContentLoading(false);
@@ -142,9 +143,7 @@ export const HistoryPanel = memo(function HistoryPanel() {
   }, [files]);
 
   const openFolder = useCallback(() => {
-    rpc.bench
-      .openFolder()
-      .catch((e: unknown) => toast.error("Não foi possível abrir a pasta", e));
+    rpc.bench.openFolder().catch((e: unknown) => toast.error("Não foi possível abrir a pasta", e));
   }, []);
 
   return (
@@ -252,9 +251,7 @@ export const HistoryPanel = memo(function HistoryPanel() {
         {selected ? (
           <>
             <header className="flex items-center gap-3 border-b border-border/60 px-6 py-3">
-              <FormatIcon
-                format={files.find((f) => f.name === selected)?.format ?? "txt"}
-              />
+              <FormatIcon format={files.find((f) => f.name === selected)?.format ?? "txt"} />
               <div className="flex-1 min-w-0">
                 <p className="font-mono text-xs truncate">{selected}</p>
                 <p className="text-[10px] text-muted-foreground">
@@ -301,9 +298,7 @@ function FilterTab({
       onClick={onClick}
       className={cn(
         "flex-1 inline-flex items-center justify-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors cursor-pointer",
-        active
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:text-foreground",
+        active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}

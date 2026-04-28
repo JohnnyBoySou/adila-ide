@@ -195,7 +195,6 @@ func (w *WorkspaceConfig) fillMany(queries []ConfigQuery, out []any, resolved []
 	}
 }
 
-
 func (w *WorkspaceConfig) GetMany(queries []ConfigQuery) []any {
 	defer bench.Time("WorkspaceConfig.GetMany")()
 	out := make([]any, len(queries))

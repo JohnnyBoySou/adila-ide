@@ -67,7 +67,9 @@ export function CloneRepoDialog({ repo, open, onOpenChange, onCloned }: Props) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <h2 className="truncate text-sm font-medium">{repo.fullName}</h2>
-                {repo.private && <Lock className="size-3.5 text-muted-foreground" aria-label="privado" />}
+                {repo.private && (
+                  <Lock className="size-3.5 text-muted-foreground" aria-label="privado" />
+                )}
               </div>
               {repo.description && (
                 <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
@@ -90,9 +92,7 @@ export function CloneRepoDialog({ repo, open, onOpenChange, onCloned }: Props) {
             className="justify-start gap-2 font-normal"
           >
             <FolderOpen className="size-4 shrink-0" />
-            <span className="truncate text-left">
-              {parent || "Escolher pasta…"}
-            </span>
+            <span className="truncate text-left">{parent || "Escolher pasta…"}</span>
           </Button>
           {dest && (
             <p className="text-xs text-muted-foreground">

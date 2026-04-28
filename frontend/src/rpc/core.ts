@@ -36,8 +36,7 @@ const routes: Record<string, (p: P) => Promise<unknown>> = {
     WorkspaceConfig.Get((p?.key as string) ?? "", p?.defaultValue ?? ""),
   "workspaceConfig.getMany": (p) =>
     WorkspaceConfig.GetMany((p?.queries as { key: string; defaultValue: unknown }[]) ?? []),
-  "workspaceConfig.set": (p) =>
-    WorkspaceConfig.Set((p?.key as string) ?? "", p?.value ?? ""),
+  "workspaceConfig.set": (p) => WorkspaceConfig.Set((p?.key as string) ?? "", p?.value ?? ""),
   "workspaceConfig.reset": (p) => WorkspaceConfig.Reset((p?.key as string) ?? ""),
   "workspaceConfig.openJson": () => WorkspaceConfig.OpenSettingsJson(),
 

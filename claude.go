@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	claudeAPIKeyKey  = "claude.apiKey"
-	claudeModelKey   = "claude.model"
+	claudeAPIKeyKey    = "claude.apiKey"
+	claudeModelKey     = "claude.model"
 	claudeDefaultModel = "claude-opus-4-7"
-	claudeAPIBase    = "https://api.anthropic.com"
-	claudeAPIVersion = "2023-06-01"
+	claudeAPIBase      = "https://api.anthropic.com"
+	claudeAPIVersion   = "2023-06-01"
 )
 
 // Claude expõe configuração e validação da API key da Anthropic. A key é

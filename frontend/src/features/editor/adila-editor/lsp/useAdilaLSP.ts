@@ -1,0 +1,202 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type * as proto from "vscode-languageserver-protocol";
+import { GetLSPPort, ListAvailableLSP } from "../../../../../wailsjs/go/main/LSP";
+import { toast } from "@/hooks/useToast";
+import type { EditorMarker } from "../../ProblemsPanel";
+import type { EditorStore } from "../state/editorStore";
+import { AdilaLSPClient, getOrCreateAdilaClient } from "./lspClient";
+
+export type LspApi = {
+  hover: (line: number, character: number) => Promise<proto.Hover | null>;
+  completion: (line: number, character: number) => Promise<proto.CompletionItem[]>;
+  definition: (
+    line: number,
+    character: number,
+  ) => Promise<proto.Location[] | proto.LocationLink[] | null>;
+  uri: string | null;
+  available: boolean;
+};
+
+let portCache: number | null = null;
+async function getLSPPort(): Promise<number> {
+  if (portCache !== null) return portCache;
+  portCache = await GetLSPPort();
+  return portCache;
+}
+
+let availableCache: Promise<Record<string, string | undefined>> | null = null;
+function getAvailableLSP(): Promise<Record<string, string | undefined>> {
+  if (!availableCache) {
+    availableCache = ListAvailableLSP()
+      .then((r) => r as Record<string, string | undefined>)
+      .catch(() => ({}) as Record<string, string | undefined>);
+  }
+  return availableCache;
+}
+
+const MONACO_BUILTIN = new Set(["json", "css", "html"]);
+function isLSPRelevant(lang: string) {
+  return !!lang && lang !== "plaintext" && !MONACO_BUILTIN.has(lang);
+}
+
+const recentErrors = new Set<string>();
+function reportError(msg: string, err?: unknown) {
+  console.warn(`[LSP] ${msg}`, err);
+  if (recentErrors.has(msg)) return;
+  recentErrors.add(msg);
+  setTimeout(() => recentErrors.delete(msg), 30_000);
+  toast.error(msg, err instanceof Error ? err.message : undefined);
+}
+
+function pathToUri(path: string): string {
+  if (path.startsWith("file://")) return path;
+  if (path.startsWith("/")) return `file://${path}`;
+  // Windows path
+  return `file:///${path.replace(/\\/g, "/")}`;
+}
+
+function diagnosticToMarker(d: proto.Diagnostic): EditorMarker {
+  // EditorMarker.severity: 8=Error 4=Warning 2=Info 1=Hint (Monaco convention)
+  const sev = d.severity === 1 ? 8 : d.severity === 2 ? 4 : d.severity === 3 ? 2 : 1;
+  return {
+    severity: sev,
+    message: d.message,
+    startLineNumber: d.range.start.line + 1,
+    startColumn: d.range.start.character + 1,
+    source: d.source,
+  };
+}
+
+type Options = {
+  store: EditorStore;
+  path: string;
+  lang: string;
+  rootUri?: string;
+  onMarkersChange?: (path: string, markers: EditorMarker[]) => void;
+  /** Recebe diagnostics raw pra renderizar squiggle no editor. */
+  onDiagnostics?: (diagnostics: proto.Diagnostic[]) => void;
+};
+
+const CHANGE_DEBOUNCE_MS = 150;
+
+export function useAdilaLSP({
+  store,
+  path,
+  lang,
+  rootUri,
+  onMarkersChange,
+  onDiagnostics,
+}: Options): LspApi {
+  const onMarkersRef = useRef(onMarkersChange);
+  const onDiagnosticsRef = useRef(onDiagnostics);
+  onMarkersRef.current = onMarkersChange;
+  onDiagnosticsRef.current = onDiagnostics;
+
+  const clientRef = useRef<AdilaLSPClient | null>(null);
+  const [uri, setUri] = useState<string | null>(null);
+  const [available, setAvailable] = useState(false);
+
+  useEffect(() => {
+    if (!rootUri || !isLSPRelevant(lang) || !path) {
+      setAvailable(false);
+      setUri(null);
+      clientRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    let detach: (() => void) | undefined;
+    let storeUnsub: (() => void) | undefined;
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const docUri = pathToUri(path);
+
+    void (async () => {
+      const availMap = await getAvailableLSP();
+      if (cancelled) return;
+      if (!availMap[lang]) {
+        return;
+      }
+
+      let port: number;
+      try {
+        port = await getLSPPort();
+      } catch (err) {
+        reportError("Não foi possível obter a porta do servidor LSP", err);
+        return;
+      }
+      if (cancelled) return;
+
+      const client = await getOrCreateAdilaClient({
+        lang,
+        rootUri,
+        port,
+        onError: reportError,
+      });
+      if (cancelled || !client) return;
+
+      const initialText = store.getState().getValue();
+      detach = client.openDocument(docUri, initialText, (diagnostics) => {
+        const markers = diagnostics.map(diagnosticToMarker);
+        onMarkersRef.current?.(path, markers);
+        onDiagnosticsRef.current?.(diagnostics);
+      });
+
+      clientRef.current = client;
+      setUri(docUri);
+      setAvailable(true);
+
+      let lastVersion = store.getState().version;
+      storeUnsub = store.subscribe((s) => {
+        if (s.version === lastVersion) return;
+        lastVersion = s.version;
+        if (pendingTimer) clearTimeout(pendingTimer);
+        pendingTimer = setTimeout(() => {
+          pendingTimer = null;
+          if (cancelled) return;
+          client.changeDocument(docUri, store.getState().getValue());
+        }, CHANGE_DEBOUNCE_MS);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      if (pendingTimer) clearTimeout(pendingTimer);
+      storeUnsub?.();
+      detach?.();
+      onMarkersRef.current?.(path, []);
+      clientRef.current = null;
+      setAvailable(false);
+      setUri(null);
+    };
+  }, [store, path, lang, rootUri]);
+
+  const api = useMemo<LspApi>(
+    () => ({
+      uri,
+      available,
+      hover: async (line, character) => {
+        const c = clientRef.current;
+        if (!c || !uri) return null;
+        return c.requestHover(uri, line, character);
+      },
+      completion: async (line, character) => {
+        const c = clientRef.current;
+        if (!c || !uri) return [];
+        return c.requestCompletion(uri, line, character);
+      },
+      definition: async (line, character) => {
+        const c = clientRef.current;
+        if (!c || !uri) return null;
+        return c.requestDefinition(uri, line, character);
+      },
+    }),
+    [uri, available],
+  );
+
+  return api;
+}
+
+export function invalidateAdilaLSPAvailabilityCache() {
+  availableCache = null;
+}

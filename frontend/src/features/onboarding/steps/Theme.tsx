@@ -39,10 +39,7 @@ const quickThemes: Array<{
 const allThemes = THEMES.filter((t) => t.id !== "Custom");
 
 export function Theme() {
-  const { value: current, set } = useConfig<string>(
-    "workbench.colorTheme",
-    "Default Dark Modern",
-  );
+  const { value: current, set } = useConfig<string>("workbench.colorTheme", "Default Dark Modern");
 
   const isQuick = quickThemes.some((q) => q.vscodeTheme === current);
 

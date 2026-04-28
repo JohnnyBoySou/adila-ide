@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ClearApiKey,
-  GetStatus,
-  SaveApiKey,
-} from "../../../wailsjs/go/main/Claude";
+import { ClearApiKey, GetStatus, SaveApiKey } from "../../../wailsjs/go/main/Claude";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 
 export type ClaudeStatus = {

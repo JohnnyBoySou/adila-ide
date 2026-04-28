@@ -72,7 +72,10 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
   const results: { kind: "file" | "symbol"; key: string }[] =
     mode === "files"
       ? fileResults.map((r) => ({ kind: "file", key: r.path }))
-      : symbolResults.map((s) => ({ kind: "symbol", key: `${s.path}:${s.line}:${s.col}:${s.name}` }));
+      : symbolResults.map((s) => ({
+          kind: "symbol",
+          key: `${s.path}:${s.line}:${s.col}:${s.name}`,
+        }));
   const total = results.length;
 
   // Reset ao abrir. Mantemos o último mode escolhido entre aberturas — quem
@@ -185,8 +188,20 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
     >
       {/* Tabs — Tab alterna; clique também alterna pra mouse-only. */}
       <div className="flex items-center gap-1 px-2 pt-2 border-b">
-        <TabButton active={mode === "files"} onClick={() => setMode("files")} icon={<Search className="size-3.5" />} label="Arquivos" hint="Ctrl+P" />
-        <TabButton active={mode === "symbols"} onClick={() => setMode("symbols")} icon={<Hash className="size-3.5" />} label="Símbolos" hint="@ ou Tab" />
+        <TabButton
+          active={mode === "files"}
+          onClick={() => setMode("files")}
+          icon={<Search className="size-3.5" />}
+          label="Arquivos"
+          hint="Ctrl+P"
+        />
+        <TabButton
+          active={mode === "symbols"}
+          onClick={() => setMode("symbols")}
+          icon={<Hash className="size-3.5" />}
+          label="Símbolos"
+          hint="@ ou Tab"
+        />
       </div>
 
       <div className="flex items-center gap-2 px-3 py-2 border-b">
@@ -209,7 +224,9 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
         {total === 0 && query.trim() && (
           <EmptyState
             title={mode === "files" ? "Nenhum arquivo encontrado" : "Nenhum símbolo encontrado"}
-            description={mode === "symbols" ? "O índice pode ainda estar sendo construído." : undefined}
+            description={
+              mode === "symbols" ? "O índice pode ainda estar sendo construído." : undefined
+            }
           />
         )}
         {total === 0 && !query.trim() && (
@@ -236,7 +253,9 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
                 <SymbolIcon name={name} isDir={false} className="size-4 shrink-0" />
                 <span className="flex-1 min-w-0">
                   <span className="text-sm block truncate">{name}</span>
-                  {dir && <span className="text-xs text-muted-foreground truncate block">{dir}</span>}
+                  {dir && (
+                    <span className="text-xs text-muted-foreground truncate block">{dir}</span>
+                  )}
                 </span>
               </button>
             );
@@ -244,7 +263,8 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
         {mode === "symbols" &&
           symbolResults.map((s, i) => {
             const fileName = s.path.split("/").pop() || s.path;
-            const relDir = rootPath && s.path.startsWith(rootPath) ? s.path.slice(rootPath.length + 1) : s.path;
+            const relDir =
+              rootPath && s.path.startsWith(rootPath) ? s.path.slice(rootPath.length + 1) : s.path;
             const where = `${relDir}:${s.line + 1}`;
             return (
               <button
@@ -267,7 +287,9 @@ export function QuickOpen({ open, rootPath, onClose, onOpenFile }: Props) {
                   <span className="text-sm flex items-baseline gap-1.5">
                     <span className="truncate font-medium">{s.name}</span>
                     {s.scope && (
-                      <span className="text-[11px] text-muted-foreground truncate">on {s.scope}</span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        on {s.scope}
+                      </span>
                     )}
                   </span>
                   <span className="text-[11px] text-muted-foreground truncate block">{where}</span>

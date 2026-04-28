@@ -167,50 +167,52 @@ export function BenchView({ onClose }: Props = {}) {
         <HistoryPanel />
       ) : (
         <div className="flex-1 overflow-auto scrollbar">
-        {ops.length === 0 ? (
-          <EmptyState
-            title="Nenhuma operação registrada ainda"
-            description="Use o IDE — abrir pastas, buscar, editar — e os tempos aparecerão aqui."
-          />
-        ) : (
-          <table className="w-full text-xs tabular-nums">
-            <thead className="sticky top-0 bg-card/95 backdrop-blur border-b border-border/60">
-              <tr className="text-left text-muted-foreground">
-                <th className="px-6 py-2 font-medium">Operação</th>
-                <th className="px-3 py-2 font-medium text-right">Chamadas</th>
-                <th className="px-3 py-2 font-medium text-right">Total</th>
-                <th className="px-3 py-2 font-medium text-right">Média</th>
-                <th className="px-3 py-2 font-medium text-right">p50</th>
-                <th className="px-3 py-2 font-medium text-right">p95</th>
-                <th className="px-3 py-2 font-medium text-right">p99</th>
-                <th className="px-3 py-2 font-medium text-right">Máx</th>
-                <th className="px-6 py-2 font-medium text-right">Última</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ops.map((o) => (
-                <tr
-                  key={o.name}
-                  className="border-b border-border/30 hover:bg-accent/30 transition-colors"
-                >
-                  <td className="px-6 py-2 font-mono">{o.name}</td>
-                  <td className="px-3 py-2 text-right">{fmtCount(o.count)}</td>
-                  <td className="px-3 py-2 text-right text-muted-foreground">
-                    {fmtTotal(o.totalNs)}
-                  </td>
-                  <td className="px-3 py-2 text-right">{fmtNs(o.meanNs)}</td>
-                  <td className="px-3 py-2 text-right">{fmtNs(o.p50Ns)}</td>
-                  <td className={cn("px-3 py-2 text-right", p95Class(o.p95Ns))}>
-                    {fmtNs(o.p95Ns)}
-                  </td>
-                  <td className="px-3 py-2 text-right">{fmtNs(o.p99Ns)}</td>
-                  <td className="px-3 py-2 text-right text-muted-foreground">{fmtNs(o.maxNs)}</td>
-                  <td className="px-6 py-2 text-right text-muted-foreground">{fmtNs(o.lastNs)}</td>
+          {ops.length === 0 ? (
+            <EmptyState
+              title="Nenhuma operação registrada ainda"
+              description="Use o IDE — abrir pastas, buscar, editar — e os tempos aparecerão aqui."
+            />
+          ) : (
+            <table className="w-full text-xs tabular-nums">
+              <thead className="sticky top-0 bg-card/95 backdrop-blur border-b border-border/60">
+                <tr className="text-left text-muted-foreground">
+                  <th className="px-6 py-2 font-medium">Operação</th>
+                  <th className="px-3 py-2 font-medium text-right">Chamadas</th>
+                  <th className="px-3 py-2 font-medium text-right">Total</th>
+                  <th className="px-3 py-2 font-medium text-right">Média</th>
+                  <th className="px-3 py-2 font-medium text-right">p50</th>
+                  <th className="px-3 py-2 font-medium text-right">p95</th>
+                  <th className="px-3 py-2 font-medium text-right">p99</th>
+                  <th className="px-3 py-2 font-medium text-right">Máx</th>
+                  <th className="px-6 py-2 font-medium text-right">Última</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {ops.map((o) => (
+                  <tr
+                    key={o.name}
+                    className="border-b border-border/30 hover:bg-accent/30 transition-colors"
+                  >
+                    <td className="px-6 py-2 font-mono">{o.name}</td>
+                    <td className="px-3 py-2 text-right">{fmtCount(o.count)}</td>
+                    <td className="px-3 py-2 text-right text-muted-foreground">
+                      {fmtTotal(o.totalNs)}
+                    </td>
+                    <td className="px-3 py-2 text-right">{fmtNs(o.meanNs)}</td>
+                    <td className="px-3 py-2 text-right">{fmtNs(o.p50Ns)}</td>
+                    <td className={cn("px-3 py-2 text-right", p95Class(o.p95Ns))}>
+                      {fmtNs(o.p95Ns)}
+                    </td>
+                    <td className="px-3 py-2 text-right">{fmtNs(o.p99Ns)}</td>
+                    <td className="px-3 py-2 text-right text-muted-foreground">{fmtNs(o.maxNs)}</td>
+                    <td className="px-6 py-2 text-right text-muted-foreground">
+                      {fmtNs(o.lastNs)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

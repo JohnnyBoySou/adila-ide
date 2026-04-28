@@ -146,40 +146,43 @@ export function GitHubProfileView({ onOpenFolder, overlayOpen, onClose }: Props 
   const [tab, setTab] = useState<"repos" | "activity">("repos");
   const [cloneRepo, setCloneRepo] = useState<Repo | null>(null);
 
-  const refresh = useCallback(async (showSpinner = false) => {
-    if (showSpinner) setLoading(true);
-    setError(null);
-    try {
-      const auth = await rpc.github.isAuthenticated();
-      if (!auth) {
-        setUser(null);
-        setRepos([]);
-        setEvents([]);
-        clearCache();
-        return;
+  const refresh = useCallback(
+    async (showSpinner = false) => {
+      if (showSpinner) setLoading(true);
+      setError(null);
+      try {
+        const auth = await rpc.github.isAuthenticated();
+        if (!auth) {
+          setUser(null);
+          setRepos([]);
+          setEvents([]);
+          clearCache();
+          return;
+        }
+        const u = await rpc.github.getUser();
+        setUser(u);
+        const [rs, evs] = await Promise.all([
+          ListMyRepos(30).catch(() => [] as Repo[]),
+          ListMyEvents(u.login, 30).catch(() => [] as Event[]),
+        ]);
+        const repoList = rs ?? [];
+        const evList = evs ?? [];
+        setRepos(repoList);
+        setEvents(evList);
+        writeCache({ user: u, repos: repoList, events: evList, ts: Date.now() });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Só mostra erro pra UI se não temos nada em cache
+        if (!cached) {
+          setError(msg);
+          setUser(null);
+        }
+      } finally {
+        setLoading(false);
       }
-      const u = await rpc.github.getUser();
-      setUser(u);
-      const [rs, evs] = await Promise.all([
-        ListMyRepos(30).catch(() => [] as Repo[]),
-        ListMyEvents(u.login, 30).catch(() => [] as Event[]),
-      ]);
-      const repoList = rs ?? [];
-      const evList = evs ?? [];
-      setRepos(repoList);
-      setEvents(evList);
-      writeCache({ user: u, repos: repoList, events: evList, ts: Date.now() });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // Só mostra erro pra UI se não temos nada em cache
-      if (!cached) {
-        setError(msg);
-        setUser(null);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [cached]);
+    },
+    [cached],
+  );
 
   useEffect(() => {
     // Se temos cache, revalida em background sem spinner; senão mostra loading
@@ -245,7 +248,12 @@ export function GitHubProfileView({ onOpenFolder, overlayOpen, onClose }: Props 
             title="Não foi possível carregar o perfil"
             description={error}
             action={
-              <Button variant="outline" size="sm" onClick={() => void refresh(true)} className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refresh(true)}
+                className="gap-2"
+              >
                 <RefreshCw className="size-3.5" />
                 Tentar novamente
               </Button>
@@ -288,209 +296,203 @@ export function GitHubProfileView({ onOpenFolder, overlayOpen, onClose }: Props 
 
   return (
     <OverlayShell onClose={onClose}>
-    <div className="flex-1 overflow-y-auto scrollbar">
-      {/* Banner gradiente */}
-      <div className="relative h-32 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 border-b border-border/40">
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: `radial-gradient(circle at 20% 80%, ${langColor(stats.langs[0]?.name ?? "")}55 0%, transparent 50%), radial-gradient(circle at 80% 20%, ${langColor(stats.langs[1]?.name ?? "")}55 0%, transparent 50%)`,
-          }}
-        />
-      </div>
-
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 pb-12">
-        {/* Cabeçalho com avatar sobreposto */}
-        <header className="flex flex-col gap-4 -mt-12 sm:flex-row sm:items-end">
-          <div className="shrink-0">
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.login}
-                className="size-28 rounded-full border-4 border-background bg-background shadow-lg"
-              />
-            ) : (
-              <div className="flex size-28 items-center justify-center rounded-full border-4 border-background bg-muted shadow-lg">
-                <GithubIcon className="size-12 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-1 flex-col gap-1.5 sm:pb-2">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              {user.name && <h2 className="text-2xl font-bold">{user.name}</h2>}
-              <span className="text-base text-muted-foreground">@{user.login}</span>
-            </div>
-            {user.bio && <p className="text-sm text-foreground/90 max-w-prose">{user.bio}</p>}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 sm:pb-2">
-            <Button variant="default" size="sm" onClick={openProfile} className="gap-2">
-              <ExternalLink className="size-3.5" />
-              Ver no GitHub
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => void refresh(true)}
-              title="Atualizar"
-              aria-label="Atualizar"
-            >
-              <RefreshCw className={cn("size-4", loading && "animate-spin")} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={logout}
-              title="Desconectar"
-              aria-label="Desconectar"
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <LogOut className="size-4" />
-            </Button>
-          </div>
-        </header>
-
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Repositórios" value={user.publicRepos ?? 0} icon={GithubIcon} />
-          <StatCard label="Estrelas ganhas" value={stats.stars} icon={Star} accent="amber" />
-          <StatCard label="Seguidores" value={user.followers ?? 0} icon={Users} accent="blue" />
-          <StatCard label="Seguindo" value={user.following ?? 0} icon={Users} />
+      <div className="flex-1 overflow-y-auto scrollbar">
+        {/* Banner gradiente */}
+        <div className="relative h-32 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 border-b border-border/40">
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `radial-gradient(circle at 20% 80%, ${langColor(stats.langs[0]?.name ?? "")}55 0%, transparent 50%), radial-gradient(circle at 80% 20%, ${langColor(stats.langs[1]?.name ?? "")}55 0%, transparent 50%)`,
+            }}
+          />
         </div>
 
-        {/* Detalhes pessoais */}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {user.company && <Detail icon={Building2}>{user.company}</Detail>}
-          {user.location && <Detail icon={MapPin}>{user.location}</Detail>}
-          {user.email && (
-            <Detail icon={Mail}>
-              <a href={`mailto:${user.email}`} className="hover:underline">
-                {user.email}
-              </a>
-            </Detail>
-          )}
-          {user.blog && (
-            <Detail icon={Globe}>
-              <button
-                type="button"
-                onClick={() => openUrl(normalizeUrl(user.blog!))}
-                className="inline-flex items-center gap-1 hover:underline cursor-pointer"
-              >
-                {user.blog}
-                <LinkIcon className="size-3" />
-              </button>
-            </Detail>
-          )}
-          {joinDate && <Detail icon={Calendar}>Membro desde {joinDate}</Detail>}
-        </div>
-
-        {/* Top languages */}
-        {stats.langs.length > 0 && (
-          <section className="rounded-lg border border-border/60 bg-card/40 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Linguagens em uso</h3>
-              <span className="text-[10px] text-muted-foreground">
-                top {stats.langs.length} de {user.publicRepos ?? 0} repos
-              </span>
-            </div>
-            {/* Barra empilhada */}
-            <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
-              {stats.langs.map((l) => (
-                <div
-                  key={l.name}
-                  style={{ width: `${l.pct * 100}%`, backgroundColor: langColor(l.name) }}
-                  title={`${l.name} · ${l.count} repos`}
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 pb-12">
+          {/* Cabeçalho com avatar sobreposto */}
+          <header className="flex flex-col gap-4 -mt-12 sm:flex-row sm:items-end">
+            <div className="shrink-0">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.login}
+                  className="size-28 rounded-full border-4 border-background bg-background shadow-lg"
                 />
-              ))}
+              ) : (
+                <div className="flex size-28 items-center justify-center rounded-full border-4 border-background bg-muted shadow-lg">
+                  <GithubIcon className="size-12 text-muted-foreground" />
+                </div>
+              )}
             </div>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-              {stats.langs.map((l) => (
-                <div key={l.name} className="flex items-center gap-1.5">
-                  <span
-                    className="size-2.5 rounded-full"
-                    style={{ backgroundColor: langColor(l.name) }}
+
+            <div className="flex flex-1 flex-col gap-1.5 sm:pb-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {user.name && <h2 className="text-2xl font-bold">{user.name}</h2>}
+                <span className="text-base text-muted-foreground">@{user.login}</span>
+              </div>
+              {user.bio && <p className="text-sm text-foreground/90 max-w-prose">{user.bio}</p>}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:pb-2">
+              <Button variant="default" size="sm" onClick={openProfile} className="gap-2">
+                <ExternalLink className="size-3.5" />
+                Ver no GitHub
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => void refresh(true)}
+                title="Atualizar"
+                aria-label="Atualizar"
+              >
+                <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={logout}
+                title="Desconectar"
+                aria-label="Desconectar"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="size-4" />
+              </Button>
+            </div>
+          </header>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Repositórios" value={user.publicRepos ?? 0} icon={GithubIcon} />
+            <StatCard label="Estrelas ganhas" value={stats.stars} icon={Star} accent="amber" />
+            <StatCard label="Seguidores" value={user.followers ?? 0} icon={Users} accent="blue" />
+            <StatCard label="Seguindo" value={user.following ?? 0} icon={Users} />
+          </div>
+
+          {/* Detalhes pessoais */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {user.company && <Detail icon={Building2}>{user.company}</Detail>}
+            {user.location && <Detail icon={MapPin}>{user.location}</Detail>}
+            {user.email && (
+              <Detail icon={Mail}>
+                <a href={`mailto:${user.email}`} className="hover:underline">
+                  {user.email}
+                </a>
+              </Detail>
+            )}
+            {user.blog && (
+              <Detail icon={Globe}>
+                <button
+                  type="button"
+                  onClick={() => openUrl(normalizeUrl(user.blog!))}
+                  className="inline-flex items-center gap-1 hover:underline cursor-pointer"
+                >
+                  {user.blog}
+                  <LinkIcon className="size-3" />
+                </button>
+              </Detail>
+            )}
+            {joinDate && <Detail icon={Calendar}>Membro desde {joinDate}</Detail>}
+          </div>
+
+          {/* Top languages */}
+          {stats.langs.length > 0 && (
+            <section className="rounded-lg border border-border/60 bg-card/40 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Linguagens em uso</h3>
+                <span className="text-[10px] text-muted-foreground">
+                  top {stats.langs.length} de {user.publicRepos ?? 0} repos
+                </span>
+              </div>
+              {/* Barra empilhada */}
+              <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                {stats.langs.map((l) => (
+                  <div
+                    key={l.name}
+                    style={{ width: `${l.pct * 100}%`, backgroundColor: langColor(l.name) }}
+                    title={`${l.name} · ${l.count} repos`}
                   />
-                  <span className="font-medium">{l.name}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {(l.pct * 100).toFixed(0)}%
-                  </span>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+                {stats.langs.map((l) => (
+                  <div key={l.name} className="flex items-center gap-1.5">
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ backgroundColor: langColor(l.name) }}
+                    />
+                    <span className="font-medium">{l.name}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {(l.pct * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Tabs Repos / Atividade */}
+          <section>
+            <div className="mb-3 flex items-center gap-1 border-b border-border/60">
+              <TabButton active={tab === "repos"} onClick={() => setTab("repos")}>
+                Repositórios
+                <Badge variant="secondary" className="ml-1.5">
+                  {repos.length}
+                </Badge>
+              </TabButton>
+              <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
+                Atividade recente
+                <Badge variant="secondary" className="ml-1.5">
+                  {events.length}
+                </Badge>
+              </TabButton>
+            </div>
+
+            {tab === "repos" &&
+              (repos.length === 0 ? (
+                <p className="py-12 text-center text-sm text-muted-foreground">
+                  Nenhum repositório encontrado.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {repos.map((r) => (
+                    <RepoCard
+                      key={r.fullName}
+                      repo={r}
+                      onClone={() => setCloneRepo(r)}
+                      onOpenExternal={() => openUrl(r.htmlUrl)}
+                    />
+                  ))}
                 </div>
               ))}
-            </div>
+
+            {tab === "activity" &&
+              (events.length === 0 ? (
+                <p className="py-12 text-center text-sm text-muted-foreground">
+                  Sem eventos públicos recentes.
+                </p>
+              ) : (
+                <ul className="flex flex-col divide-y divide-border/40 rounded-lg border border-border/60 bg-card/40">
+                  {events.map((ev) => (
+                    <EventRow key={ev.id} event={ev} onOpen={openUrl} />
+                  ))}
+                </ul>
+              ))}
           </section>
-        )}
+        </div>
 
-        {/* Tabs Repos / Atividade */}
-        <section>
-          <div className="mb-3 flex items-center gap-1 border-b border-border/60">
-            <TabButton active={tab === "repos"} onClick={() => setTab("repos")}>
-              Repositórios
-              <Badge variant="secondary" className="ml-1.5">
-                {repos.length}
-              </Badge>
-            </TabButton>
-            <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
-              Atividade recente
-              <Badge variant="secondary" className="ml-1.5">
-                {events.length}
-              </Badge>
-            </TabButton>
-          </div>
-
-          {tab === "repos" &&
-            (repos.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                Nenhum repositório encontrado.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {repos.map((r) => (
-                  <RepoCard
-                    key={r.fullName}
-                    repo={r}
-                    onClone={() => setCloneRepo(r)}
-                    onOpenExternal={() => openUrl(r.htmlUrl)}
-                  />
-                ))}
-              </div>
-            ))}
-
-          {tab === "activity" &&
-            (events.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                Sem eventos públicos recentes.
-              </p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-border/40 rounded-lg border border-border/60 bg-card/40">
-                {events.map((ev) => (
-                  <EventRow key={ev.id} event={ev} onOpen={openUrl} />
-                ))}
-              </ul>
-            ))}
-        </section>
+        <CloneRepoDialog
+          repo={cloneRepo}
+          open={!!cloneRepo}
+          onOpenChange={(o) => {
+            if (!o) setCloneRepo(null);
+          }}
+          onCloned={(path) => onOpenFolder?.(path)}
+        />
       </div>
-
-      <CloneRepoDialog
-        repo={cloneRepo}
-        open={!!cloneRepo}
-        onOpenChange={(o) => {
-          if (!o) setCloneRepo(null);
-        }}
-        onCloned={(path) => onOpenFolder?.(path)}
-      />
-    </div>
     </OverlayShell>
   );
 }
 
-function OverlayShell({
-  onClose,
-  children,
-}: {
-  onClose?: () => void;
-  children: React.ReactNode;
-}) {
+function OverlayShell({ onClose, children }: { onClose?: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-40 bg-background flex flex-col overflow-hidden">
       {onClose && (
@@ -673,7 +675,12 @@ function describeEvent(ev: Event): { verb: string; tail: string } {
       return { verb: "fez push", tail: ev.ref ? `em ${ev.ref}` : "" };
     case "PullRequestEvent":
       return {
-        verb: ev.action === "closed" ? "fechou PR" : ev.action === "opened" ? "abriu PR" : "atualizou PR",
+        verb:
+          ev.action === "closed"
+            ? "fechou PR"
+            : ev.action === "opened"
+              ? "abriu PR"
+              : "atualizou PR",
         tail: ev.number ? `#${ev.number} ${ev.title}` : ev.title,
       };
     case "IssuesEvent":

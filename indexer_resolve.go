@@ -105,8 +105,8 @@ func resolveOnDisk(path string) (string, error) {
 
 // tsconfigPaths é o subset que precisamos do tsconfig.json: baseUrl + paths.
 type tsconfigPaths struct {
-	baseDir string              // diretório onde baseUrl resolve (absoluto)
-	rules   []tsconfigPathRule  // ordenados como definidos
+	baseDir string             // diretório onde baseUrl resolve (absoluto)
+	rules   []tsconfigPathRule // ordenados como definidos
 }
 
 type tsconfigPathRule struct {

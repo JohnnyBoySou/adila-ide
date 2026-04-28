@@ -41,8 +41,8 @@ export function Spotify() {
       <div className="max-w-md space-y-2">
         <h2 className="text-2xl font-semibold tracking-tight">Conectar ao Spotify</h2>
         <p className="text-sm text-muted-foreground">
-          Opcional. Permite controlar player, playlists e ver a música tocando direto da IDE.
-          Requer conta Premium para play/pause via API.
+          Opcional. Permite controlar player, playlists e ver a música tocando direto da IDE. Requer
+          conta Premium para play/pause via API.
         </p>
       </div>
 
@@ -95,9 +95,7 @@ export function Spotify() {
         ) : null}
       </button>
 
-      {error && !connecting && (
-        <p className="text-xs text-destructive max-w-sm">{error}</p>
-      )}
+      {error && !connecting && <p className="text-xs text-destructive max-w-sm">{error}</p>}
     </div>
   );
 }

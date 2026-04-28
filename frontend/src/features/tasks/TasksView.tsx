@@ -50,9 +50,7 @@ export const TasksView = memo(function TasksView({ rootPath, onShowTerminal }: T
       const next = current.includes(taskId)
         ? current.filter((id) => id !== taskId)
         : [...current, taskId];
-      void setFavorites(next).catch((err: unknown) =>
-        toast.error("Erro ao salvar favorito", err),
-      );
+      void setFavorites(next).catch((err: unknown) => toast.error("Erro ao salvar favorito", err));
     },
     [favorites, setFavorites],
   );
@@ -111,7 +109,8 @@ export const TasksView = memo(function TasksView({ rootPath, onShowTerminal }: T
   }, [tasks]);
 
   const favoriteTasks = useMemo(
-    () => (favorites ?? []).map((id) => tasks.find((t) => t.id === id)).filter(Boolean) as TaskDef[],
+    () =>
+      (favorites ?? []).map((id) => tasks.find((t) => t.id === id)).filter(Boolean) as TaskDef[],
     [favorites, tasks],
   );
 

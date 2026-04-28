@@ -222,11 +222,8 @@ export function WelcomePage({
               <ChevronRight className="size-4" />
             </Button>
           </div>
- 
         </div>
       </div>
     </div>
   );
 }
-
-

@@ -1137,7 +1137,11 @@ function App() {
 
   const mainPanel = (
     <ResizablePanel key="main">
-      {view === "editor" || view === "settings" || view === "git" || view === "githubProfile" || view === "linear" ? (
+      {view === "editor" ||
+      view === "settings" ||
+      view === "git" ||
+      view === "githubProfile" ||
+      view === "linear" ? (
         <div style={{ height: "100%", overflow: "hidden" }}>
           <ResizablePanelGroup orientation="vertical">
             <ResizablePanel key="editor">
@@ -1257,10 +1261,7 @@ function App() {
           onClose={() => setView("editor")}
           onOpenFolder={openFolder}
         />
-        <LinearView
-          overlayOpen={view === "linear"}
-          onClose={() => setView("editor")}
-        />
+        <LinearView overlayOpen={view === "linear"} onClose={() => setView("editor")} />
       </Suspense>
       <Toaster />
     </div>

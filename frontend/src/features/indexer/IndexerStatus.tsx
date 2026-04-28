@@ -57,16 +57,13 @@ export const IndexerStatus = memo(function IndexerStatus() {
         setState({ stage: "indexing", indexed, total });
       },
     );
-    const offReady = EventsOn(
-      "indexer.ready",
-      (payload: { indexed?: number; total?: number }) => {
-        setState({
-          stage: "ready",
-          indexed: payload?.indexed ?? 0,
-          total: payload?.total ?? 0,
-        });
-      },
-    );
+    const offReady = EventsOn("indexer.ready", (payload: { indexed?: number; total?: number }) => {
+      setState({
+        stage: "ready",
+        indexed: payload?.indexed ?? 0,
+        total: payload?.total ?? 0,
+      });
+    });
     const offChanged = EventsOn("indexer.changed", () => {
       setState((s) => ({ ...s, stage: "synced" }));
     });
@@ -89,7 +86,8 @@ export const IndexerStatus = memo(function IndexerStatus() {
   if (state.stage === "idle") return null;
 
   if (state.stage === "indexing") {
-    const pct = state.total > 0 ? Math.min(100, Math.round((state.indexed / state.total) * 100)) : 0;
+    const pct =
+      state.total > 0 ? Math.min(100, Math.round((state.indexed / state.total) * 100)) : 0;
     return (
       <span
         className="flex items-center gap-1.5 px-2.5 h-full text-muted-foreground"

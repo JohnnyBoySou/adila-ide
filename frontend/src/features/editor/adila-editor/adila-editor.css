@@ -1,0 +1,200 @@
+/* Adila Editor — estilos derivados das CSS vars do Tailwind theme.
+ * As vars do projeto são oklch() completas, não triplets — use var() direto
+ * e color-mix(in oklch, ...) pra alpha. */
+
+.ade-host {
+  --ade-bg: var(--background);
+  --ade-fg: var(--foreground);
+  --ade-muted: var(--muted-foreground);
+  --ade-border: var(--border);
+  --ade-selection: hsl(210 80% 55% / 0.35);
+  --ade-selection-blur: hsl(210 15% 55% / 0.25);
+  --ade-current-line: color-mix(in oklch, var(--muted) 50%, transparent);
+  --ade-find-match: hsl(45 90% 55% / 0.4);
+  --ade-find-current: hsl(45 90% 55% / 0.7);
+  --ade-caret: var(--foreground);
+  --ade-minimap-bg: color-mix(in oklch, var(--muted) 30%, transparent);
+  --ade-minimap-viewport: rgba(255, 255, 255, 0.06);
+  --ade-minimap-viewport-border: rgba(255, 255, 255, 0.12);
+  background: var(--ade-bg);
+  color: var(--ade-fg);
+}
+
+/* Quando o editor perde foco, a seleção fica em cinza neutro pra indicar
+ * estado inativo (mesmo comportamento do VS Code). */
+.ade-root:not(:focus-within) .ade-selection {
+  background: var(--ade-selection-blur);
+}
+
+.ade-root {
+  font-feature-settings: "calt" 1, "liga" 1;
+}
+
+.ade-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent) transparent;
+}
+
+.ade-line {
+  color: var(--ade-fg);
+}
+
+.ade-gutter {
+  color: var(--ade-muted);
+  background: var(--background);
+  border-right: 1px solid var(--ade-border);
+  user-select: none;
+}
+
+.ade-gutter-row {
+  font-variant-numeric: tabular-nums;
+  background: var(--background);
+}
+
+.ade-gutter-current {
+  color: var(--ade-fg);
+  font-weight: 500;
+}
+
+.ade-current-line {
+  background: var(--ade-current-line);
+}
+
+.ade-selection {
+  background: var(--ade-selection);
+  border-radius: 2px;
+}
+
+.ade-find-match {
+  background: var(--ade-find-match);
+  border-radius: 2px;
+}
+
+.ade-find-current {
+  background: var(--ade-find-current);
+  outline: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+.ade-caret {
+  display: block;
+  background: var(--ade-caret);
+  pointer-events: none;
+  opacity: 1;
+  will-change: opacity;
+  z-index: 4;
+}
+
+.ade-caret-blink .ade-caret {
+  animation: ade-blink 1s infinite;
+}
+
+@keyframes ade-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+.ade-input {
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+}
+
+/* Token classes — cores literais HSL pra independência do tema. */
+.tk-plain      { color: var(--ade-fg); }
+.tk-keyword    { color: hsl(285 65% 70%); font-weight: 500; }
+.tk-string     { color: hsl(140 55% 60%); }
+.tk-number     { color: hsl(30 85% 65%); }
+.tk-comment    { color: hsl(120 25% 55%); font-style: italic; }
+.tk-operator   { color: var(--muted-foreground); }
+.tk-punctuation { color: var(--muted-foreground); }
+.tk-function   { color: hsl(210 85% 70%); }
+.tk-type       { color: hsl(175 60% 60%); }
+.tk-constant   { color: hsl(20 80% 65%); font-weight: 500; }
+.tk-tag        { color: hsl(0 70% 65%); }
+.tk-attribute  { color: hsl(45 80% 65%); }
+.tk-namespace  { color: hsl(45 70% 65%); }
+.tk-parameter  { color: hsl(15 70% 70%); font-style: italic; }
+.tk-property   { color: hsl(195 70% 70%); }
+.tk-decorator  { color: hsl(50 80% 65%); }
+.tk-regexp     { color: hsl(0 70% 65%); }
+
+/* Find panel */
+.ade-find-panel {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--card);
+  color: var(--ade-fg);
+  border: 1px solid var(--ade-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+}
+
+.ade-find-input {
+  appearance: none;
+  background: var(--background);
+  color: var(--ade-fg);
+  border: 1px solid var(--ade-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  width: 220px;
+  outline: none;
+}
+
+.ade-find-input:focus {
+  border-color: var(--primary);
+}
+
+.ade-find-count {
+  color: var(--ade-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 50px;
+  text-align: center;
+}
+
+.ade-find-btn {
+  appearance: none;
+  background: transparent;
+  color: var(--ade-fg);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.ade-find-btn:hover {
+  background: var(--muted);
+}
+
+.ade-find-btn.ade-active {
+  background: color-mix(in oklch, var(--primary) 15%, transparent);
+  border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  color: var(--primary);
+}
+
+.ade-minimap {
+  background: var(--ade-minimap-bg);
+  border-left: 1px solid var(--ade-border);
+}
+
+.ade-minimap-viewport-rect {
+  background: var(--ade-minimap-viewport);
+  border-top: 1px solid var(--ade-minimap-viewport-border);
+  border-bottom: 1px solid var(--ade-minimap-viewport-border);
+  transition: background 0.1s ease;
+}
+
+.ade-minimap:hover .ade-minimap-viewport-rect {
+  background: rgba(255, 255, 255, 0.1);
+}

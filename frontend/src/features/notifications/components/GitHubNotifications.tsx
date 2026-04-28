@@ -1,14 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
-import {
-  Check,
-  ExternalLink,
-  GitBranch,
-  GitPullRequest,
-  MessageSquare,
-  Tag,
-} from "lucide-react";
+import { Check, ExternalLink, GitBranch, GitPullRequest, MessageSquare, Tag } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import {
   GetNotifications,
@@ -208,9 +201,7 @@ export const GitHubNotifications = memo(function GitHubNotifications({ query }: 
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                {n.repoAvatar && (
-                  <img src={n.repoAvatar} alt="" className="size-4 rounded-sm" />
-                )}
+                {n.repoAvatar && <img src={n.repoAvatar} alt="" className="size-4 rounded-sm" />}
                 <span className="font-mono truncate">{n.repoFull}</span>
                 <span className="opacity-50">·</span>
                 <span>{reasonLabel(n.reason)}</span>

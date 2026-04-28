@@ -292,19 +292,13 @@ export function CodeEditor({
           ed.addAction({
             id: "adila.editor.zoomIn",
             label: "Aumentar zoom do editor",
-            keybindings: [
-              KeyMod.CtrlCmd | KeyCode.Equal,
-              KeyMod.CtrlCmd | KeyCode.NumpadAdd,
-            ],
+            keybindings: [KeyMod.CtrlCmd | KeyCode.Equal, KeyMod.CtrlCmd | KeyCode.NumpadAdd],
             run: () => zoomInRef.current(),
           });
           ed.addAction({
             id: "adila.editor.zoomOut",
             label: "Diminuir zoom do editor",
-            keybindings: [
-              KeyMod.CtrlCmd | KeyCode.Minus,
-              KeyMod.CtrlCmd | KeyCode.NumpadSubtract,
-            ],
+            keybindings: [KeyMod.CtrlCmd | KeyCode.Minus, KeyMod.CtrlCmd | KeyCode.NumpadSubtract],
             run: () => zoomOutRef.current(),
           });
           ed.addAction({
@@ -324,7 +318,10 @@ export function CodeEditor({
           if (editorService && typeof editorService.openCodeEditor === "function") {
             const openBase = editorService.openCodeEditor.bind(editorService);
             editorService.openCodeEditor = async (
-              input: { resource?: { fsPath?: string; path?: string }; options?: { selection?: { startLineNumber?: number; startColumn?: number } } },
+              input: {
+                resource?: { fsPath?: string; path?: string };
+                options?: { selection?: { startLineNumber?: number; startColumn?: number } };
+              },
               source: unknown,
             ) => {
               try {

@@ -14,12 +14,12 @@ import (
 // BenchHistoryFile representa um arquivo de relatório de benchmark salvo no
 // disco (gerado por scripts/benchmark.sh ou scripts/benchmark-frontend.sh).
 type BenchHistoryFile struct {
-	Name     string `json:"name"`     // nome do arquivo (sem path)
-	Kind     string `json:"kind"`     // "go", "frontend", "baseline" ou "other"
-	Format   string `json:"format"`   // "md", "txt", "json"
-	Size     int64  `json:"size"`     // bytes
-	ModUnix  int64  `json:"modUnix"`  // mtime em unix seconds
-	Path     string `json:"path"`     // path absoluto
+	Name    string `json:"name"`    // nome do arquivo (sem path)
+	Kind    string `json:"kind"`    // "go", "frontend", "baseline" ou "other"
+	Format  string `json:"format"`  // "md", "txt", "json"
+	Size    int64  `json:"size"`    // bytes
+	ModUnix int64  `json:"modUnix"` // mtime em unix seconds
+	Path    string `json:"path"`    // path absoluto
 }
 
 // benchmarksDir tenta localizar a pasta "benchmarks" do projeto. Em dev (wails

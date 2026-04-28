@@ -51,7 +51,9 @@ export function useSpotifyPlayer(opts: { enabled: boolean; getToken: () => Promi
       const [pb, devs, q] = await Promise.all([
         spotifyApi.playback(t).catch(() => null),
         spotifyApi.devices(t).catch(() => [] as SpotifyDevice[]),
-        spotifyApi.queue(t).catch(() => ({ currently_playing: null, queue: [] as SpotifyTrackInfo[] })),
+        spotifyApi
+          .queue(t)
+          .catch(() => ({ currently_playing: null, queue: [] as SpotifyTrackInfo[] })),
       ]);
       setState((s) => {
         const active = devs.find((d) => d.is_active) ?? null;

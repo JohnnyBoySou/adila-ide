@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
-import { Check, FileJson, Search, SearchX } from "lucide-react";
+import { Check, FileJson, RotateCw, Search, SearchX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SettingRow } from "./components/SettingRow";
@@ -78,9 +78,10 @@ export function SettingsView() {
   }, [highlightKey]);
 
   function handleSave() {
-    setDirty(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      window.location.reload();
+    }, 350);
   }
 
   const onDirty = useCallback(() => setDirty(true), []);
@@ -202,6 +203,7 @@ export function SettingsView() {
               <button
                 type="button"
                 onClick={handleSave}
+                disabled={saved}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium shadow-lg transition-colors duration-200",
                   saved
@@ -212,10 +214,13 @@ export function SettingsView() {
                 {saved ? (
                   <>
                     <Check className="size-4" />
-                    Configurações salvas
+                    Recarregando…
                   </>
                 ) : (
-                  "Salvar configurações"
+                  <>
+                    <RotateCw className="size-4" />
+                    Reiniciar para aplicar
+                  </>
                 )}
               </button>
             </motion.div>

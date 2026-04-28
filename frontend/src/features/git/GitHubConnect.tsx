@@ -118,10 +118,8 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
                 backgroundImage:
                   "linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)",
                 backgroundSize: "28px 28px",
-                maskImage:
-                  "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-                WebkitMaskImage:
-                  "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+                maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+                WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
               }}
             />
           </div>
@@ -171,8 +169,8 @@ export function GitHubConnect({ open, onOpenChange, onAuthenticated }: GitHubCon
               >
                 <div className="flex flex-col gap-2 text-center text-sm leading-relaxed text-foreground/80">
                   <p>
-                    O Adila <strong className="font-semibold text-foreground">nunca</strong> vê
-                    sua senha. Apenas um token revogável gerado pelo GitHub.
+                    O Adila <strong className="font-semibold text-foreground">nunca</strong> vê sua
+                    senha. Apenas um token revogável gerado pelo GitHub.
                   </p>
                   <p>
                     Você revisa e aprova o escopo{" "}
@@ -355,9 +353,7 @@ function Step({
       <span
         className={
           "absolute -left-[27px] flex size-[18px] items-center justify-center rounded-full text-[10px] font-semibold ring-2 ring-popover " +
-          (active
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground")
+          (active ? "bg-primary text-primary-foreground" : "bg-muted text-foreground")
         }
       >
         {active ? (

@@ -1,0 +1,261 @@
+/**
+ * Definições de linguagem para o tokenizador. Mantemos isso enxuto e
+ * regex-based — não é correto pra todos os edge cases (template strings
+ * multi-linha, JSX complexo) mas cobre o highlight mais útil sem custo
+ * de runtime e sem dependência externa. Pra precisão real, plugar Tree
+ * Sitter ou TextMate via Shiki num passo posterior.
+ */
+
+export type TokenType =
+  | "plain"
+  | "keyword"
+  | "string"
+  | "number"
+  | "comment"
+  | "operator"
+  | "punctuation"
+  | "function"
+  | "type"
+  | "constant"
+  | "tag"
+  | "attribute"
+  | "namespace"
+  | "parameter"
+  | "property"
+  | "decorator"
+  | "regexp";
+
+export type LangSpec = {
+  keywords: Set<string>;
+  types?: Set<string>;
+  constants?: Set<string>;
+  builtins?: Set<string>;
+  /** Após estes keywords, o próximo identificador vira `function`. */
+  functionDeclKw?: Set<string>;
+  /** Após estes, o próximo identificador vira `type`. */
+  typeDeclKw?: Set<string>;
+  /** Após estes, o próximo identificador vira `namespace`. */
+  namespaceKw?: Set<string>;
+  /** Identificadores que começam com maiúscula são tipos. (Convenção Go/Rust/TS) */
+  pascalCaseIsType?: boolean;
+  /** Identificadores em UPPER_CASE_SNAKE são constantes. */
+  upperSnakeIsConstant?: boolean;
+  lineComment?: string;
+  blockComment?: [string, string];
+  stringDelims?: string[];
+};
+
+const TS_KEYWORDS = new Set([
+  "as", "async", "await", "break", "case", "catch", "class", "const", "continue",
+  "debugger", "default", "delete", "do", "else", "enum", "export", "extends",
+  "finally", "for", "from", "function", "if", "implements", "import", "in",
+  "instanceof", "interface", "is", "let", "namespace", "new", "of", "private",
+  "protected", "public", "readonly", "return", "satisfies", "static", "super",
+  "switch", "this", "throw", "try", "type", "typeof", "var", "void", "while",
+  "with", "yield",
+]);
+
+const TS_TYPES = new Set([
+  "string", "number", "boolean", "any", "unknown", "never", "object", "symbol",
+  "bigint", "Promise", "Array", "Map", "Set", "Record", "Partial", "Readonly",
+  "Pick", "Omit",
+]);
+
+const TS_CONSTANTS = new Set(["true", "false", "null", "undefined", "NaN", "Infinity"]);
+
+const GO_KEYWORDS = new Set([
+  "break", "case", "chan", "const", "continue", "default", "defer", "else",
+  "fallthrough", "for", "func", "go", "goto", "if", "import", "interface",
+  "map", "package", "range", "return", "select", "struct", "switch", "type", "var",
+]);
+
+const GO_TYPES = new Set([
+  "bool", "byte", "complex64", "complex128", "error", "float32", "float64",
+  "int", "int8", "int16", "int32", "int64", "rune", "string", "uint", "uint8",
+  "uint16", "uint32", "uint64", "uintptr", "any",
+]);
+
+const GO_CONSTANTS = new Set(["true", "false", "nil", "iota"]);
+
+const GO_BUILTINS = new Set([
+  "make", "new", "len", "cap", "append", "copy", "delete", "close", "panic",
+  "recover", "print", "println", "complex", "real", "imag", "min", "max", "clear",
+]);
+
+const PY_KEYWORDS = new Set([
+  "and", "as", "assert", "async", "await", "break", "class", "continue", "def",
+  "del", "elif", "else", "except", "finally", "for", "from", "global", "if",
+  "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise",
+  "return", "try", "while", "with", "yield",
+]);
+
+const PY_CONSTANTS = new Set(["True", "False", "None"]);
+
+const RUST_KEYWORDS = new Set([
+  "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else",
+  "enum", "extern", "fn", "for", "if", "impl", "in", "let", "loop", "match",
+  "mod", "move", "mut", "pub", "ref", "return", "self", "Self", "static",
+  "struct", "super", "trait", "type", "unsafe", "use", "where", "while",
+]);
+
+const RUST_TYPES = new Set([
+  "bool", "char", "f32", "f64", "i8", "i16", "i32", "i64", "i128", "isize",
+  "str", "u8", "u16", "u32", "u64", "u128", "usize", "String", "Vec", "Option",
+  "Result", "Box",
+]);
+
+const RUST_BUILTINS = new Set([
+  "println", "print", "eprintln", "eprint", "format", "panic", "vec", "assert",
+  "assert_eq", "assert_ne", "dbg", "todo", "unimplemented", "unreachable",
+  "include_str", "include_bytes", "concat", "stringify", "write", "writeln",
+]);
+
+const TS_BUILTINS = new Set([
+  "console", "Math", "Object", "Array", "JSON", "Date", "RegExp", "Error",
+  "TypeError", "RangeError", "SyntaxError", "Symbol", "Number", "String",
+  "Boolean", "Function", "Reflect", "Proxy", "WeakMap", "WeakSet",
+  "Promise", "globalThis", "window", "document", "process", "global",
+  "setTimeout", "setInterval", "clearTimeout", "clearInterval",
+  "queueMicrotask", "structuredClone", "fetch", "URL", "URLSearchParams",
+]);
+
+const PY_BUILTINS = new Set([
+  "abs", "all", "any", "ascii", "bin", "bool", "bytearray", "bytes", "callable",
+  "chr", "classmethod", "compile", "complex", "delattr", "dict", "dir", "divmod",
+  "enumerate", "eval", "exec", "filter", "float", "format", "frozenset",
+  "getattr", "globals", "hasattr", "hash", "help", "hex", "id", "input", "int",
+  "isinstance", "issubclass", "iter", "len", "list", "locals", "map", "max",
+  "memoryview", "min", "next", "object", "oct", "open", "ord", "pow", "print",
+  "property", "range", "repr", "reversed", "round", "set", "setattr", "slice",
+  "sorted", "staticmethod", "str", "sum", "super", "tuple", "type", "vars",
+  "zip", "__import__",
+]);
+
+const CSS_KEYWORDS = new Set([
+  "important", "inherit", "initial", "unset", "auto", "none", "block", "inline",
+  "flex", "grid", "absolute", "relative", "fixed", "sticky",
+]);
+
+const JSON_CONSTANTS = new Set(["true", "false", "null"]);
+
+export const LANGUAGES: Record<string, LangSpec> = {
+  typescript: {
+    keywords: TS_KEYWORDS,
+    types: TS_TYPES,
+    constants: TS_CONSTANTS,
+    builtins: TS_BUILTINS,
+    functionDeclKw: new Set(["function"]),
+    typeDeclKw: new Set(["class", "interface", "type", "enum", "namespace"]),
+    namespaceKw: new Set(["import", "from", "export"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'", "`"],
+  },
+  javascript: {
+    keywords: TS_KEYWORDS,
+    types: TS_TYPES,
+    constants: TS_CONSTANTS,
+    builtins: TS_BUILTINS,
+    functionDeclKw: new Set(["function"]),
+    typeDeclKw: new Set(["class"]),
+    namespaceKw: new Set(["import", "from"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'", "`"],
+  },
+  go: {
+    keywords: GO_KEYWORDS,
+    types: GO_TYPES,
+    constants: GO_CONSTANTS,
+    builtins: GO_BUILTINS,
+    functionDeclKw: new Set(["func"]),
+    typeDeclKw: new Set(["type"]),
+    namespaceKw: new Set(["package", "import"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'", "`"],
+  },
+  python: {
+    keywords: PY_KEYWORDS,
+    constants: PY_CONSTANTS,
+    builtins: PY_BUILTINS,
+    functionDeclKw: new Set(["def"]),
+    typeDeclKw: new Set(["class"]),
+    namespaceKw: new Set(["import", "from"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    lineComment: "#",
+    stringDelims: ['"', "'"],
+  },
+  rust: {
+    keywords: RUST_KEYWORDS,
+    types: RUST_TYPES,
+    constants: new Set(["true", "false"]),
+    builtins: RUST_BUILTINS,
+    functionDeclKw: new Set(["fn"]),
+    typeDeclKw: new Set(["struct", "enum", "trait", "type", "union"]),
+    namespaceKw: new Set(["use", "mod", "extern", "crate"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"'],
+  },
+  css: {
+    keywords: CSS_KEYWORDS,
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'"],
+  },
+  scss: {
+    keywords: CSS_KEYWORDS,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'"],
+  },
+  json: {
+    keywords: new Set(),
+    constants: JSON_CONSTANTS,
+    stringDelims: ['"'],
+  },
+  shell: {
+    keywords: new Set([
+      "if", "then", "else", "elif", "fi", "for", "while", "do", "done",
+      "case", "esac", "function", "return", "in", "select", "until",
+      "break", "continue", "exit", "export", "local", "readonly", "unset",
+    ]),
+    lineComment: "#",
+    stringDelims: ['"', "'"],
+  },
+  plaintext: {
+    keywords: new Set(),
+  },
+};
+
+export function langForExt(ext: string): string {
+  const map: Record<string, string> = {
+    ts: "typescript", tsx: "typescript", mts: "typescript", cts: "typescript",
+    js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
+    go: "go",
+    py: "python", pyi: "python",
+    rs: "rust",
+    css: "css",
+    scss: "scss",
+    json: "json",
+    sh: "shell", bash: "shell",
+    md: "plaintext", mdx: "plaintext",
+    html: "plaintext", xml: "plaintext", yaml: "plaintext", yml: "plaintext",
+    toml: "plaintext", sql: "plaintext",
+  };
+  return map[ext.toLowerCase()] ?? "plaintext";
+}
+
+export function detectLanguage(path: string): string {
+  const ext = path.split(".").pop() ?? "";
+  return langForExt(ext);
+}

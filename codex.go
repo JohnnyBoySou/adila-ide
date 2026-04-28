@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	codexAPIKeyKey       = "codex.apiKey"
-	codexModelKey        = "codex.model"
-	codexDefaultModel    = "gpt-5-codex"
-	codexAPIBase         = "https://api.openai.com"
+	codexAPIKeyKey    = "codex.apiKey"
+	codexModelKey     = "codex.model"
+	codexDefaultModel = "gpt-5-codex"
+	codexAPIBase      = "https://api.openai.com"
 )
 
 // Codex expõe a configuração da API key do OpenAI (usada pelo Codex / GPT).

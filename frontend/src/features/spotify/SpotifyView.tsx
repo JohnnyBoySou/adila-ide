@@ -280,7 +280,7 @@ export function SpotifyView({ overlayOpen, onClose }: Props) {
   const activeDevice = player.devices.find((d) => d.id === player.activeDeviceId) ?? null;
   const currentPlaylist =
     player.contextType === "playlist" && player.contextUri
-      ? playlists.find((p) => p.uri === player.contextUri) ?? null
+      ? (playlists.find((p) => p.uri === player.contextUri) ?? null)
       : null;
 
   return (
@@ -422,9 +422,7 @@ export function SpotifyView({ overlayOpen, onClose }: Props) {
                   background:
                     "repeating-radial-gradient(circle, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 5px), radial-gradient(circle, #1f1f1f 0%, #050505 100%)",
                   animation:
-                    !player.paused && player.trackName
-                      ? "spin 8s linear infinite"
-                      : undefined,
+                    !player.paused && player.trackName ? "spin 8s linear infinite" : undefined,
                 }}
               >
                 {/* Brilho oblíquo */}
@@ -506,9 +504,7 @@ export function SpotifyView({ overlayOpen, onClose }: Props) {
                   (isLiked ? "text-green-500" : "text-muted-foreground hover:text-foreground")
                 }
               >
-                <Heart
-                  className={"size-5 transition-all " + (isLiked ? "fill-green-500" : "")}
-                />
+                <Heart className={"size-5 transition-all " + (isLiked ? "fill-green-500" : "")} />
               </button>
               <button
                 ref={prevBtnRef}
@@ -681,9 +677,7 @@ function QueueList({
   }
   return (
     <div ref={parentRef} className="h-full overflow-y-auto scrollbar">
-      <div
-        style={{ height: `${v.getTotalSize()}px`, position: "relative", width: "100%" }}
-      >
+      <div style={{ height: `${v.getTotalSize()}px`, position: "relative", width: "100%" }}>
         {v.getVirtualItems().map((vr) => {
           const t = queue[vr.index];
           return (
@@ -734,7 +728,8 @@ function PlaylistsList({
     overscan: 6,
   });
 
-  if (loading) return <div className="p-4 text-xs text-muted-foreground">Carregando playlists…</div>;
+  if (loading)
+    return <div className="p-4 text-xs text-muted-foreground">Carregando playlists…</div>;
   if (playlists.length === 0)
     return <div className="p-4 text-xs text-muted-foreground">Nenhuma playlist.</div>;
   return (
@@ -864,9 +859,7 @@ function PlaylistTracks({
         <div className="p-4 text-xs text-muted-foreground">Playlist vazia.</div>
       ) : (
         <div ref={parentRef} className="flex-1 overflow-y-auto scrollbar min-h-0">
-          <div
-            style={{ height: `${v.getTotalSize()}px`, position: "relative", width: "100%" }}
-          >
+          <div style={{ height: `${v.getTotalSize()}px`, position: "relative", width: "100%" }}>
             {v.getVirtualItems().map((vr) => {
               const t = tracks[vr.index];
               return (
@@ -937,9 +930,7 @@ function TrackRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div
-          className={"text-xs truncate " + (active ? "text-green-600 font-medium" : "")}
-        >
+        <div className={"text-xs truncate " + (active ? "text-green-600 font-medium" : "")}>
           {track.name}
         </div>
         <div className="text-[10px] text-muted-foreground truncate">
