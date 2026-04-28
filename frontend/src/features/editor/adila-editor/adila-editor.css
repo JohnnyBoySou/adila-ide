@@ -123,7 +123,7 @@
 .tk-function   { color: hsl(210 85% 70%); }
 .tk-type       { color: hsl(175 60% 60%); }
 .tk-constant   { color: hsl(20 80% 65%); font-weight: 500; }
-.tk-tag        { color: hsl(0 70% 65%); }
+.tk-tag        { color: hsl(0 75% 68%); font-weight: 500; }
 .tk-attribute  { color: hsl(45 80% 65%); }
 .tk-namespace  { color: hsl(45 70% 65%); }
 .tk-parameter  { color: hsl(15 70% 70%); font-style: italic; }

@@ -14,6 +14,7 @@ export type TokenType =
   | "comment"
   | "operator"
   | "punctuation"
+  | "variable"
   | "function"
   | "type"
   | "constant"
@@ -30,6 +31,8 @@ export type LangSpec = {
   types?: Set<string>;
   constants?: Set<string>;
   builtins?: Set<string>;
+  /** Após estes keywords, o próximo identificador vira `variable`. */
+  variableDeclKw?: Set<string>;
   /** Após estes keywords, o próximo identificador vira `function`. */
   functionDeclKw?: Set<string>;
   /** Após estes, o próximo identificador vira `type`. */
@@ -40,6 +43,8 @@ export type LangSpec = {
   pascalCaseIsType?: boolean;
   /** Identificadores em UPPER_CASE_SNAKE são constantes. */
   upperSnakeIsConstant?: boolean;
+  /** Ativa heurísticas leves de TSX/JSX. */
+  jsx?: boolean;
   lineComment?: string;
   blockComment?: [string, string];
   stringDelims?: string[];
@@ -62,6 +67,7 @@ const TS_TYPES = new Set([
 ]);
 
 const TS_CONSTANTS = new Set(["true", "false", "null", "undefined", "NaN", "Infinity"]);
+const TS_VARIABLE_DECL = new Set(["const", "let", "var"]);
 
 const GO_KEYWORDS = new Set([
   "break", "case", "chan", "const", "continue", "default", "defer", "else",
@@ -145,10 +151,27 @@ export const LANGUAGES: Record<string, LangSpec> = {
     constants: TS_CONSTANTS,
     builtins: TS_BUILTINS,
     functionDeclKw: new Set(["function"]),
+    variableDeclKw: TS_VARIABLE_DECL,
     typeDeclKw: new Set(["class", "interface", "type", "enum", "namespace"]),
     namespaceKw: new Set(["import", "from", "export"]),
     pascalCaseIsType: true,
     upperSnakeIsConstant: true,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'", "`"],
+  },
+  typescriptreact: {
+    keywords: TS_KEYWORDS,
+    types: TS_TYPES,
+    constants: TS_CONSTANTS,
+    builtins: TS_BUILTINS,
+    functionDeclKw: new Set(["function"]),
+    variableDeclKw: TS_VARIABLE_DECL,
+    typeDeclKw: new Set(["class", "interface", "type", "enum", "namespace"]),
+    namespaceKw: new Set(["import", "from", "export"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    jsx: true,
     lineComment: "//",
     blockComment: ["/*", "*/"],
     stringDelims: ['"', "'", "`"],
@@ -159,10 +182,27 @@ export const LANGUAGES: Record<string, LangSpec> = {
     constants: TS_CONSTANTS,
     builtins: TS_BUILTINS,
     functionDeclKw: new Set(["function"]),
+    variableDeclKw: TS_VARIABLE_DECL,
     typeDeclKw: new Set(["class"]),
     namespaceKw: new Set(["import", "from"]),
     pascalCaseIsType: true,
     upperSnakeIsConstant: true,
+    lineComment: "//",
+    blockComment: ["/*", "*/"],
+    stringDelims: ['"', "'", "`"],
+  },
+  javascriptreact: {
+    keywords: TS_KEYWORDS,
+    types: TS_TYPES,
+    constants: TS_CONSTANTS,
+    builtins: TS_BUILTINS,
+    functionDeclKw: new Set(["function"]),
+    variableDeclKw: TS_VARIABLE_DECL,
+    typeDeclKw: new Set(["class"]),
+    namespaceKw: new Set(["import", "from"]),
+    pascalCaseIsType: true,
+    upperSnakeIsConstant: true,
+    jsx: true,
     lineComment: "//",
     blockComment: ["/*", "*/"],
     stringDelims: ['"', "'", "`"],

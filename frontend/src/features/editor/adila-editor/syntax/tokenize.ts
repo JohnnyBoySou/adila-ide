@@ -29,6 +29,7 @@ export function tokenizeLine(
   prevState: LineState,
 ): { tokens: Token[]; state: LineState } {
   const lang: LangSpec = LANGUAGES[langId] ?? LANGUAGES.plaintext;
+  const jsxMode = langId === "typescriptreact" || langId === "javascriptreact";
   const tokens: Token[] = [];
   let i = 0;
   let ctx = prevState.ctx;
@@ -65,6 +66,14 @@ export function tokenizeLine(
 
   while (i < line.length) {
     const c = line[i];
+
+    if (jsxMode && (c === "<" || c === ">")) {
+      const parsed = tryTokenizeJsx(line, i, tokens);
+      if (parsed > i) {
+        i = parsed;
+        continue;
+      }
+    }
 
     // whitespace — pulo, sem token (renderizado como plain por default)
     WS_RE.lastIndex = i;
@@ -173,6 +182,9 @@ export function tokenizeLine(
       }
       // 2. Promoção por look-back: o último keyword "interessante" determina
       //    o que este identificador é.
+      else if (prevKeyword && lang.variableDeclKw?.has(prevKeyword) && immPrev !== ".") {
+        type = "variable";
+      }
       else if (prevKeyword && lang.functionDeclKw?.has(prevKeyword) && immPrev !== ".") {
         // `func foo` → foo é function
         // mas em Go: `func (r *Receiver) Method()` — o ident depois de `func`
@@ -212,8 +224,19 @@ export function tokenizeLine(
       continue;
     }
 
+    if (line.startsWith("=>", i) || line.startsWith("===", i) || line.startsWith("!==", i)) {
+      tokens.push({ type: "operator", start: i, end: i + (line[i + 2] === "=" ? 3 : 2) });
+      i += line[i + 2] === "=" ? 3 : 2;
+      continue;
+    }
+    if (/[=+\-*/%&|!?:]/.test(c)) {
+      tokens.push({ type: "operator", start: i, end: i + 1 });
+      i++;
+      continue;
+    }
+
     // operadores e pontuação — agrupados como punctuation
-    if (/[{}()\[\];,.<>+\-*/%=&|!?:]/.test(c)) {
+    if ("[]{}();,.<>".includes(c)) {
       tokens.push({ type: "punctuation", start: i, end: i + 1 });
       i++;
       continue;
@@ -224,6 +247,94 @@ export function tokenizeLine(
   }
 
   return { tokens, state: { ctx } };
+}
+
+function tryTokenizeJsx(line: string, start: number, out: Token[]): number {
+  if (line[start] !== "<") return start;
+  const next = line[start + 1];
+  if (!next || !/[A-Za-z/>]/.test(next)) return start;
+
+  let i = start;
+  out.push({ type: "punctuation", start: i, end: i + 1 });
+  i++;
+
+  if (line[i] === "/") {
+    out.push({ type: "punctuation", start: i, end: i + 1 });
+    i++;
+  }
+
+  i = skipWs(line, i);
+  const tagStart = i;
+  while (i < line.length && /[A-Za-z0-9_$:.-]/.test(line[i])) i++;
+  if (i > tagStart) {
+    const tag = line.slice(tagStart, i);
+    out.push({ type: /^[A-Z]/.test(tag) ? "component" : "tag", start: tagStart, end: i });
+  }
+
+  while (i < line.length) {
+    const c = line[i];
+    if (c === '"' || c === "'") {
+      const end = readQuoted(line, i);
+      out.push({ type: "string", start: i, end });
+      i = end;
+      continue;
+    }
+    if (c === "{") {
+      out.push({ type: "punctuation", start: i, end: i + 1 });
+      i++;
+      continue;
+    }
+    if (c === "}") {
+      out.push({ type: "punctuation", start: i, end: i + 1 });
+      i++;
+      continue;
+    }
+    if (c === "/" && line[i + 1] === ">") {
+      out.push({ type: "punctuation", start: i, end: i + 2 });
+      return i + 2;
+    }
+    if (c === ">") {
+      out.push({ type: "punctuation", start: i, end: i + 1 });
+      return i + 1;
+    }
+    if (/\s/.test(c)) {
+      i++;
+      continue;
+    }
+    if (/[A-Za-z_$]/.test(c)) {
+      const attrStart = i;
+      while (i < line.length && /[A-Za-z0-9_$:.-]/.test(line[i])) i++;
+      out.push({ type: "attribute", start: attrStart, end: i });
+      continue;
+    }
+    if (c === "=") {
+      out.push({ type: "operator", start: i, end: i + 1 });
+      i++;
+      continue;
+    }
+    out.push({ type: "punctuation", start: i, end: i + 1 });
+    i++;
+  }
+  return i;
+}
+
+function skipWs(line: string, i: number): number {
+  while (i < line.length && /\s/.test(line[i])) i++;
+  return i;
+}
+
+function readQuoted(line: string, start: number): number {
+  const quote = line[start];
+  let i = start + 1;
+  while (i < line.length) {
+    if (line[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (line[i] === quote) return i + 1;
+    i++;
+  }
+  return i;
 }
 
 /** Cache simples por buffer: lineState[i] = estado APÓS tokenizar linha i. */
