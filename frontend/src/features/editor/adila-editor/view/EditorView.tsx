@@ -112,7 +112,6 @@ export function EditorView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-
   const charWidth = useMemo(() => measureCharWidth(fontFamily, fontSize), [fontFamily, fontSize]);
   const lineCount = buffer.getLineCount();
 
@@ -256,6 +255,27 @@ export function EditorView({
   const hoverPosRef = useRef<Position | null>(null);
   const hoverOverPopupRef = useRef(false);
   const [definitionHint, setDefinitionHint] = useState<Range | null>(null);
+  const [caretSteady, setCaretSteady] = useState(false);
+  const caretSteadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function pulseCaret() {
+    setCaretSteady(true);
+    if (caretSteadyTimerRef.current) clearTimeout(caretSteadyTimerRef.current);
+    caretSteadyTimerRef.current = setTimeout(() => {
+      caretSteadyTimerRef.current = null;
+      setCaretSteady(false);
+    }, 650);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (caretSteadyTimerRef.current) clearTimeout(caretSteadyTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    pulseCaret();
+  }, [primary?.pos.line, primary?.pos.col]);
 
   function clearHover() {
     if (hoverTimerRef.current) {
@@ -550,6 +570,17 @@ export function EditorView({
     const meta = e.ctrlKey || e.metaKey;
     const shift = e.shiftKey;
 
+    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      moveSelectedLines(s, e.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if (meta && !shift && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      copySelectedLines(s, e.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+
     if (e.key === "F12") {
       e.preventDefault();
       if (primary) void goToDefinitionAt(primary.pos);
@@ -744,16 +775,6 @@ export function EditorView({
       copySelectedLines(s, 1);
       return;
     }
-    if (e.altKey && shift && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-      e.preventDefault();
-      copySelectedLines(s, e.key === "ArrowDown" ? 1 : -1);
-      return;
-    }
-    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-      e.preventDefault();
-      moveSelectedLines(s, e.key === "ArrowDown" ? 1 : -1);
-      return;
-    }
     if (meta && shift && (e.key === "k" || e.key === "K")) {
       e.preventDefault();
       deleteSelectedLines(s);
@@ -921,7 +942,7 @@ export function EditorView({
   return (
     <div
       ref={containerRef}
-      className={`ade-root${caretBlink ? " ade-caret-blink" : ""}`}
+      className={`ade-root${caretBlink ? " ade-caret-blink" : ""}${caretSteady ? " ade-caret-steady" : ""}`}
       style={{
         position: "relative",
         width: "100%",

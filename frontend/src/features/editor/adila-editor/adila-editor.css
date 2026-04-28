@@ -94,6 +94,11 @@
   animation: ade-blink 1s infinite;
 }
 
+.ade-caret-steady .ade-caret {
+  animation: none;
+  opacity: 1;
+}
+
 @keyframes ade-blink {
   0%, 50% { opacity: 1; }
   50.01%, 100% { opacity: 0; }
