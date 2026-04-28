@@ -239,8 +239,10 @@ export const LANGUAGES: Record<string, LangSpec> = {
 
 export function langForExt(ext: string): string {
   const map: Record<string, string> = {
-    ts: "typescript", tsx: "typescript", mts: "typescript", cts: "typescript",
-    js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
+    ts: "typescript", mts: "typescript", cts: "typescript",
+    tsx: "typescriptreact",
+    js: "javascript", mjs: "javascript", cjs: "javascript",
+    jsx: "javascriptreact",
     go: "go",
     py: "python", pyi: "python",
     rs: "rust",

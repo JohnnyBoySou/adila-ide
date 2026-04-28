@@ -40,8 +40,8 @@ func stripFileScheme(raw string) string {
 // lspServers mapeia linguagem → candidatos de binário (em ordem de preferência).
 var lspServers = map[string][]string{
 	"go":         {"gopls"},
-	"typescript": {"typescript-language-server", "bunx typescript-language-server"},
-	"javascript": {"typescript-language-server", "bunx typescript-language-server"},
+	"typescript": {"typescript-language-server", "bunx typescript-language-server", "npx typescript-language-server", "npx --yes typescript-language-server"},
+	"javascript": {"typescript-language-server", "bunx typescript-language-server", "npx typescript-language-server", "npx --yes typescript-language-server"},
 	"rust":       {"rust-analyzer"},
 	"python":     {"pyright-langserver", "pylsp", "python-lsp-server"},
 	"css":        {"css-languageserver", "vscode-css-languageserver"},

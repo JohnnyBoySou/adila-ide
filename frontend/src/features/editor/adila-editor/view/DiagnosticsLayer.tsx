@@ -43,8 +43,8 @@ function DiagnosticsLayerInner({
         line === endLine ? d.range.end.character : Math.max(sCol + 1, sCol + 80);
       const start = layout.positionToPoint({ line, col: sCol });
       const end = layout.positionToPoint({ line, col: eCol });
-      const width = Math.max(charWidth, end.x - start.x);
-      const left = paddingLeft + start.x;
+      const width = Math.max(charWidth, (end.x - start.x) * charWidth);
+      const left = paddingLeft + start.x * charWidth;
       const top = paddingTop + start.y + lineHeight - 4;
 
       const color = severityColor(d.severity);
