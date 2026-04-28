@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -68,7 +69,8 @@ type LSP struct {
 	upgrader websocket.Upgrader
 	started  atomic.Bool
 	mu       sync.Mutex
-	// lang → lista de binários disponíveis (cache)
+	// lang/root → binário disponível (cache). Root importa porque TS pode vir
+	// de node_modules/.bin do workspace, sem depender do PATH global.
 	available map[string]string
 }
 
@@ -124,17 +126,22 @@ func (l *LSP) ListAvailableLSP() map[string]string {
 
 	result := make(map[string]string)
 	for lang, candidates := range lspServers {
-		if bin := l.resolveBin(lang, candidates); bin != "" {
+		if bin := l.resolveBin(lang, candidates, ""); bin != "" {
 			result[lang] = bin
 		}
 	}
 	return result
 }
 
-// resolveBin encontra o primeiro binário disponível na PATH para a linguagem.
+// resolveBin encontra o primeiro servidor disponível. Ordem:
+//  1. gerenciado pelo Adila (~/.config/adila/lsp-servers)
+//  2. embutido/vendorizado no app ou node_modules/.bin do workspace
+//  3. PATH do sistema (inclui fallback npx/bunx)
+//
 // não usa mutex — deve ser chamado com l.mu held.
-func (l *LSP) resolveBin(lang string, candidates []string) string {
-	if cached, ok := l.available[lang]; ok {
+func (l *LSP) resolveBin(lang string, candidates []string, workspaceRoot string) string {
+	cacheKey := lang + "\x00" + workspaceRoot
+	if cached, ok := l.available[cacheKey]; ok {
 		return cached
 	}
 	for _, candidate := range candidates {
@@ -149,7 +156,15 @@ func (l *LSP) resolveBin(lang string, candidates []string) string {
 			if len(parts) > 1 {
 				full = strings.Join(append([]string{managed}, parts[1:]...), " ")
 			}
-			l.available[lang] = full
+			l.available[cacheKey] = full
+			return full
+		}
+		if bundled := bundledBinPath(parts[0], workspaceRoot); bundled != "" {
+			full := bundled
+			if len(parts) > 1 {
+				full = strings.Join(append([]string{bundled}, parts[1:]...), " ")
+			}
+			l.available[cacheKey] = full
 			return full
 		}
 		if bin, err := exec.LookPath(parts[0]); err == nil {
@@ -157,8 +172,40 @@ func (l *LSP) resolveBin(lang string, candidates []string) string {
 			if len(parts) > 1 {
 				full = strings.Join(append([]string{bin}, parts[1:]...), " ")
 			}
-			l.available[lang] = full
+			l.available[cacheKey] = full
 			return full
+		}
+	}
+	return ""
+}
+
+func bundledBinPath(binaryName, workspaceRoot string) string {
+	names := []string{binaryName}
+	if runtime.GOOS == "windows" {
+		names = []string{binaryName + ".cmd", binaryName + ".exe", binaryName}
+	}
+	roots := []string{}
+	if workspaceRoot != "" {
+		roots = append(roots, workspaceRoot)
+	}
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		roots = append(roots, exeDir, filepath.Dir(exeDir))
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		roots = append(roots, cwd, filepath.Join(cwd, "frontend"))
+	}
+	for _, root := range roots {
+		for _, name := range names {
+			for _, candidate := range []string{
+				filepath.Join(root, "node_modules", ".bin", name),
+				filepath.Join(root, "lsp-servers", name),
+				filepath.Join(root, "resources", "lsp-servers", name),
+			} {
+				if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+					return candidate
+				}
+			}
 		}
 	}
 	return ""
@@ -169,6 +216,7 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 	lang := strings.TrimPrefix(r.URL.Path, "/lsp/")
 	lang = strings.ToLower(strings.TrimSpace(lang))
 	rootPath := r.URL.Query().Get("root")
+	rootDir := stripFileScheme(rootPath)
 
 	candidates, ok := lspServers[lang]
 	if !ok {
@@ -177,7 +225,7 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	l.mu.Lock()
-	bin := l.resolveBin(lang, candidates)
+	bin := l.resolveBin(lang, candidates, rootDir)
 	l.mu.Unlock()
 
 	if bin == "" {
@@ -197,8 +245,8 @@ func (l *LSP) handleWS(w http.ResponseWriter, r *http.Request) {
 	cmdArgs := append(binParts[1:], args...)
 
 	cmd := exec.CommandContext(r.Context(), cmdBin, cmdArgs...)
-	if dir := stripFileScheme(rootPath); dir != "" {
-		cmd.Dir = dir
+	if rootDir != "" {
+		cmd.Dir = rootDir
 	}
 	if runtime.GOOS != "windows" {
 		// evita que o LSP receba sinais do terminal

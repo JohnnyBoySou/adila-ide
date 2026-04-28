@@ -91,7 +91,7 @@ func (l *LSP) GetLSPStatus() []LSPServerStatus {
 		path := managedBinPath(s.binaryName)
 		if path == "" {
 			l.mu.Lock()
-			path = l.resolveBin(lang, lspServers[lang])
+			path = l.resolveBin(lang, lspServers[lang], "")
 			l.mu.Unlock()
 		}
 
