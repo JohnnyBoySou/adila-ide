@@ -12,6 +12,7 @@ type Props = {
   paddingTop: number;
   findMatches?: Range[];
   findIndex?: number;
+  definitionRange?: Range | null;
   layout: VisualLayout;
 };
 
@@ -24,6 +25,7 @@ function SelectionLayerInner({
   paddingTop,
   findMatches,
   findIndex,
+  definitionRange,
   layout,
 }: Props) {
   const rects: React.ReactNode[] = [];
@@ -45,6 +47,20 @@ function SelectionLayerInner({
         `f${i}`,
       );
     }
+  }
+
+  if (definitionRange) {
+    pushSelectionRects(
+      rects,
+      definitionRange,
+      charWidth,
+      lineHeight,
+      paddingLeft,
+      paddingTop,
+      layout,
+      "definition-link",
+      "def",
+    );
   }
 
   cursors.forEach((c, idx) => {
@@ -112,8 +128,8 @@ function pushSelectionRects(
     if (eCol < lineStart || sCol > lineEnd || eCol < sCol) continue;
     const sPoint = layout.positionToPoint({ line: vl.line, col: sCol });
     const ePoint = layout.positionToPoint({ line: vl.line, col: eCol });
-      const left = paddingLeft + sPoint.x * charWidth;
-      const width = Math.max(2, Math.max(ePoint.x - sPoint.x, 1) * charWidth);
+    const left = paddingLeft + sPoint.x * charWidth;
+    const width = Math.max(2, Math.max(ePoint.x - sPoint.x, 1) * charWidth);
     out.push(
       <span
         key={`${keyPrefix}_${vl.visualIndex}`}

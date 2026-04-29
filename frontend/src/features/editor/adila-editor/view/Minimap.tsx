@@ -152,10 +152,12 @@ function MinimapInner({
   function onMouseDown(e: React.MouseEvent) {
     if (e.button !== 0) return;
     e.preventDefault();
+    e.stopPropagation();
     onScrollTo(pointerToScroll(e.clientY));
     dragRef.current = { active: true };
 
     const onMove = (ev: MouseEvent) => {
+      ev.preventDefault();
       if (!dragRef.current?.active) return;
       onScrollTo(pointerToScroll(ev.clientY));
     };
@@ -170,15 +172,23 @@ function MinimapInner({
 
   function onWheel(e: React.WheelEvent) {
     e.preventDefault();
+    e.stopPropagation();
     const next = Math.max(0, Math.min(maxScroll, scrollTop + e.deltaY));
     onScrollTo(next);
+  }
+
+  function stopEditorMouseHandling(e: React.MouseEvent) {
+    e.stopPropagation();
   }
 
   return (
     <div
       ref={wrapRef}
       className="ade-minimap"
+      onClick={stopEditorMouseHandling}
       onMouseDown={onMouseDown}
+      onMouseMove={stopEditorMouseHandling}
+      onMouseUp={stopEditorMouseHandling}
       onWheel={onWheel}
       style={{
         position: "absolute",
