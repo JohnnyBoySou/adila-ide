@@ -18,7 +18,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import type { Position } from "../buffer/types";
+import type { Position, Range } from "../buffer/types";
 import { posCmp } from "../buffer/types";
 import { cursorRange, cursorHasSelection, makeCursor } from "../cursor/cursorState";
 import {
@@ -1037,7 +1037,7 @@ export function EditorView({
               paddingTop={PADDING_TOP}
               findMatches={findMatches}
               findIndex={findIndex}
-              definitionHint={definitionHint}
+              definitionRange={definitionHint}
             />
             {diagnostics && diagnostics.length > 0 && (
               <DiagnosticsLayer

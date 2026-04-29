@@ -120,6 +120,7 @@
 .tk-comment    { color: hsl(120 25% 55%); font-style: italic; }
 .tk-operator   { color: var(--muted-foreground); }
 .tk-punctuation { color: var(--muted-foreground); }
+.tk-variable   { color: var(--ade-fg); }
 .tk-function   { color: hsl(210 85% 70%); }
 .tk-type       { color: hsl(175 60% 60%); }
 .tk-constant   { color: hsl(20 80% 65%); font-weight: 500; }

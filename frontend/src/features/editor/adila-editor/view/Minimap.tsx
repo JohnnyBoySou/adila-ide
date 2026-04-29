@@ -28,6 +28,7 @@ const TOKEN_COLOR: Record<TokenType, string> = {
   comment: "rgba(120, 180, 130, 0.55)",
   operator: "rgba(180, 180, 200, 0.5)",
   punctuation: "rgba(160, 160, 180, 0.5)",
+  variable: "rgba(180, 180, 200, 0.55)",
   function: "rgba(120, 200, 255, 0.85)",
   type: "rgba(110, 220, 220, 0.8)",
   constant: "rgba(255, 160, 90, 0.85)",

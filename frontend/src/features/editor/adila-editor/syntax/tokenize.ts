@@ -268,7 +268,7 @@ function tryTokenizeJsx(line: string, start: number, out: Token[]): number {
   while (i < line.length && /[A-Za-z0-9_$:.-]/.test(line[i])) i++;
   if (i > tagStart) {
     const tag = line.slice(tagStart, i);
-    out.push({ type: /^[A-Z]/.test(tag) ? "component" : "tag", start: tagStart, end: i });
+    out.push({ type: /^[A-Z]/.test(tag) ? "type" : "tag", start: tagStart, end: i });
   }
 
   while (i < line.length) {

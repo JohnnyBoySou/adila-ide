@@ -12,6 +12,7 @@ export const TOKEN_CLASS: Record<TokenType, string> = {
   comment: "tk-comment",
   operator: "tk-operator",
   punctuation: "tk-punctuation",
+  variable: "tk-variable",
   function: "tk-function",
   type: "tk-type",
   constant: "tk-constant",
