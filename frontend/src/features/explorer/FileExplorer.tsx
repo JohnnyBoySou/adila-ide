@@ -233,7 +233,7 @@ const FileRow = memo(function FileRow({
       )}
 
       {isBookmarked && !ctx.ultraFast && (
-        <Star className="size-3 shrink-0 text-amber-400/70 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <Star className="size-3.5 shrink-0 fill-amber-400/80 text-amber-400/80" />
       )}
       {loadingChildren && <Spinner size="xs" className="shrink-0 text-muted-foreground" />}
     </div>

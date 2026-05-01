@@ -22,20 +22,22 @@ function Item({
   children,
   onClick,
   className,
+  title,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
+  title?: string;
 }) {
   const base =
     "flex items-center gap-1 px-2.5 h-full transition-colors shrink-0 " +
     "hover:bg-accent hover:text-foreground";
   return onClick ? (
-    <button type="button" onClick={onClick} className={cn(base, className)}>
+    <button type="button" onClick={onClick} title={title} className={cn(base, className)}>
       {children}
     </button>
   ) : (
-    <span className={cn("flex items-center gap-1 px-2.5 h-full shrink-0", className)}>
+    <span title={title} className={cn("flex items-center gap-1 px-2.5 h-full shrink-0", className)}>
       {children}
     </span>
   );
@@ -51,7 +53,7 @@ const BranchItem = memo(function BranchItem({ onOpenGit }: { onOpenGit: () => vo
   if (!branch) return null;
   return (
     <>
-      <Item onClick={onOpenGit}>
+      <Item onClick={onOpenGit} title={`Branch: ${branch} — abrir Source Control`}>
         <GitBranch className="size-3" />
         <span>{branch}</span>
       </Item>
@@ -65,7 +67,7 @@ const CursorItem = memo(function CursorItem() {
   const cursorLine = useUiStore((s) => s.cursorLine);
   const cursorCol = useUiStore((s) => s.cursorCol);
   return (
-    <Item className="tabular-nums">
+    <Item className="tabular-nums" title={`Linha ${cursorLine}, Coluna ${cursorCol}`}>
       Ln {cursorLine}, Col {cursorCol}
     </Item>
   );
@@ -78,7 +80,11 @@ const ProblemsItem = memo(function ProblemsItem({ onOpen }: { onOpen?: () => voi
   if (errorCount === 0 && warningCount === 0) return null;
   return (
     <>
-      <Item onClick={onOpen} className="gap-2">
+      <Item
+        onClick={onOpen}
+        className="gap-2"
+        title={`${errorCount} erro(s), ${warningCount} aviso(s) — abrir painel de problemas`}
+      >
         {errorCount > 0 && (
           <span className="flex items-center gap-0.5 text-destructive">
             <XCircle className="size-3" />
@@ -144,7 +150,9 @@ export const StatusBar = memo(function StatusBar({
         {activeLang && activeLang !== "plaintext" && (
           <>
             <Divider />
-            <Item className="capitalize">{activeLang}</Item>
+            <Item className="capitalize" title={`Linguagem do arquivo: ${activeLang}`}>
+              {activeLang}
+            </Item>
           </>
         )}
 
@@ -163,7 +171,11 @@ export const StatusBar = memo(function StatusBar({
         )}
 
         <Divider />
-        <Item onClick={onOpenNotifications} className={bellColor}>
+        <Item
+          onClick={onOpenNotifications}
+          className={bellColor}
+          title={count > 0 ? `${count} notificação(ões)` : "Notificações"}
+        >
           {count > 0 ? <BellDot className="size-3" /> : <Bell className="size-3" />}
           {count > 0 && <span className="tabular-nums">{count}</span>}
         </Item>

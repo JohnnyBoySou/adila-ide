@@ -3,6 +3,8 @@ import { ShortcutHud, type ShortcutHint } from "@/components/ShortcutHud";
 import { Sidebar } from "@/components/Sidebar";
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Toaster } from "@/components/ui/toaster";
+import { Dialog } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { SpotifyView } from "@/features/spotify/SpotifyView";
 import { PaneTree, type DraggedFile } from "@/features/editor/PaneTree";
 import { ProblemsPanel, type EditorMarker } from "@/features/editor/ProblemsPanel";
@@ -234,6 +236,7 @@ function App() {
   // useState aqui re-renderizava todo o App a cada keystroke do LSP.
   const [diffPatch, setDiffPatch] = useState<string | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [pendingClose, setPendingClose] = useState<{ paneId: PaneId; path: string } | null>(null);
 
   const { values: bootCfg, set: setBootCfg } = useConfigs({
     "workbench.sideBar.location": "left" as "left" | "right",
@@ -630,12 +633,25 @@ function App() {
     });
   }, []);
 
-  const onCloseTab = useCallback((paneId: PaneId, path: string) => {
+  const doCloseTab = useCallback((paneId: PaneId, path: string) => {
     const result = closeTabInTree(rootPaneRef.current, paneId, path);
     setRootPane(result.root);
     if (result.focusId) setFocusedPaneId(result.focusId);
     useMarkersStore.getState().clearPath(path);
   }, []);
+
+  const onCloseTab = useCallback(
+    (paneId: PaneId, path: string) => {
+      const leaf = findLeafById(rootPaneRef.current, paneId);
+      const tab = leaf?.tabs.find((t) => t.path === path);
+      if (tab?.dirty) {
+        setPendingClose({ paneId, path });
+        return;
+      }
+      doCloseTab(paneId, path);
+    },
+    [doCloseTab],
+  );
 
   const onActivateTab = useCallback(
     (paneId: PaneId, path: string) => {
@@ -1254,6 +1270,66 @@ function App() {
       {view === "settings" && <SettingsOverlay onClose={() => setView("editor")} />}
       {view === "git" && <GitOverlay onClose={() => setView("editor")} rootPath={rootPath} />}
       {view === "notifications" && <NotificationsOverlay onClose={() => setView("editor")} />}
+      <Dialog
+        open={pendingClose !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingClose(null);
+        }}
+        align="center"
+        ariaLabel="Confirmar fechamento de aba"
+        className="max-w-md"
+      >
+        {pendingClose && (
+          <div className="flex flex-col gap-4 p-5">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-base font-semibold">Salvar alterações?</h2>
+              <p className="text-sm text-muted-foreground break-all">
+                <span className="font-medium text-foreground">
+                  {pendingClose.path.split(/[\\/]/).pop() || pendingClose.path}
+                </span>{" "}
+                tem alterações não salvas. Se fechar agora, elas serão perdidas.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setPendingClose(null)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const { paneId, path } = pendingClose;
+                  doCloseTab(paneId, path);
+                  setPendingClose(null);
+                }}
+              >
+                Não salvar
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  const { paneId, path } = pendingClose;
+                  const leaf = findLeafById(rootPaneRef.current, paneId);
+                  const tab = leaf?.tabs.find((t) => t.path === path);
+                  if (tab) {
+                    try {
+                      await WriteFile(tab.path, tab.content);
+                      setRootPane((p) => setTabClean(p, path));
+                    } catch (e) {
+                      console.error(e);
+                      return;
+                    }
+                  }
+                  doCloseTab(paneId, path);
+                  setPendingClose(null);
+                }}
+              >
+                Salvar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
       <SpotifyView overlayOpen={view === "spotify"} onClose={() => setView("editor")} />
       <Suspense fallback={null}>
         <GitHubProfileView

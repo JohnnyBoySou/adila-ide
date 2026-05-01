@@ -309,6 +309,29 @@ export const GitView = memo(function GitView({
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Esc + click-outside fecham o menu de ações git. Identificamos
+  // menu/trigger por data-attribute pra suportar os dois modos (compact
+  // e full) sem refs duplicados.
+  useEffect(() => {
+    if (!showMenu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowMenu(false);
+    };
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (target.closest("[data-git-menu]")) return;
+      if (target.closest("[data-git-menu-trigger]")) return;
+      setShowMenu(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [showMenu]);
+
   const refresh = useCallback(() => {
     rpc.git
       .isRepo()
@@ -653,6 +676,7 @@ export const GitView = memo(function GitView({
           <button
             type="button"
             title="Menu git"
+            data-git-menu-trigger="true"
             onClick={() => setShowMenu((v) => !v)}
             className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
           >
@@ -670,7 +694,10 @@ export const GitView = memo(function GitView({
         </div>
 
         {showMenu && (
-          <div className="border-b border-border/60 bg-popover text-popover-foreground shadow-sm text-xs">
+          <div
+            data-git-menu="true"
+            className="border-b border-border/60 bg-popover text-popover-foreground shadow-sm text-xs"
+          >
             <button
               type="button"
               onClick={() => {
@@ -954,6 +981,7 @@ export const GitView = memo(function GitView({
           <button
             type="button"
             title="Menu git"
+            data-git-menu-trigger="true"
             onClick={() => setShowMenu((v) => !v)}
             className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
           >
@@ -971,7 +999,10 @@ export const GitView = memo(function GitView({
         </div>
 
         {showMenu && (
-          <div className="border-b border-border/60 bg-popover text-popover-foreground shadow-sm text-xs">
+          <div
+            data-git-menu="true"
+            className="border-b border-border/60 bg-popover text-popover-foreground shadow-sm text-xs"
+          >
             <button
               type="button"
               onClick={() => {

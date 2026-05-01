@@ -89,16 +89,19 @@ export const TabBar = memo(function TabBar({
           const isDragging = dragIndexRef.current === i;
           const isDropTarget = dragOver === i && dragIndexRef.current !== i;
           const isHovered = hoverPath === t.path;
-          const showClose = isHovered || active;
+          // Dot dirty tem prioridade quando não há hover (mesmo na aba ativa) —
+          // assim a aba que você está editando ainda mostra "modificada".
+          // Ao passar o mouse, troca pelo X pra permitir fechar.
+          const showDirtyDot = t.dirty && !isHovered;
+          const showClose = !showDirtyDot;
 
           return (
             <motion.div
               key={t.path}
-              layout
-              initial={{ opacity: 0, y: -6, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85, y: -8 }}
-              transition={TAB_SPRING}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
               draggable
               // motion.div tipa onDragStart/Over/Drop com a união dos eventos
               // de input touch+pointer+mouse pra suportar drag motion-driven.
@@ -127,31 +130,13 @@ export const TabBar = memo(function TabBar({
                 />
               )}
 
-              {/* Background da aba ativa — escorrega entre tabs */}
+              {/* Background + underline da aba ativa — um único layoutId compartilhado
+                  evita 2-3 transições desencontradas quando muda a tab ativa. */}
               {active && (
                 <motion.span
                   layoutId={`tab-active-${paneId ?? "root"}`}
                   transition={TAB_SPRING}
-                  className="absolute inset-0 bg-background"
-                />
-              )}
-
-              {/* Glow sutil no topo da aba ativa */}
-              {active && (
-                <motion.span
-                  layoutId={`tab-topglow-${paneId ?? "root"}`}
-                  transition={TAB_SPRING}
-                  aria-hidden
-                  className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent"
-                />
-              )}
-
-              {/* Sublinha da aba ativa */}
-              {active && (
-                <motion.span
-                  layoutId={`tab-underline-${paneId ?? "root"}`}
-                  transition={TAB_SPRING}
-                  className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary"
+                  className="absolute inset-0 bg-background after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[2px] after:bg-primary"
                 />
               )}
 
@@ -169,72 +154,55 @@ export const TabBar = memo(function TabBar({
                 )}
               </AnimatePresence>
 
-              {/* Ícone com micro bounce ao virar ativo */}
-              <motion.span
-                animate={{ scale: active ? 1.05 : 1 }}
-                transition={{ type: "spring", stiffness: 600, damping: 24 }}
-                className="size-4 shrink-0 relative z-10 flex items-center justify-center"
-              >
+              <span className="size-4 shrink-0 relative z-10 flex items-center justify-center">
                 {isWeb ? (
                   <Globe
                     className={cn(
-                      "size-4 transition-colors",
+                      "size-4",
                       active ? "text-foreground" : "text-muted-foreground",
                     )}
                   />
                 ) : (
                   <SymbolIcon name={name} isDir={false} className="size-4" />
                 )}
-              </motion.span>
+              </span>
 
-              <motion.span
-                layout="position"
+              <span
+                title={t.path}
                 className={cn(
-                  "truncate max-w-[12rem] relative z-10 transition-colors",
+                  "truncate max-w-[12rem] relative z-10",
                   active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground",
                 )}
               >
                 {name}
-              </motion.span>
+              </span>
 
-              {/* Slot trailing: dot quando dirty (e não hover), X caso contrário */}
+              {/* Slot trailing: dot quando dirty + não hover, X caso contrário.
+                  Sem AnimatePresence/scale: troca instantânea evita flicker. */}
               <div className="relative z-10 size-5 shrink-0 flex items-center justify-center">
-                <AnimatePresence mode="wait" initial={false}>
-                  {t.dirty && !showClose ? (
-                    <motion.span
-                      key="dirty"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      transition={{ duration: 0.12 }}
-                      className="size-1.5 rounded-full bg-primary shadow-[0_0_6px_rgb(0_0_0/0.0)]"
-                      style={{
-                        boxShadow: "0 0 6px var(--color-primary, currentColor)",
-                      }}
-                    />
-                  ) : (
-                    <motion.button
-                      key="close"
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{
-                        scale: 1,
-                        opacity: showClose ? 1 : 0,
-                      }}
-                      exit={{ scale: 0.6, opacity: 0 }}
-                      transition={{ duration: 0.12 }}
-                      whileHover={{ scale: 1.15 }}
-                      whileTap={{ scale: 0.85 }}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        onClose(t.path);
-                      }}
-                      className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-                      aria-label="Fechar aba"
-                    >
-                      <X className="size-3.5" />
-                    </motion.button>
-                  )}
-                </AnimatePresence>
+                {showDirtyDot ? (
+                  <span
+                    aria-label="Modificado"
+                    title="Modificado — não salvo"
+                    className="size-1.5 rounded-full bg-primary"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onClose(t.path);
+                    }}
+                    className={cn(
+                      "cursor-pointer rounded p-0.5 hover:bg-foreground/10 hover:text-foreground",
+                      active ? "text-foreground/70" : "text-muted-foreground",
+                    )}
+                    aria-label="Fechar aba"
+                    title="Fechar aba (Ctrl+W)"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
             </motion.div>
           );

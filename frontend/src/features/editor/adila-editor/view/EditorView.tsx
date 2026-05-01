@@ -169,15 +169,22 @@ export function EditorView({
   }, [version, state.findQuery, state.findCaseSensitive, state.findWholeWord, state.findRegex]);
 
   // Reporta valor para o host quando o version muda. Evita ciclo: se a
-  // mudança veio de fora (setValue), o version foi incrementado mas não
-  // queremos disparar onChange com o mesmo valor.
-  const lastReportedRef = useRef<{ version: number; value: string }>({ version: 0, value: "" });
+  // mudança veio de fora (setValue) ou de bumps colaterais (setLanguage no
+  // mount), inicializa o ref com o valor atual no primeiro run pra não
+  // disparar onChange e marcar a aba como dirty sem edição real.
+  const lastReportedRef = useRef<{ version: number; value: string } | null>(null);
   useEffect(() => {
+    const current = buffer.getValue();
+    if (lastReportedRef.current === null) {
+      lastReportedRef.current = { version, value: current };
+      return;
+    }
     if (version === lastReportedRef.current.version) return;
-    const value = buffer.getValue();
-    if (value !== lastReportedRef.current.value) {
-      lastReportedRef.current = { version, value };
-      onChange?.(value);
+    if (current !== lastReportedRef.current.value) {
+      lastReportedRef.current = { version, value: current };
+      onChange?.(current);
+    } else {
+      lastReportedRef.current = { version, value: current };
     }
   }, [version, buffer, onChange]);
 
@@ -313,8 +320,15 @@ export function EditorView({
   }
 
   async function triggerCompletion() {
-    if (!lspApi?.available || !primary) return;
+    if (!lspApi?.available || !primary) {
+      console.warn("[AdilaEditor] completion ignorada", {
+        available: lspApi?.available,
+        hasCursor: !!primary,
+      });
+      return;
+    }
     const items = await lspApi.completion(primary.pos.line, primary.pos.col);
+    console.info("[AdilaEditor] completion retornou", items.length, "items");
     if (items.length === 0) return;
     // triggerCol = início do identificador antes do cursor.
     const line = buffer.getLine(primary.pos.line);

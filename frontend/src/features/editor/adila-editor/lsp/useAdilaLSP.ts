@@ -130,13 +130,16 @@ export function useAdilaLSP({
     let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
     const docUri = pathToUri(path);
+    console.info("[AdilaLSP] init", { path, lang, routeLang, rootUri, docUri });
 
     void (async () => {
       const availMap = await getAvailableLSP();
       if (cancelled) return;
       if (!availMap[routeLang]) {
+        console.warn("[AdilaLSP] servidor não disponível para", routeLang, "— map:", availMap);
         return;
       }
+      console.info("[AdilaLSP] binário encontrado:", availMap[routeLang]);
 
       let port: number;
       try {
@@ -153,7 +156,11 @@ export function useAdilaLSP({
         port,
         onError: reportError,
       });
-      if (cancelled || !client) return;
+      if (cancelled || !client) {
+        console.warn("[AdilaLSP] cliente não criado", { cancelled, hasClient: !!client });
+        return;
+      }
+      console.info("[AdilaLSP] conectado, capabilities:", client.capabilities);
 
       const initialText = store.getState().getValue();
       detach = client.openDocument(docUri, initialText, documentLanguageId(lang), (diagnostics) => {
@@ -161,6 +168,7 @@ export function useAdilaLSP({
         onMarkersRef.current?.(path, markers);
         onDiagnosticsRef.current?.(diagnostics);
       });
+      console.info("[AdilaLSP] didOpen enviado para", docUri);
 
       clientRef.current = client;
       setUri(docUri);

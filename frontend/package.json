@@ -24,6 +24,8 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-virtual": "^3.13.24",
     "@wailsio/runtime": "^3.0.0-alpha.78",
+    "@wterm/dom": "0.3.0",
+    "@wterm/react": "0.3.0",
     "@xterm/addon-canvas": "^0.7.0",
     "@xterm/addon-clipboard": "^0.2.0",
     "@xterm/addon-fit": "^0.11.0",

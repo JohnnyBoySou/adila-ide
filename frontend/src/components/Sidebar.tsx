@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useState } from "react";
-import { Bot, Files, GitBranch, ListChecks, Search } from "lucide-react";
+import { Activity, Bot, Files, GitBranch, ListChecks, Search } from "lucide-react";
 import { DevProfiler } from "@/components/DevProfiler";
 import {
   FileExplorer,
@@ -15,8 +15,11 @@ const ChatPanel = lazy(() =>
 const TasksView = lazy(() =>
   import("@/features/tasks/TasksView").then((m) => ({ default: m.TasksView })),
 );
+const ActionsView = lazy(() =>
+  import("@/features/github-actions/ActionsView").then((m) => ({ default: m.ActionsView })),
+);
 
-type Tab = "files" | "search" | "git" | "tasks" | "ai";
+type Tab = "files" | "search" | "git" | "actions" | "tasks" | "ai";
 
 type Props = {
   rootPath: string;
@@ -30,6 +33,7 @@ const TABS: { id: Tab; label: string; Icon: typeof Files }[] = [
   { id: "files", label: "Arquivos", Icon: Files },
   { id: "search", label: "Buscar", Icon: Search },
   { id: "git", label: "Source Control", Icon: GitBranch },
+  { id: "actions", label: "GitHub Actions", Icon: Activity },
   { id: "tasks", label: "Tasks", Icon: ListChecks },
   { id: "ai", label: "Adila AI", Icon: Bot },
 ];
@@ -90,6 +94,11 @@ export const Sidebar = memo(function Sidebar({
         {tab === "git" && (
           <Suspense fallback={<SidebarFallback />}>
             <GitView compact rootPath={rootPath} onOpenFile={onOpenGitFile} />
+          </Suspense>
+        )}
+        {tab === "actions" && (
+          <Suspense fallback={<SidebarFallback />}>
+            <ActionsView />
           </Suspense>
         )}
         {tab === "tasks" && (

@@ -214,6 +214,7 @@ export function createEditorStore(initialText: string, langId: string): EditorSt
       findIndex: -1,
 
       setLanguage: (lang) => {
+        if (get().langId === lang) return;
         get().tokenCache.reset();
         set({ langId: lang, version: get().version + 1 });
       },

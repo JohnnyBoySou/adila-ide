@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { create } from "zustand";
 import { ClosePty, GetPty, StartPtyWith } from "../../../wailsjs/go/main/Terminal";
 
 export type TermSession = {
@@ -25,24 +25,22 @@ type TermStore = {
   updateSession: (id: string, patch: Partial<TermSession>) => void;
 };
 
-const Ctx = createContext<TermStore | null>(null);
+let counter = 1;
 
-export function TerminalProvider({ children }: { children: ReactNode }) {
-  const [sessions, setSessions] = useState<TermSession[]>([]);
-  const [activeId, setActiveId] = useState("");
-  const counterRef = useRef(1);
+export const useTerminals = create<TermStore>((set) => ({
+  sessions: [],
+  activeId: "",
 
-  const create = useCallback(async ({ cwd = "", shell = "" }: CreateOpts = {}) => {
+  create: async ({ cwd = "", shell = "" }: CreateOpts = {}) => {
     const id = await StartPtyWith({ cwd, shell, args: [], env: {}, cols: 80, rows: 24 });
 
-    // busca metadados reais (shell resolvido, pid) do backend
     let resolvedShell = shell;
     try {
       const info = await GetPty(id);
       resolvedShell = info.shell;
     } catch {}
 
-    const n = counterRef.current++;
+    const n = counter++;
     const shortShell = resolvedShell.split("/").pop() ?? (resolvedShell || "shell");
     const session: TermSession = {
       id,
@@ -52,62 +50,52 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       running: true,
       exitCode: 0,
     };
-    setSessions((s) => [...s, session]);
-    setActiveId(id);
+    set((s) => ({ sessions: [...s.sessions, session], activeId: id }));
     return id;
-  }, []);
+  },
 
-  const attach = useCallback(({ id, cwd = "", shell = "", title }: AttachOpts) => {
-    setSessions((prev) => {
-      if (prev.some((s) => s.id === id)) return prev;
-      const n = counterRef.current++;
+  attach: ({ id, cwd = "", shell = "", title }: AttachOpts) => {
+    set((s) => {
+      if (s.sessions.some((x) => x.id === id)) {
+        return { activeId: id };
+      }
+      const n = counter++;
       const shortShell = shell ? (shell.split("/").pop() ?? shell) : "task";
-      return [
-        ...prev,
-        {
-          id,
-          title: title ?? `${shortShell} ${n}`,
-          cwd,
-          shell,
-          running: true,
-          exitCode: 0,
-        },
-      ];
+      return {
+        sessions: [
+          ...s.sessions,
+          {
+            id,
+            title: title ?? `${shortShell} ${n}`,
+            cwd,
+            shell,
+            running: true,
+            exitCode: 0,
+          },
+        ],
+        activeId: id,
+      };
     });
-    setActiveId(id);
-  }, []);
+  },
 
-  const close = useCallback((id: string) => {
+  close: (id: string) => {
     ClosePty(id).catch(() => {});
-    setSessions((prev) => {
-      const next = prev.filter((x) => x.id !== id);
-      // ajusta activeId dentro do setter pra evitar stale closure
-      setActiveId((cur) => {
-        if (cur !== id) return cur;
-        return next.length ? next[next.length - 1].id : "";
-      });
-      return next;
+    set((s) => {
+      const next = s.sessions.filter((x) => x.id !== id);
+      const nextActive =
+        s.activeId !== id ? s.activeId : next.length ? next[next.length - 1].id : "";
+      return { sessions: next, activeId: nextActive };
     });
-  }, []);
+  },
 
-  const focus = useCallback((id: string) => setActiveId(id), []);
+  focus: (id: string) => set({ activeId: id }),
 
-  const updateSession = useCallback(
-    (id: string, patch: Partial<TermSession>) =>
-      setSessions((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x))),
-    [],
-  );
+  updateSession: (id: string, patch: Partial<TermSession>) =>
+    set((s) => ({ sessions: s.sessions.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+}));
 
-  const value = useMemo(
-    () => ({ sessions, activeId, create, attach, close, focus, updateSession }),
-    [sessions, activeId, create, attach, close, focus, updateSession],
-  );
-
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
-}
-
-export function useTerminals(): TermStore {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useTerminals must be inside TerminalProvider");
-  return ctx;
+// Mantido como pass-through para compat com main.tsx — store agora é
+// module-level, não precisa de Provider, mas remover quebraria a árvore.
+export function TerminalProvider({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }

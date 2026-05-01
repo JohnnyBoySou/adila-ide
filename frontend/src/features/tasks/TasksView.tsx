@@ -37,7 +37,8 @@ export const TasksView = memo(function TasksView({ rootPath, onShowTerminal }: T
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [running, setRunning] = useState<Set<string>>(new Set());
-  const { attach } = useTerminals();
+  // Action — identidade estável, getState evita assinar a store inteira.
+  const { attach } = useTerminals.getState();
   const { value: favorites, set: setFavorites } = useWorkspaceConfig<string[]>(
     "tasks.favorites",
     FAVORITES_DEFAULT,

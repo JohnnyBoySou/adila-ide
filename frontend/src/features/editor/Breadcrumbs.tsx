@@ -85,7 +85,7 @@ export const Breadcrumbs = memo(function Breadcrumbs({ path, rootPath, onOpenFil
           >
             {label}
           </button>
-          {!isLast && <ChevronRight className="size-3 opacity-40" />}
+          {!isLast && <ChevronRight className="size-3.5 opacity-40" />}
         </span>
       ))}
 

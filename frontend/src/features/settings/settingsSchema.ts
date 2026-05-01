@@ -679,6 +679,15 @@ export const settingsGroups: SettingsGroupDef[] = [
     description: "Aparência e comportamento do terminal integrado.",
     settings: [
       {
+        key: "terminal.useNew",
+        title: "Terminal novo (experimental — wterm)",
+        description:
+          "Ativa o renderer wterm (WASM/Zig). Mais leve, porém perde busca, links clicáveis, OSC 7/133, tema dinâmico e tuning de fonte. Reabra os terminais após mudar.",
+        type: "boolean",
+        defaultValue: false,
+        keywords: ["terminal", "wterm", "novo", "experimental", "renderer"],
+      },
+      {
         key: "terminal.fontFamily",
         title: "Fonte do terminal",
         description: "Nerd Fonts contêm glifos extras úteis pra prompts (powerline, devicons).",

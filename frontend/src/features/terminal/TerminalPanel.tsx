@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Plus, Search, X, XCircle } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ListShells, WritePty } from "../../../wailsjs/go/main/Terminal";
 import type { TerminalHandle } from "../../components/Terminal";
+import { useConfig } from "@/hooks/useConfig";
 import { Checkbox } from "../../components/ui/checkbox";
 import {
   DropdownMenu,
@@ -18,6 +19,10 @@ type ShellInfo = { path: string; name: string; avail: boolean };
 
 const Terminal = lazy(() =>
   import("../../components/Terminal").then((m) => ({ default: m.Terminal })),
+);
+
+const TerminalWterm = lazy(() =>
+  import("../../components/TerminalWterm").then((m) => ({ default: m.TerminalWterm })),
 );
 
 const MIN_HEIGHT = 120;
@@ -45,7 +50,13 @@ type TerminalPanelProps = {
 };
 
 export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanelProps) {
-  const { sessions, activeId, create, close, focus, updateSession } = useTerminals();
+  // Selectors individuais — sessions e activeId mudam em frequências diferentes,
+  // assinar separado evita re-render quando só uma das duas muda. Actions têm
+  // identidade estável (Zustand não recria), então pegar via getState é seguro.
+  const sessions = useTerminals((s) => s.sessions);
+  const activeId = useTerminals((s) => s.activeId);
+  const { create, close, focus, updateSession } = useTerminals.getState();
+  const { value: useNewTerminal } = useConfig<boolean>("terminal.useNew", false);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [search, setSearch] = useState<SearchState>({
     open: false,
@@ -153,10 +164,15 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
     if (search.query) doSearch(search.query);
   }, [search.query, search.caseSensitive, search.regex]);
 
-  // Ctrl+Shift+F abre busca
+  // Ctrl+Shift+F abre busca (no-op no wterm, que não tem search addon)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+      if (
+        !useNewTerminal &&
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "f"
+      ) {
         e.preventDefault();
         setSearch((s) => ({ ...s, open: !s.open }));
       }
@@ -167,7 +183,14 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [search.open, activeHandle]);
+  }, [search.open, activeHandle, useNewTerminal]);
+
+  // Fecha search bar se o usuário trocar pra wterm com ela aberta.
+  useEffect(() => {
+    if (useNewTerminal && search.open) {
+      setSearch((s) => ({ ...s, open: false }));
+    }
+  }, [useNewTerminal, search.open]);
 
   // --- Context menu ---
   const openContextMenu = (e: React.MouseEvent, sessionId: string) => {
@@ -227,13 +250,15 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
         </div>
 
         <div className="flex items-center gap-0.5 px-2 shrink-0">
-          <button
-            onClick={() => setSearch((s) => ({ ...s, open: !s.open }))}
-            className="p-1 rounded hover:bg-accent opacity-70 hover:opacity-100"
-            title="Buscar no terminal (Ctrl+Shift+F)"
-          >
-            <Search className="size-3.5" />
-          </button>
+          {!useNewTerminal && (
+            <button
+              onClick={() => setSearch((s) => ({ ...s, open: !s.open }))}
+              className="p-1 rounded hover:bg-accent opacity-70 hover:opacity-100"
+              title="Buscar no terminal (Ctrl+Shift+F)"
+            >
+              <Search className="size-3.5" />
+            </button>
+          )}
           {/* Dropdown shadcn: usa Radix Popper com collision detection,
               então nunca fica escondido por borda da WebView. */}
           <DropdownMenu>
@@ -333,27 +358,30 @@ export function TerminalPanel({ defaultCwd, onFileLink, onClose }: TerminalPanel
             </div>
           }
         >
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className="absolute inset-0"
-              style={{ visibility: s.id === activeId ? "visible" : "hidden" }}
-              onContextMenu={(e) => openContextMenu(e, s.id)}
-            >
-              <Terminal
-                sessionId={s.id}
-                active={s.id === activeId}
-                onCwd={(cwd) => updateSession(s.id, { cwd })}
-                onTitle={(title) => updateSession(s.id, { title })}
-                onExit={(code) => updateSession(s.id, { running: false, exitCode: code })}
-                onFileLink={onFileLink}
-                handleRef={(h) => {
-                  if (h) handlesRef.current.set(s.id, h);
-                  else handlesRef.current.delete(s.id);
-                }}
-              />
-            </div>
-          ))}
+          {sessions.map((s) => {
+            const TermComp = useNewTerminal ? TerminalWterm : Terminal;
+            return (
+              <div
+                key={s.id}
+                className="absolute inset-0"
+                style={{ visibility: s.id === activeId ? "visible" : "hidden" }}
+                onContextMenu={(e) => openContextMenu(e, s.id)}
+              >
+                <TermComp
+                  sessionId={s.id}
+                  active={s.id === activeId}
+                  onCwd={(cwd) => updateSession(s.id, { cwd })}
+                  onTitle={(title) => updateSession(s.id, { title })}
+                  onExit={(code) => updateSession(s.id, { running: false, exitCode: code })}
+                  onFileLink={onFileLink}
+                  handleRef={(h) => {
+                    if (h) handlesRef.current.set(s.id, h);
+                    else handlesRef.current.delete(s.id);
+                  }}
+                />
+              </div>
+            );
+          })}
         </Suspense>
       </div>
 

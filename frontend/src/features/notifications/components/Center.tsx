@@ -73,9 +73,11 @@ export const NotificationsView = memo(function NotificationsView() {
               className="h-8"
             />
           </div>
-          {tab === "workbench" && query && (
+          {tab === "workbench" && totalCount > 0 && (
             <span className="text-[11px] text-muted-foreground tabular-nums">
-              {showingCount} de {totalCount} {totalCount === 1 ? "notificação" : "notificações"}
+              {query
+                ? `${showingCount} de ${totalCount}`
+                : `${totalCount} ${totalCount === 1 ? "notificação" : "notificações"}`}
             </span>
           )}
           {tab === "workbench" && (

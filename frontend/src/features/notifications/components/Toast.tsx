@@ -215,7 +215,7 @@ export function ToastList({ items, max = DEFAULT_MAX_VISIBLE }: ToastListProps) 
   const visible = items.slice(0, max);
   const hidden = items.slice(max);
   return (
-    <div className="absolute right-4 bottom-4 flex flex-col items-end gap-2">
+    <div className="fixed right-4 bottom-8 z-40 flex flex-col items-end gap-2">
       {hidden.length > 0 && (
         <button
           type="button"

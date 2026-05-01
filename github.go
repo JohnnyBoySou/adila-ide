@@ -82,6 +82,7 @@ type GitHub struct {
 
 	mu       sync.Mutex
 	pollStop chan struct{}
+	actions  *actionsWatcher
 }
 
 func NewGitHub(cfg *Config, git *Git) *GitHub {
@@ -116,6 +117,7 @@ func (g *GitHub) Logout() error {
 		return nil
 	}
 	g.cancelPolling()
+	g.UnwatchRepoActions()
 	return g.cfg.Reset(githubTokenKey)
 }
 

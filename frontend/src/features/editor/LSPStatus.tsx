@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle, Download, XCircle } from "lucide-react";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import { GetLSPStatus, InstallLSPServer } from "../../../wailsjs/go/main/LSP";
@@ -28,6 +28,29 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
   const [servers, setServers] = useState<ServerStatus[]>([]);
   const [installState, setInstallState] = useState<Record<string, InstallState>>({});
   const [open, setOpen] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  // Esc fecha; click fora fecha (excluindo o trigger pra não toggle-cancelar).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (popupRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [open]);
 
   useEffect(() => {
     GetLSPStatus()
@@ -117,10 +140,15 @@ export function LSPStatus({ activeLang }: LSPStatusProps) {
 
   return (
     <>
-      {indicator}
+      <div ref={triggerRef} className="contents">
+        {indicator}
+      </div>
 
       {open && (
-        <div className="fixed bottom-8 right-4 z-50 bg-popover border rounded-lg shadow-xl w-72 p-3 text-xs">
+        <div
+          ref={popupRef}
+          className="fixed bottom-8 right-4 z-50 bg-popover border rounded-lg shadow-xl w-72 p-3 text-xs"
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="font-semibold text-sm">Servidores LSP</span>
             <button

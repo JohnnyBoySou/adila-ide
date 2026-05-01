@@ -28,7 +28,7 @@ function ActionRow({ icon, label, shortcut, onClick }: ActionRowProps) {
       </span>
       <span className="flex-1">{label}</span>
       {shortcut && (
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity">{shortcut}</span>
+        <span className="opacity-50 group-hover:opacity-100 transition-opacity">{shortcut}</span>
       )}
     </button>
   );
@@ -204,9 +204,9 @@ export function WelcomePage({
             </motion.section>
           </div>
           <div className="w-full flex justify-between items-center border border-border h-36 relative rounded-lg overflow-hidden mt-12">
-            <div className="p-8 flex flex-col">
-              <h2 className="text-xl font-semibold text-white ">Tour de boas-vindas</h2>
-              <p className="text-lg text-muted-foreground ">Vamos começar a usar o Adila IDE</p>
+            <div className="p-8 flex flex-col gap-1">
+              <h2 className="text-xl font-semibold text-foreground">Tour de boas-vindas</h2>
+              <p className="text-sm text-muted-foreground">Vamos começar a usar o Adila IDE</p>
             </div>
             <img
               src="/welcome.jpg"
@@ -218,6 +218,8 @@ export function WelcomePage({
               variant="default"
               size="icon"
               className="absolute bottom-4 right-4 rounded-full"
+              aria-label="Iniciar tour"
+              title="Iniciar tour de boas-vindas"
             >
               <ChevronRight className="size-4" />
             </Button>
